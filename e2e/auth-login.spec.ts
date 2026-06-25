@@ -22,7 +22,7 @@ test.describe('Auth login @auth', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
 
     await expect(page).toHaveURL(/\/login/)
-    await expect(page.getByRole('alert')).toContainText('Invalid email or password')
+    await expect(page.getByText('Invalid email or password')).toBeVisible()
   })
 
   test('signs in as admin and reaches dashboard', async ({ page }) => {

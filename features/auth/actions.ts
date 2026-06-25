@@ -3,18 +3,11 @@
 import { redirect } from 'next/navigation'
 
 import { loginSchema } from '@/features/auth/schema'
+import { safeRedirectPath } from '@/features/auth/utils'
 import { createClient } from '@/lib/supabase/server'
 
 export type SignInState = {
   error?: string
-}
-
-function safeRedirectPath(path: string | null | undefined) {
-  if (!path || !path.startsWith('/') || path.startsWith('//')) {
-    return '/dashboard'
-  }
-
-  return path
 }
 
 export async function signInAction(
