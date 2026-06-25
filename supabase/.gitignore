@@ -1,0 +1,11 @@
+# Supabase CLI local state (regenerated on supabase start / branch switch)
+.branches/
+.temp/
+
+# Edge function secrets (when functions/ is added)
+functions/.env
+
+# dotenvx (Edge Functions local env)
+.env.keys
+.env.local
+.env.*.local
