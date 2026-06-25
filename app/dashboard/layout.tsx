@@ -1,4 +1,4 @@
-import { DashboardShell } from '@/components/dashboard/dashboard-shell'
+import { DashboardClientLayout } from '@/components/dashboard/dashboard-client-layout'
 import { requireAdmin } from '@/lib/auth'
 
 export default async function DashboardLayout({
@@ -9,8 +9,8 @@ export default async function DashboardLayout({
   const profile = await requireAdmin()
 
   return (
-    <DashboardShell displayName={profile.display_name ?? 'Admin'}>
+    <DashboardClientLayout displayName={profile.display_name ?? 'Admin'}>
       {children}
-    </DashboardShell>
+    </DashboardClientLayout>
   )
 }

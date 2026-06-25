@@ -2,32 +2,21 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import {
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Flex,
+  Icon,
+  IconButton,
+  Popover,
+  Text,
+  Tooltip,
+} from '@chakra-ui/react'
 import { LogOutIcon } from 'lucide-react'
 
 import { signOutAction } from '@/features/auth/actions'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-} from '@/components/ui/sidebar'
 import { dashboardNavItems } from '@/lib/dashboard/nav'
 
 function getInitials(displayName: string) {
@@ -42,147 +31,300 @@ function getInitials(displayName: string) {
 type AppSidebarProps = {
   displayName: string
   avatarUrl?: string | null
+  collapsed: boolean
 }
 
-export function AppSidebar({ displayName, avatarUrl }: AppSidebarProps) {
+function NavItem({
+  collapsed,
+  label,
+  href,
+  icon: NavIcon,
+  isActive,
+  disabled,
+  badge,
+}: {
+  collapsed: boolean
+  label: string
+  href: string
+  icon: (typeof dashboardNavItems)[number]['icon']
+  isActive?: boolean
+  disabled?: boolean
+  badge?: string
+}) {
+  const button = disabled ? (
+    <Button
+      variant="ghost"
+      width="full"
+      justifyContent="flex-start"
+      disabled
+      px={3}
+      opacity={0.5}
+    >
+      <Icon asChild boxSize={4}>
+        <NavIcon />
+      </Icon>
+      <Text flex="1" textAlign="left">
+        {label}
+      </Text>
+      {badge ? (
+        <Badge size="sm" variant="subtle">
+          {badge}
+        </Badge>
+      ) : null}
+    </Button>
+  ) : (
+    <Button
+      asChild
+      variant={isActive ? 'subtle' : 'ghost'}
+      width="full"
+      justifyContent="flex-start"
+      px={3}
+      colorPalette={isActive ? 'blue' : 'gray'}
+    >
+      <Link href={href}>
+        <Icon asChild boxSize={4}>
+          <NavIcon />
+        </Icon>
+        <Text flex="1">{label}</Text>
+      </Link>
+    </Button>
+  )
+
+  if (collapsed) {
+    const iconControl = disabled ? (
+      <IconButton
+        variant="ghost"
+        size="sm"
+        disabled
+        opacity={0.5}
+        aria-label={label}
+      >
+        <Icon asChild boxSize={4}>
+          <NavIcon />
+        </Icon>
+      </IconButton>
+    ) : (
+      <IconButton
+        asChild
+        variant={isActive ? 'subtle' : 'ghost'}
+        size="sm"
+        colorPalette={isActive ? 'blue' : 'gray'}
+        aria-label={label}
+      >
+        <Link href={href}>
+          <Icon asChild boxSize={4}>
+            <NavIcon />
+          </Icon>
+        </Link>
+      </IconButton>
+    )
+
+    return (
+      <Flex justify="center">
+        <Tooltip.Root positioning={{ placement: 'right' }}>
+          <Tooltip.Trigger asChild>{iconControl}</Tooltip.Trigger>
+          <Tooltip.Positioner>
+            <Tooltip.Content>{label}</Tooltip.Content>
+          </Tooltip.Positioner>
+        </Tooltip.Root>
+      </Flex>
+    )
+  }
+
+  return button
+}
+
+export function AppSidebar({
+  displayName,
+  avatarUrl,
+  collapsed,
+}: AppSidebarProps) {
   const pathname = usePathname()
   const initials = getInitials(displayName)
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <span className="text-xs font-semibold">CP</span>
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">ClashPoint</span>
-                <span className="truncate text-xs text-muted-foreground">
+    <Flex direction="column" height="full" bg="bg.subtle">
+      <Box
+        px={collapsed ? 2 : 3}
+        py={3}
+        borderBottomWidth="1px"
+        borderColor="border"
+      >
+        {collapsed ? (
+          <Flex justify="center">
+            <Link href="/dashboard" aria-label="ClashPoint dashboard">
+              <Flex
+                align="center"
+                justify="center"
+                boxSize={8}
+                rounded="lg"
+                bg="blue.solid"
+                color="blue.contrast"
+              >
+                <Text fontSize="xs" fontWeight="semibold">
+                  CP
+                </Text>
+              </Flex>
+            </Link>
+          </Flex>
+        ) : (
+          <Button
+            asChild
+            variant="ghost"
+            width="full"
+            justifyContent="flex-start"
+            height="auto"
+            py={2}
+            px={3}
+          >
+            <Link href="/dashboard">
+              <Flex
+                align="center"
+                justify="center"
+                boxSize={8}
+                rounded="lg"
+                bg="blue.solid"
+                color="blue.contrast"
+                flexShrink={0}
+              >
+                <Text fontSize="xs" fontWeight="semibold">
+                  CP
+                </Text>
+              </Flex>
+              <Box textAlign="left">
+                <Text fontWeight="semibold" fontSize="sm">
+                  ClashPoint
+                </Text>
+                <Text fontSize="xs" color="fg.muted">
                   Admin
-                </span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
+                </Text>
+              </Box>
+            </Link>
+          </Button>
+        )}
+      </Box>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {dashboardNavItems.map((item) => {
-                const isActive =
-                  !item.disabled &&
-                  (pathname === item.href ||
-                    (item.href !== '/dashboard' &&
-                      pathname.startsWith(`${item.href}/`)))
+      <Box flex="1" overflowY="auto" px={collapsed ? 1 : 2} py={2}>
+        {!collapsed ? (
+          <Text
+            px={3}
+            py={1}
+            fontSize="xs"
+            fontWeight="medium"
+            color="fg.muted"
+            textTransform="uppercase"
+            letterSpacing="wide"
+          >
+            Navigation
+          </Text>
+        ) : null}
+        <Flex direction="column" gap={1} mt={collapsed ? 0 : 1}>
+          {dashboardNavItems.map((item) => {
+            const isActive =
+              !item.disabled &&
+              (pathname === item.href ||
+                (item.href !== '/dashboard' &&
+                  pathname.startsWith(`${item.href}/`)))
 
-                if (item.disabled) {
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        disabled
-                        aria-disabled
-                        tooltip={item.label}
-                      >
-                        <item.icon />
-                        <span>{item.label}</span>
-                        {item.badge ? (
-                          <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
-                        ) : null}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                }
+            return (
+              <NavItem
+                key={item.href}
+                collapsed={collapsed}
+                label={item.label}
+                href={item.href}
+                icon={item.icon}
+                isActive={isActive}
+                disabled={item.disabled}
+                badge={item.badge}
+              />
+            )
+          })}
+        </Flex>
+      </Box>
 
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      tooltip={item.label}
-                      render={<Link href={item.href} />}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <SidebarMenuButton
-                    size="lg"
-                    className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
-                  />
-                }
+      <Box
+        px={collapsed ? 2 : 2}
+        py={3}
+        borderTopWidth="1px"
+        borderColor="border"
+      >
+        <Popover.Root positioning={{ placement: 'top-start' }}>
+          <Popover.Trigger asChild>
+            {collapsed ? (
+              <Flex justify="center">
+                <IconButton variant="ghost" size="sm" aria-label="Account menu">
+                  <Avatar.Root size="sm" shape="rounded">
+                    {avatarUrl ? (
+                      <Avatar.Image src={avatarUrl} alt={displayName} />
+                    ) : null}
+                    <Avatar.Fallback>{initials}</Avatar.Fallback>
+                  </Avatar.Root>
+                </IconButton>
+              </Flex>
+            ) : (
+              <Button
+                variant="ghost"
+                width="full"
+                justifyContent="flex-start"
+                height="auto"
+                py={2}
+                px={3}
               >
-                <Avatar className="size-8 rounded-lg">
+                <Avatar.Root size="sm" shape="rounded">
                   {avatarUrl ? (
-                    <AvatarImage src={avatarUrl} alt={displayName} />
+                    <Avatar.Image src={avatarUrl} alt={displayName} />
                   ) : null}
-                  <AvatarFallback className="rounded-lg">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{displayName}</span>
-                  <span className="truncate text-xs text-muted-foreground">
+                  <Avatar.Fallback>{initials}</Avatar.Fallback>
+                </Avatar.Root>
+                <Box textAlign="left" flex="1">
+                  <Text fontSize="sm" fontWeight="medium" truncate>
+                    {displayName}
+                  </Text>
+                  <Text fontSize="xs" color="fg.muted">
                     Admin
-                  </span>
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-(--anchor-width) min-w-56 rounded-lg"
-                side="top"
-                align="start"
-                sideOffset={4}
+                  </Text>
+                </Box>
+              </Button>
+            )}
+          </Popover.Trigger>
+          <Popover.Positioner>
+            <Popover.Content width="14rem" p={2}>
+              <Flex align="center" gap={2} px={1} py={1}>
+                <Avatar.Root size="sm" shape="rounded">
+                  {avatarUrl ? (
+                    <Avatar.Image src={avatarUrl} alt={displayName} />
+                  ) : null}
+                  <Avatar.Fallback>{initials}</Avatar.Fallback>
+                </Avatar.Root>
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium">
+                    {displayName}
+                  </Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    Admin
+                  </Text>
+                </Box>
+              </Flex>
+              <Box borderTopWidth="1px" borderColor="border" my={2} />
+              <Button
+                variant="ghost"
+                width="full"
+                justifyContent="flex-start"
+                color="fg.error"
+                size="sm"
+                onClick={() => {
+                  void signOutAction()
+                }}
               >
-                <DropdownMenuLabel className="p-0 font-normal">
-                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                    <Avatar className="size-8 rounded-lg">
-                      {avatarUrl ? (
-                        <AvatarImage src={avatarUrl} alt={displayName} />
-                      ) : null}
-                      <AvatarFallback className="rounded-lg">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">{displayName}</span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        Admin
-                      </span>
-                    </div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => {
-                    void signOutAction()
-                  }}
-                >
+                <Icon asChild boxSize={4}>
                   <LogOutIcon />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
+                </Icon>
+                Sign out
+              </Button>
+            </Popover.Content>
+          </Popover.Positioner>
+        </Popover.Root>
+      </Box>
+    </Flex>
   )
 }
