@@ -6,7 +6,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, role, display_name, created_at, updated_at')
+    .select('id, role, display_name, is_active, deactivated_at, created_at, updated_at')
     .eq('id', userId)
     .maybeSingle()
 

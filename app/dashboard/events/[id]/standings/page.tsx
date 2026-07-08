@@ -1,0 +1,30 @@
+import { notFound } from 'next/navigation'
+
+import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
+import { getEventWithPrize } from '@/features/events/queries'
+import { StandingsTableClient } from '@/features/standings/components/standings-table-client'
+import { listStandingsForEvent } from '@/features/standings/queries'
+import { requirePermission } from '@/lib/auth/permissions'
+
+type EventStandingsPageProps = {
+  params: Promise<{ id: string }>
+}
+
+export default async function EventStandingsPage({
+  params,
+}: EventStandingsPageProps) {
+  await requirePermission('standings.view')
+  const { id } = await params
+  const event = await getEventWithPrize(id)
+
+  if (!event) notFound()
+
+  const standings = await listStandingsForEvent(id)
+
+  return (
+    <div className="space-y-6">
+      <EventDetailTabs eventId={event.id} eventName={event.name} />
+      <StandingsTableClient standings={standings} />
+    </div>
+  )
+}

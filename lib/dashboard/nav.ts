@@ -1,5 +1,5 @@
+import { Users, Settings, ScrollText, LayoutDashboard, Calendar, Swords, UserCircle, FileBarChart } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Calendar, LayoutDashboard, Settings, Swords } from 'lucide-react'
 
 export type DashboardNavItem = {
   label: string
@@ -16,24 +16,38 @@ export const dashboardNavItems: DashboardNavItem[] = [
     icon: LayoutDashboard,
   },
   {
+    label: 'Promoters',
+    href: '/dashboard/promoters',
+    icon: UserCircle,
+  },
+  {
     label: 'Events',
     href: '/dashboard/events',
     icon: Calendar,
-    disabled: true,
-    badge: 'Soon',
   },
   {
     label: 'Fights',
     href: '/dashboard/fights',
     icon: Swords,
-    disabled: true,
-    badge: 'Soon',
+  },
+  {
+    label: 'Users',
+    href: '/dashboard/users',
+    icon: Users,
+  },
+  {
+    label: 'Reports',
+    href: '/dashboard/reports',
+    icon: FileBarChart,
+  },
+  {
+    label: 'Audit',
+    href: '/dashboard/audit',
+    icon: ScrollText,
   },
   {
     label: 'Settings',
     href: '/dashboard/settings',
     icon: Settings,
-    disabled: true,
-    badge: 'Soon',
   },
 ]

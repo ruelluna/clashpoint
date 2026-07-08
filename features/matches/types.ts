@@ -1,0 +1,81 @@
+export type MatchStatus =
+  | 'draft'
+  | 'for_review'
+  | 'confirmed'
+  | 'locked'
+  | 'ready'
+  | 'ongoing'
+  | 'completed'
+  | 'cancelled'
+
+export type FightQueueStatus = 'scheduled' | 'called' | 'ready' | 'ongoing'
+
+export type MatchRow = {
+  id: string
+  event_id: string
+  fight_number: number
+  round_number: number | null
+  meron_entry_id: string
+  meron_rooster_id: string
+  meron_weight: number | null
+  wala_entry_id: string
+  wala_rooster_id: string
+  wala_weight: number | null
+  status: MatchStatus
+  queue_status: FightQueueStatus | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type MatchSideDetails = {
+  entry_id: string
+  entry_number: string
+  entry_name: string
+  rooster_id: string
+  cock_number: number
+  band_number: string
+  weight: number | null
+}
+
+export type MatchListItem = {
+  id: string
+  event_id: string
+  fight_number: number
+  round_number: number | null
+  status: MatchStatus
+  queue_status: FightQueueStatus | null
+  meron: MatchSideDetails
+  wala: MatchSideDetails
+}
+
+export type EligibleRooster = {
+  rooster_id: string
+  entry_id: string
+  entry_number: string
+  entry_name: string
+  cock_number: number
+  band_number: string
+  official_weight: number | null
+  category: string | null
+}
+
+export type FightQueueSummary = {
+  event_id: string
+  event_name: string
+  venue: string
+  total_fights: number
+  scheduled_count: number
+  called_count: number
+  ready_count: number
+  ongoing_count: number
+  current_fight_number: number | null
+}
+
+export type RoosterEligibilityContext = {
+  rooster_id: string
+  entry_id: string
+  event_id: string
+  lineup_status: string
+  weight_status: string | null
+}

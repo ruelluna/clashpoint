@@ -5,3 +5,5 @@ export function safeRedirectPath(path: string | null | undefined) {
 
   return path
 }
+
+export const POST_BOOTSTRAP_REDIRECT = '/dashboard'

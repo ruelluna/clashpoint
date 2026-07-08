@@ -1,5 +1,10 @@
 import { redirect } from 'next/navigation'
 
+import {
+  canAccessDashboard,
+  isSystemOwnerRole,
+  requireDashboardAccess,
+} from '@/lib/auth/permissions'
 import { getUser } from '@/lib/auth/session'
 import { getProfile } from '@/lib/auth/queries'
 import type { Profile } from '@/lib/auth/types'
@@ -13,9 +18,11 @@ export async function requireAdmin(): Promise<Profile> {
 
   const profile = await getProfile(user.id)
 
-  if (!profile || profile.role !== 'admin') {
-    redirect('/login')
+  if (!profile || !profile.is_active || !isSystemOwnerRole(profile.role)) {
+    redirect('/access-denied')
   }
 
   return profile
 }
+
+export { requireDashboardAccess }
