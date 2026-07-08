@@ -1,0 +1,48 @@
+---
+description: React Server vs Client Component patterns
+globs: "**/*.{tsx,jsx}"
+alwaysApply: false
+---
+
+# Components
+
+## Server vs Client
+
+Default to Server Components. Add `'use client'` only when the component needs:
+
+- Event handlers (`onClick`, `onChange`)
+- React hooks (`useState`, `useEffect`, `useRef`)
+- Browser APIs (`window`, `localStorage`)
+
+Push the client boundary as far down the tree as possible.
+
+```tsx
+// âœ… GOOD â€” small client island inside server page
+export default async function EventPage({ params }: Props) {
+  const event = await getEvent(params.id)
+  return (
+    <div>
+      <EventHeader event={event} />
+      <JoinFightButton eventId={event.id} />
+    </div>
+  )
+}
+```
+
+## Forms
+
+- Prefer `<form action={serverAction}>` over manual fetch calls
+- Use `useActionState` for action feedback (pending, errors, success)
+- Use `useFormStatus` in a child submit button for loading state
+- For instant feedback on high-confidence mutations (join, toggle), see `optimistic-ui.mdc`
+
+## Composition
+
+- Keep components under ~150 lines; extract subcomponents when growing
+- Colocate feature-specific components in `features/{module}/components/`
+- Shared UI primitives live in `components/ui/` (shadcn)
+
+## Styling
+
+- Tailwind utility classes; use `cn()` from `lib/utils` for conditional classes
+- Do not use inline styles except for dynamic values

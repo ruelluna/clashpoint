@@ -1,0 +1,116 @@
+---
+description: Documentation placement, audience split, and Docusaurus conventions
+alwaysApply: true
+---
+
+# Documentation
+
+When the user asks to create or update documentation, route by audience.
+
+## Monorepo (tracked)
+
+Only `docs/README.md` is tracked in the ClashPoint repo — clone/setup instructions for the doc sites.
+
+## Gitignored nested repos
+
+`docs/admins/` and `docs/users/` are separate git repos (listed in `.gitignore`). Each is a full Docusaurus site:
+
+- **Admin** — event ops, fight management, scoring, internal APIs, troubleshooting
+- **User** — players, organizers, how-to for events, fights, and leaderboards
+
+Clone and run locally per `docs/README.md` (`npm install`, `npm run start`).
+
+## Where to put markdown
+
+| Audience | Path |
+|----------|------|
+| Admin | `docs/admins/docs/<kebab-case>.md` |
+| User | `docs/users/docs/<kebab-case>.md` |
+
+Site root (`package.json`, `docusaurus.config.ts`, `sidebars.ts`, `src/`, `static/`) holds config only — **not** guides. Markdown lives in the inner `docs/` folder.
+
+## Audience
+
+- **Mixed content** → split into separate admin and user files; never one doc for both
+- **Technical** (API, Realtime channels, scoring algorithms, RLS) → admin unless explicitly player-facing
+
+## User docs
+
+- No "For administrators:" sections or admin-doc cross-references
+- Passing mentions OK (e.g. "organizers are notified")
+
+## Admin docs (`docs/admins/docs/`)
+
+Admin guides are for **operators and organizers** using in-app admin flows — not engineers on the server.
+
+**Do not include in admin markdown:**
+
+- `npm run`, `npx supabase`, shell blocks, or deploy/Vercel/SSH instructions
+- References to `.cursor/` paths (breakdowns, plans, rules) — internal to the repo, not published
+- Links or paths to `.cursor/breakdowns/`, `.cursor/plans/`, or `.cursor/rules/`
+- Supabase service-role keys, migration SQL, or RLS policy definitions
+
+**Use instead:**
+
+- In-app navigation paths (**Events → Manage**, **Fights → Score**, **Leaderboard → Publish**, etc.)
+- Named UI actions (**Approve Fight**, **Join Event**, **Export Results**)
+- Published admin doc cross-links: `[Title](./sibling-page.md)` or the published URL base
+- For engineering-only steps (migrations, Supabase CLI, deploy), put them in `.cursor/breakdowns/` or tell the reader to coordinate with engineering — do not paste CLI into admin docs
+
+**User docs** follow the same `.cursor/` ban. User docs must also avoid CLI and server-side ops unless the page is explicitly a developer integration guide in admin docs, not user docs.
+
+## After adding a doc
+
+1. Add to that site's `sidebars.ts` in the appropriate category
+2. Update that site's `docs/intro.md` if needed
+3. kebab-case filename; Docusaurus `slug`/`title` like siblings
+4. Same-site links: `[Title](./file.md)`; cross-audience: plain text only
+5. Verify: `cd docs/admins` or `docs/users`, then `npm run build`
+
+## App integration
+
+Published URLs: `ADMIN_DOCS_URL` and `USER_DOCS_URL` in `.env` → `lib/docs.ts` (or `config/docs.ts`) when wired. In-app help links use these when set.
+
+## Git in nested doc repos
+
+`docs/admins/` and `docs/users/` are **separate git repositories**. Commits there publish to their own GitHub repos and must appear as the human maintainer — never as Cursor, an agent, or any bot identity.
+
+### Agents must not commit unless asked
+
+- **NEVER** run `git commit` (or `git push`) inside `docs/admins/` or `docs/users/` unless the user **explicitly** asks to commit or push documentation changes.
+- Editing markdown, `sidebars.ts`, or site config does **not** imply permission to commit. Leave changes unstaged for the maintainer.
+
+### When the user asks to commit docs
+
+Use the **maintainer's** git identity — not Cursor/agent defaults:
+
+1. Read identity from the ClashPoint monorepo root (parent of `docs/`):
+
+   ```bash
+   git -C <clashpoint-root> config user.name
+   git -C <clashpoint-root> config user.email
+   ```
+
+2. Set the same `user.name` and `user.email` **inside the nested repo** before committing.
+
+3. **Do not** pass `--author`, `GIT_AUTHOR_*`, or `GIT_COMMITTER_*` env vars that identify Cursor, Composer, Copilot, or any agent/bot.
+
+If the monorepo has no `user.name` / `user.email`, ask the user for their name and email before committing.
+
+## Do not
+
+- Markdown in `docs/` root (except `README.md`)
+- Guides at Docusaurus site root (e.g. `docs/admins/foo.md`)
+- Admin docs in `docs/users/` or user docs in `docs/admins/`
+- `git commit` or `git push` in nested doc repos without explicit user request
+- CLI commands, migration SQL, or `.cursor/` path references inside published admin/user markdown
+
+## Example
+
+```
+✅ docs/users/docs/joining-a-fight.md
+✅ docs/admins/docs/event-scoring-admin.md
+❌ docs/event-scoring.md
+❌ docs/users/event-scoring.md
+❌ docs/admins/event-scoring-admin.md
+```

@@ -1,0 +1,180 @@
+---
+description: When implementing a plan — docs, breakdowns, commits, summary, and optional Linear block
+alwaysApply: true
+---
+
+# Plan Implementation
+
+When executing an approved plan (or a plan attached to the conversation), follow this order **before** marking work complete.
+
+## 1. Documentation (required)
+
+Every plan that changes behavior, admin/organizer workflows, or player-facing UX must include doc work. Route by audience per `documentation.mdc` — do not skip because the plan omitted docs.
+
+| Change type | Doc site | Typical path |
+|-------------|----------|--------------|
+| Event ops, scoring, internal APIs, RLS, Realtime | Admin | `docs/admins/docs/<kebab-case>.md` |
+| Player/organizer how-to, dashboard UX | User | `docs/users/docs/<kebab-case>.md` |
+| Both audiences | Split into two files | Never one mixed doc |
+
+After editing markdown:
+
+1. Update that site's `sidebars.ts` if the page is new or moved
+2. Update `docs/intro.md` only when navigation or onboarding changes
+3. Do **not** `git commit` inside `docs/admins/` or `docs/users/` unless the user explicitly asks
+
+If no doc exists for the feature, extend the closest sibling (e.g. `event-management-admin.md` for admin event changes) rather than inventing a new file unless the plan specifies one.
+
+**Admin doc content rules** (strict — see `documentation.mdc`):
+
+- In-app workflows only; no `npm run`, `npx supabase`, or shell commands in published docs
+- Never link to or mention `.cursor/` paths in admin or user markdown
+- Migrations, deploy, env setup, and test commands belong in `.cursor/breakdowns/` and implementation replies for engineers, not in Docusaurus guides
+
+**Published doc URLs** (for summary and Linear block — set in `.env` or replace when known):
+
+| Site | Base |
+|------|------|
+| Admin | `ADMIN_DOCS_URL` or `https://<org>.github.io/clashpoint-admin-docs` |
+| User | `USER_DOCS_URL` or `https://<org>.github.io/clashpoint-user-docs` |
+
+Pattern: `{base}/{kebab-case-filename-without-md}` — e.g. `event-scoring-admin.md` → `…/event-scoring-admin`
+
+## 2. Plan todo alignment
+
+If the plan has a docs todo, complete it in the same pass as code — not as a follow-up.
+
+If the plan has an E2E todo (or the feature matches `e2e-testing.mdc` "required" criteria), ship Playwright specs in the same pass — not as a follow-up.
+
+When updating the plan file todos, mark the docs item done only after admin/user markdown reflects the shipped behavior. Mark E2E done only after specs exist or N/A is documented with reason.
+
+## 3. Commit messages (suggest only)
+
+Do **not** commit unless the user asks. At the end of plan implementation, provide **two** suggested commits when both app code and nested doc repos changed:
+
+### A. ClashPoint monorepo
+
+```
+Summary: <imperative verb> <what changed> (<scope if helpful>)
+
+<body — 1–3 sentences on why, not a file list>
+```
+
+Example summary lines: `Add fight join Server Action`, `Scope Realtime to fight channels`, `Fix leaderboard revalidation after score update`.
+
+Match existing repo style: concise summary, body explains **why** and any deploy/ops action.
+
+### B. Nested doc repos (only if markdown was edited)
+
+Separate suggestion per repo touched (`docs/admins`, `docs/users`):
+
+```
+Summary: <same theme as app change, doc angle>
+
+<body — what readers will find updated>
+```
+
+Remind the user: nested doc repos need their own commits with maintainer git identity when they choose to commit.
+
+## 4. Breakdown file (required)
+
+Every plan implementation, bug fix resolution, or feature rollout must create or update a breakdown in `.cursor/breakdowns/`. This folder is the **single source of truth** for what the user needs from each implementation (changelog, deploy steps, test commands, commit suggestions, Linear block).
+
+**Breakdowns are internal.** Do not link to `.cursor/breakdowns/` from published Docusaurus docs. Supabase migrations, Vercel deploy, env vars, and manual test steps belong in breakdowns (and Linear deploy comments for engineers), not in admin/user guides.
+
+### File location & naming
+
+Save to `.cursor/breakdowns/` using this exact pattern:
+
+```
+YYYYMMDD-HHMM-<task-slug>-breakdown.md
+```
+
+| Part | Rule |
+|------|------|
+| `YYYYMMDD` | Local date when the breakdown is written |
+| `HHMM` | Local 24-hour time (no colon), e.g. `1652` |
+| `<task-slug>` | Short kebab-case label (e.g. `fight-join`, `leaderboard-realtime`, `event-scoring`) |
+| Suffix | Always `-breakdown.md` |
+
+| Rule | Detail |
+|------|--------|
+| Create | On every completed plan, fix, or rollout |
+| Update | Same topic later → append a dated changelog section to the latest breakdown for that slug; do not duplicate in the same session |
+
+**Required content:**
+
+- Title and date
+- Summary (what changed and why)
+- Bullet changelog of player-visible / organizer-visible changes
+- Files touched (grouped: `app/`, `features/`, `supabase/`, `lib/`)
+- Deploy steps if any (Supabase migration, Vercel, env vars)
+- Manual test steps (URLs, flows — not Pest; suggest what to click/verify)
+- E2E specs added/updated or N/A with reason; `npx playwright test` command when applicable
+- Suggested ClashPoint commit (summary + body)
+- Suggested doc commits if applicable
+- Linear paste block (Title, Description, Comment/instructions, Documentation links)
+- Published doc links when updated
+
+## 5. Implementation summary (required)
+
+End every plan implementation reply with a **changelog** the user can scan or paste elsewhere (mirror the breakdown changelog; link to the breakdown file when helpful):
+
+```markdown
+## <Short title — same theme as commit summary>
+
+- <Player-visible or organizer-visible change>
+- <Another concrete change>
+- <Migration, env, or deploy note if any>
+```
+
+Use bullet points, not file lists. Cover behavior, organizer workflow, and player UX — skip refactors that change nothing observable.
+
+## 6. Linear paste block (optional)
+
+When the user tracks work in Linear, add a **copy-paste block** after the summary. Omit if they did not ask or the task is trivial.
+
+```
+Title: <same as summary title>
+
+Description:
+<2–5 sentences or bullets — what shipped and why>
+
+Comment / instructions:
+<Supabase migration, Vercel deploy, env vars, organizer follow-up, manual test notes>
+
+Documentation:
+<Only when docs were updated — one line per page>
+Admin: {ADMIN_DOCS_URL}/<slug>
+User: {USER_DOCS_URL}/<slug>
+```
+
+### Example (fight join flow)
+
+```
+Title: Add fight join Server Action and player guide
+
+Description:
+Players can join open fights from the event page. Join is validated server-side with Zod and RLS; the fight list revalidates after success. Realtime updates scoped to fight:{id}.
+
+Comment / instructions:
+Apply Supabase migration after deploy (`supabase db push` or run migration in dashboard). Set no new env vars. Test: open an event → Join Fight → confirm row in fights and leaderboard update.
+
+Documentation:
+Admin: https://<org>.github.io/clashpoint-admin-docs/fight-management-admin
+User: https://<org>.github.io/clashpoint-user-docs/joining-a-fight
+```
+
+## 7. Response checklist
+
+Before finishing, confirm in the reply:
+
+- [ ] Breakdown file created or updated in `.cursor/breakdowns/`
+- [ ] Admin doc updated (or N/A with reason)
+- [ ] Admin docs: no CLI, shell blocks, or `.cursor/` references (per `documentation.mdc`)
+- [ ] User doc updated (or N/A with reason)
+- [ ] E2E specs added/updated (or N/A with reason per `e2e-testing.mdc`)
+- [ ] Suggested ClashPoint commit summary + body
+- [ ] Suggested doc commit(s) if applicable
+- [ ] Implementation summary (title + bullets)
+- [ ] Linear paste block (when useful or requested)

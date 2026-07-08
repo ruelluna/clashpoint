@@ -1,0 +1,42 @@
+---
+description: Postgres schema and migration conventions
+globs: "{supabase/**,features/**/schema.ts,features/**/types.ts}"
+alwaysApply: false
+---
+
+# Database Design
+
+## Schema
+
+- UUID primary keys (`gen_random_uuid()`) for all tables
+- Foreign keys with explicit `ON DELETE` behavior — never orphan rows silently
+- Index columns used in `WHERE`, `JOIN`, and `ORDER BY`
+- Use Postgres enums or lookup tables — no magic string columns
+- `created_at` / `updated_at` on every table (`timestamptz`, default `now()`)
+
+## Audit Logs
+
+Maintain a dedicated `audit_logs` table:
+
+```sql
+create table audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references auth.users(id),
+  action text not null,
+  entity_type text not null,
+  entity_id uuid not null,
+  old_values jsonb,
+  new_values jsonb,
+  created_at timestamptz not null default now()
+);
+```
+
+## Reporting
+
+- Use Postgres views or materialized views for leaderboard/reporting queries
+- Do not run heavy aggregations in Server Components — query the view instead
+
+## Zod Schemas
+
+- Define in `features/{module}/schema.ts`
+- Mirror DB constraints (max lengths, enums) in Zod for early validation

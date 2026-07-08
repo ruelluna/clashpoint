@@ -1,0 +1,38 @@
+---
+description: Feature-based folder structure and module boundaries
+globs: "{app/**,features/**,lib/**,components/**}/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Architecture
+
+## Folder Structure
+
+```
+app/                          # Routes, layouts, pages only
+features/{module}/
+  actions.ts                  # Server Actions (mutations)
+  service.ts                  # Business logic
+  queries.ts                  # Read-only Supabase queries
+  schema.ts                   # Zod schemas (shared client + server)
+  types.ts                    # Module-specific types
+  components/                 # Feature-scoped UI
+components/ui/                # shadcn primitives
+lib/
+  supabase/client.ts          # Browser client
+  supabase/server.ts          # Server Component / Action client
+  supabase/admin.ts           # Service-role (server-only)
+  auth/                       # requireUser, requireRole helpers
+```
+
+## Module Rules
+
+- A feature module owns its schema, types, queries, service, and actions
+- Cross-feature imports go through the service/query layer — never import another feature's components directly
+- Shared utilities belong in `lib/`, not duplicated across features
+
+## Adding a New Feature
+
+1. Create `features/{name}/` with `schema.ts`, `types.ts`, `queries.ts`, `service.ts`, `actions.ts`
+2. Add route under `app/` that calls queries (reads) and passes data to components
+3. Components call actions (writes) — never Supabase directly

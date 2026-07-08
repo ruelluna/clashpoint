@@ -1,0 +1,83 @@
+---
+description: Playwright E2E — build tests alongside features that need them
+alwaysApply: true
+---
+
+# E2E Testing (Playwright)
+
+When a feature involves user-facing flows, **ship Playwright E2E in the same pass as the feature** — not as a follow-up.
+
+## When E2E is required
+
+Add or extend E2E when the change includes any of:
+
+- Multi-step flows (auth, join event/fight, scoring, publish leaderboard)
+- Role-gated UI (player vs organizer vs admin)
+- Form submit + validation + success/error feedback
+- Navigation across routes with persisted state
+- Realtime or post-mutation UI updates the user must see
+
+## When E2E is not required
+
+Skip E2E (note N/A in breakdown) when the change is:
+
+- Refactor-only with no behavior change
+- Migrations, RLS, or service logic with no new/changed UI path
+- Types, schemas, or internal utilities only
+- Copy or styling with no interaction change
+
+If unsure, prefer one focused happy-path spec over skipping.
+
+## Build alongside the feature
+
+1. **Plan** — include an E2E todo when the feature matches "required" above
+2. **UI** — add stable selectors as you build (`getByRole`, `getByLabel`; `data-testid` only when roles/labels are insufficient)
+3. **Spec** — add `e2e/<feature>.spec.ts` covering happy path + one meaningful failure or guard (auth, validation, permission)
+4. **Fixtures** — reuse `e2e/fixtures/` and `e2e/helpers/`; do not duplicate login or seed logic per spec
+5. **Breakdown** — list spec file(s) and the command to run (see below)
+
+Do not mark feature work complete until E2E exists or is explicitly N/A with reason.
+
+## Layout
+
+```
+e2e/
+  fixtures/           # auth, seeded data, test users
+  helpers/            # shared navigation, assertions
+  <feature>.spec.ts   # one file per flow or feature area
+playwright.config.ts  # create on first E2E feature if missing
+```
+
+Mirror feature names where possible: `features/fights/` → `e2e/fights.spec.ts`.
+
+## Spec conventions
+
+- Use `@playwright/test`; one `test.describe` per feature area
+- Prefer accessible selectors: `page.getByRole('button', { name: 'Join Fight' })`
+- Avoid brittle CSS/XPath; avoid `waitForTimeout` — use `expect` auto-waiting
+- Isolate tests: each spec sets up its own data or uses fixtures; no order dependency
+- Tag slow or auth-heavy specs with `@auth` in the test name when useful for filtering
+
+## Auth and data
+
+- Store authenticated state in `e2e/fixtures/` (e.g. `storageState` for organizer vs player)
+- Seed via Supabase service role in global setup or per-fixture — never hardcode production URLs or secrets
+- Use env vars (`PLAYWRIGHT_BASE_URL`, test user credentials) documented in breakdowns, not in admin/user docs
+
+## Running tests
+
+Do **not** run Playwright automatically unless the user asks. Suggest commands in breakdowns and implementation summaries:
+
+```bash
+npx playwright test
+npx playwright test e2e/fights.spec.ts
+npx playwright test --ui
+```
+
+First-time setup (when bootstrapping): `npm install -D @playwright/test` then `npx playwright install`.
+
+## Plans and completion
+
+- Approved plans with E2E scope must include E2E in the same implementation pass as app code
+- Breakdown **manual test steps** should reference the Playwright spec when one exists
+- Implementation summary: mention new/updated specs or "E2E N/A — \<reason\>"

@@ -1,0 +1,42 @@
+---
+description: Supabase Realtime subscription patterns
+globs: "{features/**,lib/**,hooks/**}/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Realtime
+
+## Channels
+
+Use scoped channels — never subscribe globally:
+
+- `event:{id}` — event-specific updates
+- `leaderboard:{id}` — leaderboard changes
+- `fight:{id}` — live fight state
+
+## Client Hook Pattern
+
+```tsx
+'use client'
+
+export function useFightSubscription(fightId: string, onUpdate: (payload: Fight) => void) {
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`fight:${fightId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fights', filter: `id=eq.${fightId}` }, (payload) => {
+        onUpdate(payload.new as Fight)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [fightId, onUpdate])
+}
+```
+
+## Rules
+
+- Always unsubscribe in the `useEffect` cleanup
+- Realtime logic lives in custom hooks under `features/{module}/hooks/` or `hooks/`
+- Do not open Realtime connections in Server Components
+- Prefer Realtime for live updates; use polling only as fallback

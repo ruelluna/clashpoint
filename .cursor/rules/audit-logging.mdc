@@ -1,0 +1,40 @@
+---
+description: Audit logging for critical mutations
+globs: "{features/**/service.ts,features/**/actions.ts}"
+alwaysApply: false
+---
+
+# Audit Logging
+
+Log inside `service.ts` after a successful mutation — not in the action or UI.
+
+## Required Fields
+
+- `actor_id` — who performed the action
+- `action` — verb: `created`, `updated`, `deleted`, `approved`, etc.
+- `entity_type` / `entity_id` — what was affected
+- `old_values` / `new_values` — JSON snapshots (omit for creates)
+- `created_at` — timestamp (DB default)
+
+## When to Audit
+
+| Audit | Skip |
+|-------|------|
+| Fight creation, score changes, payouts | Read-only queries, UI preferences |
+| Role changes, event approval | Idempotent reads, cache revalidation |
+
+## Pattern
+
+```ts
+await supabase.from('fights').update(data).eq('id', fightId)
+await supabase.from('audit_logs').insert({
+  actor_id: userId,
+  action: 'updated',
+  entity_type: 'fight',
+  entity_id: fightId,
+  old_values: previous,
+  new_values: data,
+})
+```
+
+Audit failures must not block the primary mutation — log the error server-side and continue.

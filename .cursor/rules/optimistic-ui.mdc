@@ -1,0 +1,67 @@
+﻿---
+description: Optimistic UI patterns for client mutations with Server Actions
+globs: "{features/**/components/**/*.{tsx,jsx},features/**/hooks/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Optimistic UI
+
+Next.js Server Actions do **not** optimistically update the UI. Choose explicitly:
+
+| Pattern | Use when |
+|---------|----------|
+| `pending` / `useActionState` | Auth, irreversible actions, low-confidence mutations |
+| `useOptimistic` + action | Join/toggle/score — user expects instant feedback in live events |
+
+Default to `pending` until the interaction benefits from optimism.
+
+## Layer boundaries
+
+Optimistic state is **display-only** in client components. Truth stays in Server Actions → service → Supabase (see `stack.mdc`). Never skip validation, auth, or audit because the UI updated early.
+
+## `useOptimistic` + Server Action
+
+```tsx
+'use client'
+
+import { useOptimistic, useActionState, startTransition } from 'react'
+import { joinFightAction, type JoinFightState } from '../actions'
+
+export function JoinFightButton({ fightId, joined }: { fightId: string; joined: boolean }) {
+  const [optimisticJoined, setOptimisticJoined] = useOptimistic(joined)
+  const [state, action, pending] = useActionState(joinFightAction, {} as JoinFightState)
+
+  function handleJoin() {
+    startTransition(async () => {
+      setOptimisticJoined(true)
+      await action({ fightId })
+    })
+  }
+
+  return (
+    <>
+      <button type="button" onClick={handleJoin} disabled={pending || optimisticJoined}>
+        {optimisticJoined ? 'Joined' : 'Join fight'}
+      </button>
+      {state.error ? <p role="alert">{state.error}</p> : null}
+    </>
+  )
+}
+```
+
+`useOptimistic` reverts automatically when the transition ends if the optimistic value was not confirmed — but **always** return structured `{ error }` from the action (not throw) so the user sees why the rollback happened.
+
+## Rules
+
+1. **Rollback on failure** — action returns `{ error }`; show message; do not leave optimistic UI inconsistent with server data
+2. **Revalidate after success** — `revalidatePath` / `revalidateTag` in the action still runs; optimistic UI is not a substitute
+3. **Do not optimistically grant permissions** — hide/disable UI based on server props; optimism only affects state the user already has rights to change
+4. **Avoid double updates** — if Realtime (`realtime.mdc`) will push the same field within ~1s, prefer Realtime reconciliation or skip optimism for that field
+5. **Forms** — prefer `<form action={action}>` + `useActionState`; use `onClick` + `startTransition` only when a button cannot be a form submit
+6. **E2E** — cover happy path and one failure/rollback when the flow is user-facing (see `e2e-testing.mdc`)
+
+## When not to use
+
+- Sign-in / sign-up (use `pending` only — see `login-form.tsx`)
+- Deletes, publishes, or payouts without explicit confirmation
+- Mutations where server computes derived values (scores, rankings) — show `pending`, then refresh or rely on Realtime

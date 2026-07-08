@@ -1,0 +1,42 @@
+---
+description: Next.js App Router routing, caching, and data fetching
+globs: "{app/**,middleware.ts}"
+alwaysApply: false
+---
+
+# App Router
+
+## Routing
+
+- Use route groups `(auth)`, `(dashboard)` for layout organization — not URL segments
+- Colocate `loading.tsx`, `error.tsx`, and `not-found.tsx` with their routes
+- Use `generateMetadata` for SEO on public pages
+
+## Data Fetching
+
+- Fetch in Server Components by default — call `queries.ts`, not Supabase directly in pages
+- Do not fetch in `useEffect` when a Server Component can fetch on the server
+- Wrap slow async UI in `<Suspense>` with meaningful fallbacks
+
+## Caching & Revalidation
+
+- After mutations, call `revalidatePath()` or `revalidateTag()` in the Server Action
+- Tag fetches with `fetch(..., { next: { tags: ['events'] } })` when using external APIs
+- Use `unstable_noStore()` / `export const dynamic = 'force-dynamic'` only when data must never be cached
+
+## Route Handlers vs Server Actions
+
+| Use | When |
+|-----|------|
+| Server Action | All app mutations (create, update, delete) |
+| Route Handler (`app/api/`) | Webhooks, third-party callbacks, external integrations |
+
+## Middleware
+
+- `middleware.ts` handles auth redirects and session refresh only — no business logic
+- Matcher should exclude static assets and `_next`
+
+## Assets
+
+- Use `next/image` for images, `next/link` for internal navigation
+- Use `next/font` for custom fonts

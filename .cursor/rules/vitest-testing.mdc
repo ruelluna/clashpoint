@@ -1,0 +1,58 @@
+﻿---
+description: Vitest unit and integration tests for business logic, schemas, and services
+globs:
+alwaysApply: true
+---
+
+# Vitest (unit / integration)
+
+Use **Vitest** for business logic that does not need a browser. Use **Playwright** (`e2e-testing.mdc`) for user-facing flows.
+
+## When Vitest is required
+
+Add or extend Vitest when the change includes any of:
+
+- Zod schemas and validation rules
+- Pure utilities (redirect safety, scoring helpers, formatting)
+- `service.ts` workflows and business rules
+- Permission helpers that can run without Next.js request context (with mocks when needed)
+
+## When Vitest is not required
+
+Skip unit tests (note N/A in breakdown) when the change is:
+
+- UI-only with no new logic
+- Migrations or RLS with no TS business rules
+- Copy or styling
+
+If unsure, prefer one focused test file colocated with the module over skipping.
+
+## Layout
+
+```
+features/{module}/
+  schema.ts
+  schema.test.ts
+  utils.ts
+  utils.test.ts
+  service.ts
+  service.test.ts
+vitest.config.ts
+```
+
+- Colocate tests as `{name}.test.ts` next to the source file
+- Do **not** put Vitest files under `e2e/` — that folder is Playwright only
+
+## Conventions
+
+- Import from `vitest`: `describe`, `it`, `expect`, `vi`
+- Arrange-Act-Assert structure
+- Mock Supabase and external I/O in service tests
+
+## Running tests
+
+```bash
+npm run test
+npm run test:run
+npm run test:e2e
+```

@@ -1,0 +1,41 @@
+---
+description: Supabase client selection and RLS conventions
+globs: "{lib/supabase/**,supabase/**,features/**}/*.{ts,tsx,sql}"
+alwaysApply: false
+---
+
+# Supabase Security
+
+## Client Selection
+
+| Client | File | Use |
+|--------|------|-----|
+| Browser | `lib/supabase/client.ts` | Client Components, Realtime |
+| Server | `lib/supabase/server.ts` | Server Components, Server Actions |
+| Admin | `lib/supabase/admin.ts` | Bypass RLS — server-only, never import in client code |
+
+## RLS
+
+- Enable RLS on every table with user data
+- Policies check `auth.uid()` — never rely on client-side role checks alone
+- Test policies: authenticated user can only access their own rows unless role permits
+
+## Migrations
+
+- One concern per migration file in `supabase/migrations/`
+- Name format: `{timestamp}_{description}.sql`
+- Always include RLS policies in the same migration that creates a table
+
+## Anti-patterns
+
+```ts
+// ❌ Service role in a Client Component
+import { adminClient } from '@/lib/supabase/admin'
+
+// ❌ Skipping auth in a Server Action
+await supabase.from('fights').insert(data)
+
+// ✅ Server client + RLS enforces access
+const supabase = await createClient()
+await supabase.from('fights').insert({ ...data, user_id: user.id })
+```

@@ -1,0 +1,54 @@
+﻿---
+description: Supabase SSR auth patterns — prevent redirect loops and edge request storms
+globs: middleware.ts, lib/supabase/**/*.ts, lib/auth/**/*.ts, features/auth/**/*.ts, app/**/page.tsx, app/auth/**/*
+alwaysApply: false
+---
+
+# Supabase Auth SSR
+
+## Layer responsibilities
+
+| Layer | Checks | Does not |
+|-------|--------|----------|
+| Middleware | Session exists for protected routes | Role / profile (keep middleware light) |
+| Layout / page (`requireAdmin`, etc.) | Role and profile | Session refresh (middleware handles cookies) |
+
+## Middleware rules
+
+- Matcher: only routes that need session checks (`/dashboard/:path*`, `/login`) — not every page.
+- Use `lib/supabase/middleware.ts` for client creation and cookie helpers.
+- **Always** copy refreshed cookies onto redirect responses via `redirectWithCookies()` — never return bare `NextResponse.redirect()` after `getUser()`.
+- Do **not** redirect authenticated users from `/login` to `/dashboard` in middleware — login page handles admin-only redirect.
+
+## Permission denial
+
+- Missing session → `/login`
+- Authenticated but not permitted → `/access-denied` (never `/login` while session cookie remains — causes redirect loops)
+
+## Server Actions
+
+- After `signInWithPassword`, verify role/profile before `redirect()`.
+- On access denied at sign-in, `signOut()` and return form error — do not redirect to a protected route.
+
+## OAuth (when added)
+
+- Add `app/auth/callback/route.ts` with `exchangeCodeForSession`.
+- Never run code exchange in middleware.
+
+## Realtime (client)
+
+- No `router.refresh()` inside `onAuthStateChange` without deduping.
+- Unsubscribe channels in `useEffect` cleanup.
+
+## Anti-patterns
+
+```ts
+// Permission denial sends authenticated user to login
+if (!profile || profile.role !== 'admin') redirect('/login')
+
+// Redirect drops refreshed session cookies
+return NextResponse.redirect(loginUrl)
+
+// Middleware auto-redirects any session away from login
+if (pathname === '/login' && user) redirect('/dashboard')
+```

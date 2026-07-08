@@ -1,0 +1,44 @@
+---
+description: Server Action patterns for mutations
+globs: "**/actions.ts"
+alwaysApply: false
+---
+
+# Server Actions
+
+Every mutation follows this template:
+
+```ts
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { createFightSchema } from './schema'
+import { requireUser } from '@/lib/auth'
+import { createFight as createFightService } from './service'
+
+export async function createFight(input: unknown) {
+  const user = await requireUser()
+  const parsed = createFightSchema.safeParse(input)
+
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors }
+  }
+
+  const result = await createFightService(user.id, parsed.data)
+
+  if (result.error) return { error: result.error }
+
+  revalidatePath('/fights')
+  return { data: result.data }
+}
+```
+
+## Rules
+
+1. Always start with `'use server'`
+2. Validate input with Zod — never trust client payloads
+3. Auth check before any write (`requireUser`, `requireRole`)
+4. Delegate to `service.ts` — no Supabase calls directly in actions
+5. Audit log inside the service for critical mutations
+6. Revalidate affected paths or tags after success
+7. Return structured results — do not throw for validation or permission errors

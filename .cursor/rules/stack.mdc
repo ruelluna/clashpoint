@@ -1,0 +1,29 @@
+---
+description: ClashPoint stack overview and request flow
+alwaysApply: true
+---
+
+# Stack
+
+Next.js App Router · TypeScript strict · Supabase (Auth, Postgres, Storage, Realtime) · Server Actions · Zod · Tailwind / shadcn/ui
+
+## Mutation Flow
+
+```
+Client → Server Action → Zod → Auth/Permission → Service → Supabase → Audit Log → revalidatePath/Tag
+```
+
+## Layer Responsibilities
+
+| Layer | Does | Does NOT |
+|-------|------|----------|
+| Page / Component | Render UI, call actions | Business logic, direct DB writes |
+| Server Action | Validate, auth, orchestrate | Complex business rules |
+| Service | Workflows, scoring, audit | UI concerns |
+| Queries | Read-only Supabase access | Mutations |
+
+## Environment
+
+Browser-safe: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Server-only: `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, all other secrets

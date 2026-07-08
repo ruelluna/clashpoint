@@ -1,0 +1,14 @@
+---
+description: Universal coding standards for ClashPoint
+alwaysApply: true
+---
+
+# Core Standards
+
+- Minimize scope — small, focused diffs over broad refactors
+- Match existing naming, types, and folder conventions before introducing new patterns
+- Reuse and extend existing code; do not duplicate logic
+- Business logic belongs in `service.ts`, never in UI components
+- Comments only for non-obvious business logic or security constraints
+- Never commit secrets (`.env`, credentials, API keys)
+- Only create git commits when explicitly requested

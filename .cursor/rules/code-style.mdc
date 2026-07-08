@@ -1,0 +1,33 @@
+---
+description: TypeScript and naming conventions
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Code Style
+
+## TypeScript
+
+- Strict mode; no `any` — use `unknown` and narrow with Zod or type guards
+- Prefer `interface` for object shapes, `type` for unions and utilities
+- Export types from `types.ts`; keep Zod-inferred types via `z.infer<typeof schema>`
+
+## Naming
+
+| Kind | Convention | Example |
+|------|-----------|---------|
+| Server Action | verb + noun | `createFight`, `joinEvent` |
+| Query function | `get` / `list` prefix | `getEvent`, `listFights` |
+| Service function | domain verb | `calculateScore`, `approvePayout` |
+| Component | PascalCase | `FightCard`, `LeaderboardTable` |
+| Hook | `use` prefix | `useFightSubscription` |
+
+## Imports
+
+- Use `@/` path alias for project imports
+- Order: external → `@/lib` → `@/features` → relative
+
+## Error Handling
+
+- Server Actions return `{ error: string }` or use `ActionResult<T>` — never throw to the client for expected errors
+- Log unexpected errors server-side; show user-safe messages in the UI

@@ -36,9 +36,9 @@ next-scaffold/
 
 .cursorignore
 # Cursor internal (agent breakdowns and plans)
-.cursor/breakdowns/
-.cursor/plans/
-.cursor/rules/
+# .cursor/breakdowns/
+# .cursor/plans/
+# .cursor/rules/
 AGENTS.md
 
 # Supabase CLI local state (see supabase/.gitignore)
