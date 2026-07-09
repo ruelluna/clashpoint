@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 
 import {
   DERBY_TYPE_LABELS,
+  EVENT_FORMAT_LABELS,
   EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
 } from '@/features/events/schema'
@@ -45,9 +46,14 @@ export default async function PublicEventPage({ params }: PublicEventPageProps) 
           </Box>
           <Box>
             <Text fontSize="sm" color="fg.muted">
-              Derby format
+              Format
             </Text>
-            <Text>{DERBY_TYPE_LABELS[event.derby_type]}</Text>
+            <Text>
+              {EVENT_FORMAT_LABELS[event.event_format]}
+              {event.event_format === 'derby' && event.derby_type
+                ? ` · ${DERBY_TYPE_LABELS[event.derby_type]}`
+                : ''}
+            </Text>
           </Box>
           <Box>
             <Text fontSize="sm" color="fg.muted">

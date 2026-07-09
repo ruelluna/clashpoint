@@ -14,11 +14,14 @@ export default async function PortalEventDetailPage({
   const profile = await requirePortalAccess()
   const { id } = await params
 
+  let summary: Awaited<ReturnType<typeof getEventSummaryForPromoter>>
   try {
-    const summary = await getEventSummaryForPromoter(profile, id)
-    if (!summary) notFound()
-    return <PortalEventSummaryClient summary={summary} />
+    summary = await getEventSummaryForPromoter(profile, id)
   } catch {
     redirect('/access-denied')
   }
+
+  if (!summary) notFound()
+
+  return <PortalEventSummaryClient summary={summary} />
 }

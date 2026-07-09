@@ -19,6 +19,8 @@ export const eventStatusSchema = z.enum([
   'archived',
 ])
 
+export const eventFormatSchema = z.enum(['classic', 'derby'])
+
 export const derbyTypeSchema = z.enum([
   '3_cock',
   '4_cock',
@@ -75,7 +77,8 @@ const eventFieldsSchema = z.object({
   eventDate: z.string().datetime({ message: 'Valid event date required' }),
   registrationDeadline: z.string().datetime().nullable().optional(),
   eventType: eventTypeSchema.default('house'),
-  derbyType: derbyTypeSchema.default('5_cock'),
+  eventFormat: eventFormatSchema.default('derby'),
+  derbyType: derbyTypeSchema.nullable().optional(),
   entryFee: z.coerce.number().nonnegative('Entry fee cannot be negative'),
   minEntries: z.coerce.number().int().positive().nullable().optional(),
   maxEntries: z.coerce.number().int().positive().nullable().optional(),
@@ -135,6 +138,22 @@ function refineEventRanges(
       path: ['registrationDeadline'],
     })
   }
+
+  if (data.eventFormat === 'derby' && data.derbyType == null) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Derby type is required for derby events',
+      path: ['derbyType'],
+    })
+  }
+
+  if (data.eventFormat === 'classic' && data.cocksPerEntry !== 1) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Classic events must have exactly 1 cock per entry',
+      path: ['cocksPerEntry'],
+    })
+  }
 }
 
 export const createEventSchema = eventFieldsSchema
@@ -171,6 +190,11 @@ export const EVENT_TYPE_LABELS: Record<z.infer<typeof eventTypeSchema>, string> 
   external_promoter: 'External Promoter',
   sponsored: 'Sponsored',
   test: 'Test',
+}
+
+export const EVENT_FORMAT_LABELS: Record<z.infer<typeof eventFormatSchema>, string> = {
+  classic: 'Classic',
+  derby: 'Derby',
 }
 
 export const EVENT_STATUS_LABELS: Record<z.infer<typeof eventStatusSchema>, string> = {

@@ -22,11 +22,17 @@ import {
 } from '@/features/events/actions'
 import {
   DERBY_TYPE_LABELS,
+  EVENT_FORMAT_LABELS,
   EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
   PRIZE_TYPE_LABELS,
 } from '@/features/events/schema'
-import type { EventWithPrize, PrizeConfigEntry, PrizeType } from '@/features/events/types'
+import type {
+  EventFormat,
+  EventWithPrize,
+  PrizeConfigEntry,
+  PrizeType,
+} from '@/features/events/types'
 import { getNextStatuses } from '@/features/events/utils'
 import type { PromoterListItem } from '@/features/promoters/types'
 
@@ -73,6 +79,11 @@ export function EventFormClient({
     transitionStatusAction,
     initialState
   )
+
+  const [eventFormat, setEventFormat] = useState<EventFormat>(
+    () => event?.event_format ?? 'derby'
+  )
+  const isClassic = eventFormat === 'classic'
 
   const [prizeType, setPrizeType] = useState<PrizeType>(
     () => buildInitialPrizeState(event).prizeType
@@ -189,8 +200,10 @@ export function EventFormClient({
         <form action={formAction}>
           <Flex direction="column" gap={5}>
             {event ? <input type="hidden" name="eventId" value={event.id} /> : null}
+            <input type="hidden" name="eventFormat" value={eventFormat} />
             <input type="hidden" name="prizeType" value={prizeType} />
             <input type="hidden" name="prizeConfig" value={prizeStructureJson} />
+            {isClassic ? <input type="hidden" name="cocksPerEntry" value="1" /> : null}
 
             <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
               <Box flex="1">
@@ -234,6 +247,28 @@ export function EventFormClient({
             <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
               <Box flex="1">
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Event format
+                </Text>
+                <NativeSelect.Root>
+                  <NativeSelect.Field
+                    value={eventFormat}
+                    onChange={(e) => setEventFormat(e.currentTarget.value as EventFormat)}
+                  >
+                    {Object.entries(EVENT_FORMAT_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </NativeSelect.Field>
+                </NativeSelect.Root>
+                <Text fontSize="xs" color="fg.muted" mt={1}>
+                  {isClassic
+                    ? 'Single weight-matched bouts, one cock per entry.'
+                    : 'Multi-cock tournament with cumulative scoring.'}
+                </Text>
+              </Box>
+              <Box flex="1">
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
                   Event type
                 </Text>
                 <NativeSelect.Root>
@@ -246,20 +281,25 @@ export function EventFormClient({
                   </NativeSelect.Field>
                 </NativeSelect.Root>
               </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Derby type
-                </Text>
-                <NativeSelect.Root>
-                  <NativeSelect.Field name="derbyType" defaultValue={event?.derby_type ?? '5_cock'}>
-                    {Object.entries(DERBY_TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </NativeSelect.Field>
-                </NativeSelect.Root>
-              </Box>
+              {!isClassic ? (
+                <Box flex="1">
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Derby type
+                  </Text>
+                  <NativeSelect.Root>
+                    <NativeSelect.Field
+                      name="derbyType"
+                      defaultValue={event?.derby_type ?? '5_cock'}
+                    >
+                      {Object.entries(DERBY_TYPE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                  </NativeSelect.Root>
+                </Box>
+              ) : null}
               <Box flex="1">
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
                   Promoter
@@ -293,17 +333,19 @@ export function EventFormClient({
                   defaultValue={event?.entry_fee ?? 0}
                 />
               </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Cocks per entry
-                </Text>
-                <Input
-                  name="cocksPerEntry"
-                  type="number"
-                  min={1}
-                  defaultValue={event?.cocks_per_entry ?? 5}
-                />
-              </Box>
+              {!isClassic ? (
+                <Box flex="1">
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Cocks per entry
+                  </Text>
+                  <Input
+                    name="cocksPerEntry"
+                    type="number"
+                    min={1}
+                    defaultValue={event?.cocks_per_entry ?? 5}
+                  />
+                </Box>
+              ) : null}
               <Box flex="1">
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
                   Scoring system

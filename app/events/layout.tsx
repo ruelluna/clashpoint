@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 import { ChakraClientRoot } from '@/components/chakra/client-root'
 
 export default function PublicLayout({
@@ -10,19 +12,19 @@ export default function PublicLayout({
       <div className="min-h-screen bg-background">
         <header className="border-b">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-            <a href="/" className="text-sm font-semibold tracking-wide">
+            <Link href="/" className="text-sm font-semibold tracking-wide">
               ClashPoint
-            </a>
+            </Link>
             <nav className="flex items-center gap-4 text-sm">
-              <a href="/events" className="text-muted-foreground hover:text-foreground">
+              <Link href="/events" className="text-muted-foreground hover:text-foreground">
                 Events
-              </a>
-              <a href="/portal" className="text-muted-foreground hover:text-foreground">
+              </Link>
+              <Link href="/portal" className="text-muted-foreground hover:text-foreground">
                 Promoter portal
-              </a>
-              <a href="/login" className="text-muted-foreground hover:text-foreground">
+              </Link>
+              <Link href="/login" className="text-muted-foreground hover:text-foreground">
                 Sign in
-              </a>
+              </Link>
             </nav>
           </div>
         </header>

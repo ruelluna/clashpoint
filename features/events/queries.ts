@@ -16,6 +16,7 @@ type EventListRow = {
   venue: string
   event_date: string
   event_type: EventListItem['event_type']
+  event_format: EventListItem['event_format']
   derby_type: EventListItem['derby_type']
   status: EventListItem['status']
   entry_fee: number
@@ -33,7 +34,7 @@ export async function listEvents(): Promise<EventListItem[]> {
   const { data, error } = await supabase
     .from('events')
     .select(
-      'id, name, venue, event_date, event_type, derby_type, status, entry_fee, is_public, promoters ( name )'
+      'id, name, venue, event_date, event_type, event_format, derby_type, status, entry_fee, is_public, promoters ( name )'
     )
     .is('deleted_at', null)
     .order('event_date', { ascending: false })
@@ -46,6 +47,7 @@ export async function listEvents(): Promise<EventListItem[]> {
     venue: row.venue,
     event_date: row.event_date,
     event_type: row.event_type,
+    event_format: row.event_format,
     derby_type: row.derby_type,
     status: row.status,
     entry_fee: Number(row.entry_fee),
@@ -118,7 +120,8 @@ function mapEventRow(data: Record<string, unknown>): EventRow {
     event_date: data.event_date as string,
     registration_deadline: (data.registration_deadline as string | null) ?? null,
     event_type: data.event_type as EventRow['event_type'],
-    derby_type: data.derby_type as EventRow['derby_type'],
+    event_format: data.event_format as EventRow['event_format'],
+    derby_type: (data.derby_type as EventRow['derby_type']) ?? null,
     entry_fee: Number(data.entry_fee),
     min_entries: data.min_entries != null ? Number(data.min_entries) : null,
     max_entries: data.max_entries != null ? Number(data.max_entries) : null,

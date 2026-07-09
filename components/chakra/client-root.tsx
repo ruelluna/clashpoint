@@ -16,6 +16,8 @@ export function ChakraClientRoot({
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // Mount guard to avoid SSR/client hydration mismatch for Chakra.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 

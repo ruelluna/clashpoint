@@ -6,6 +6,7 @@ import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
 import { getEventWithPrize } from '@/features/events/queries'
 import {
   DERBY_TYPE_LABELS,
+  EVENT_FORMAT_LABELS,
   EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
   PRIZE_TYPE_LABELS,
@@ -79,7 +80,11 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           <Flex gap={2}>
             <Text color="fg.muted" minW="40">Type</Text>
             <Text>
-              {EVENT_TYPE_LABELS[event.event_type]} · {DERBY_TYPE_LABELS[event.derby_type]}
+              {EVENT_TYPE_LABELS[event.event_type]} ·{' '}
+              {EVENT_FORMAT_LABELS[event.event_format]}
+              {event.event_format === 'derby' && event.derby_type
+                ? ` · ${DERBY_TYPE_LABELS[event.derby_type]}`
+                : ''}
             </Text>
           </Flex>
           <Flex gap={2}>

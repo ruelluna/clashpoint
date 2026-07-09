@@ -11,6 +11,8 @@ export type EventStatus =
   | 'cancelled'
   | 'archived'
 
+export type EventFormat = 'classic' | 'derby'
+
 export type DerbyType =
   | '3_cock'
   | '4_cock'
@@ -37,7 +39,8 @@ export type EventRow = {
   event_date: string
   registration_deadline: string | null
   event_type: EventType
-  derby_type: DerbyType
+  event_format: EventFormat
+  derby_type: DerbyType | null
   entry_fee: number
   min_entries: number | null
   max_entries: number | null
@@ -85,6 +88,7 @@ export type EventListItem = Pick<
   | 'venue'
   | 'event_date'
   | 'event_type'
+  | 'event_format'
   | 'derby_type'
   | 'status'
   | 'entry_fee'

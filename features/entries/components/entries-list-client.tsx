@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Input, NativeSelect, Text, Textarea } from '@chakra-ui/react'
+import { Badge, Box, Button, Flex, NativeSelect, Text, Textarea } from '@chakra-ui/react'
 import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
 

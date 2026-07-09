@@ -68,7 +68,7 @@ export async function getEventSummaryReport(
       event_date: event.event_date,
       status: event.status,
       event_type: event.event_type,
-      derby_type: event.derby_type,
+      derby_type: event.derby_type ?? '',
       entry_fee: event.entry_fee,
       total_entries: entriesResult.count ?? entries.length,
       confirmed_entries: confirmedEntries,

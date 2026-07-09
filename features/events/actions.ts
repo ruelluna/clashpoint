@@ -64,6 +64,10 @@ function parseEventFields(formData: FormData) {
   const prize = parsePrizeStructure(formData)
   if ('error' in prize) return prize
 
+  const eventFormat = formData.get('eventFormat')?.toString() ?? 'derby'
+  const isClassic = eventFormat === 'classic'
+  const rawDerbyType = formData.get('derbyType')?.toString()
+
   return {
     promoterId: parseOptionalUuid(formData.get('promoterId')),
     name: formData.get('name')?.toString() ?? '',
@@ -71,11 +75,14 @@ function parseEventFields(formData: FormData) {
     eventDate: parseDateTime(formData.get('eventDate')),
     registrationDeadline: parseDateTime(formData.get('registrationDeadline')),
     eventType: formData.get('eventType')?.toString() ?? 'house',
-    derbyType: formData.get('derbyType')?.toString() ?? '5_cock',
+    eventFormat,
+    derbyType: isClassic ? null : rawDerbyType || null,
     entryFee: formData.get('entryFee')?.toString() ?? '0',
     minEntries: parseOptionalNumber(formData.get('minEntries')),
     maxEntries: parseOptionalNumber(formData.get('maxEntries')),
-    cocksPerEntry: formData.get('cocksPerEntry')?.toString() ?? '5',
+    cocksPerEntry: isClassic
+      ? '1'
+      : formData.get('cocksPerEntry')?.toString() ?? '5',
     minWeight: parseOptionalNumber(formData.get('minWeight')),
     maxWeight: parseOptionalNumber(formData.get('maxWeight')),
     scoringSystem: formData.get('scoringSystem')?.toString() ?? 'points',

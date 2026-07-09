@@ -64,6 +64,8 @@ export function ColorModeProvider({ children }: ColorModeProviderProps) {
     const stored = readStoredTheme()
     const resolved = resolveTheme(stored)
     applyColorMode(resolved)
+    // Sync initial theme from storage/system after mount (SSR-safe).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setColorModeState(resolved)
 
     const media = window.matchMedia('(prefers-color-scheme: dark)')

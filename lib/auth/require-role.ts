@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 
 import {
-  canAccessDashboard,
   isSystemOwnerRole,
   requireDashboardAccess,
 } from '@/lib/auth/permissions'

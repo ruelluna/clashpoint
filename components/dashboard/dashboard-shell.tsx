@@ -37,6 +37,8 @@ export function DashboardShell({
   useEffect(() => {
     const stored = localStorage.getItem('dashboard-sidebar-collapsed')
     if (stored === 'true') {
+      // Restore persisted preference from localStorage after mount (SSR-safe).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(true)
     }
   }, [])

@@ -189,7 +189,8 @@ export type Database = {
           event_date: string
           registration_deadline: string | null
           event_type: Database['public']['Enums']['event_type']
-          derby_type: Database['public']['Enums']['derby_type']
+          event_format: Database['public']['Enums']['event_format']
+          derby_type: Database['public']['Enums']['derby_type'] | null
           entry_fee: number
           min_entries: number | null
           max_entries: number | null
@@ -223,7 +224,8 @@ export type Database = {
           event_date: string
           registration_deadline?: string | null
           event_type?: Database['public']['Enums']['event_type']
-          derby_type?: Database['public']['Enums']['derby_type']
+          event_format?: Database['public']['Enums']['event_format']
+          derby_type?: Database['public']['Enums']['derby_type'] | null
           entry_fee?: number
           min_entries?: number | null
           max_entries?: number | null
@@ -257,7 +259,8 @@ export type Database = {
           event_date?: string
           registration_deadline?: string | null
           event_type?: Database['public']['Enums']['event_type']
-          derby_type?: Database['public']['Enums']['derby_type']
+          event_format?: Database['public']['Enums']['event_format']
+          derby_type?: Database['public']['Enums']['derby_type'] | null
           entry_fee?: number
           min_entries?: number | null
           max_entries?: number | null
@@ -943,6 +946,7 @@ export type Database = {
       promoter_status: 'active' | 'inactive' | 'suspended'
       commission_type: 'none' | 'fixed' | 'percentage' | 'custom'
       event_type: 'house' | 'external_promoter' | 'sponsored' | 'test'
+      event_format: 'classic' | 'derby'
       event_status:
         | 'draft'
         | 'open'

@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 
-import { needsBootstrapSetup, hasAnySystemOwner } from '@/features/auth/queries'
+import { needsBootstrapSetup } from '@/features/auth/queries'
 import { createFirstUserSchema, loginSchema } from '@/features/auth/schema'
 import { createFirstAdminUser } from '@/features/auth/service'
 import { POST_BOOTSTRAP_REDIRECT, safeRedirectPath } from '@/features/auth/utils'

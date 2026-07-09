@@ -1,5 +1,6 @@
 import type {
   DerbyType,
+  EventFormat,
   EventStatus,
   EventType,
   ScoringSystem,
@@ -12,7 +13,8 @@ export type PublicEventListItem = {
   venue: string
   event_date: string
   event_type: EventType
-  derby_type: DerbyType
+  event_format: EventFormat
+  derby_type: DerbyType | null
   status: EventStatus
   promoter_name: string | null
 }
@@ -23,7 +25,8 @@ export type PublicEvent = {
   venue: string
   event_date: string
   event_type: EventType
-  derby_type: DerbyType
+  event_format: EventFormat
+  derby_type: DerbyType | null
   status: EventStatus
   scoring_system: ScoringSystem
   cocks_per_entry: number

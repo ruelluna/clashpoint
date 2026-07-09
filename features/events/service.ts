@@ -16,6 +16,8 @@ import type { Json } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
 
 function toEventInsert(input: CreateEventInput | UpdateEventInput) {
+  const isClassic = input.eventFormat === 'classic'
+
   return {
     promoter_id: input.promoterId ?? null,
     name: input.name,
@@ -23,11 +25,12 @@ function toEventInsert(input: CreateEventInput | UpdateEventInput) {
     event_date: input.eventDate,
     registration_deadline: input.registrationDeadline ?? null,
     event_type: input.eventType,
-    derby_type: input.derbyType,
+    event_format: input.eventFormat,
+    derby_type: isClassic ? null : input.derbyType ?? null,
     entry_fee: input.entryFee,
     min_entries: input.minEntries ?? null,
     max_entries: input.maxEntries ?? null,
-    cocks_per_entry: input.cocksPerEntry,
+    cocks_per_entry: isClassic ? 1 : input.cocksPerEntry,
     min_weight: input.minWeight ?? null,
     max_weight: input.maxWeight ?? null,
     scoring_system: input.scoringSystem,
@@ -85,6 +88,7 @@ export async function createEvent(
     newValues: {
       name: input.name,
       status: 'draft',
+      format: input.eventFormat,
       prizeType: input.prizeStructure.prizeType,
     },
   })

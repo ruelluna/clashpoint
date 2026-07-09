@@ -18,6 +18,7 @@ type EventPublishRow = {
   venue: string
   event_date: string
   event_type: PublicEvent['event_type']
+  event_format: PublicEvent['event_format']
   derby_type: PublicEvent['derby_type']
   status: PublicEvent['status']
   scoring_system: PublicEvent['scoring_system']
@@ -84,6 +85,7 @@ function mapPublicEvent(row: EventPublishRow): PublicEvent {
     venue: row.venue,
     event_date: row.event_date,
     event_type: row.event_type,
+    event_format: row.event_format,
     derby_type: row.derby_type,
     status: row.status,
     scoring_system: row.scoring_system,
@@ -138,6 +140,7 @@ async function getPublicEventRow(
       venue,
       event_date,
       event_type,
+      event_format,
       derby_type,
       status,
       scoring_system,
@@ -171,6 +174,7 @@ export async function listPublicEvents(): Promise<PublicEventListItem[]> {
       venue,
       event_date,
       event_type,
+      event_format,
       derby_type,
       status,
       promoters ( name )
@@ -188,6 +192,7 @@ export async function listPublicEvents(): Promise<PublicEventListItem[]> {
     venue: string
     event_date: string
     event_type: PublicEventListItem['event_type']
+    event_format: PublicEventListItem['event_format']
     derby_type: PublicEventListItem['derby_type']
     status: PublicEventListItem['status']
     promoters: { name: string } | null
@@ -197,6 +202,7 @@ export async function listPublicEvents(): Promise<PublicEventListItem[]> {
     venue: row.venue,
     event_date: row.event_date,
     event_type: row.event_type,
+    event_format: row.event_format,
     derby_type: row.derby_type,
     status: row.status,
     promoter_name: row.promoters?.name ?? null,

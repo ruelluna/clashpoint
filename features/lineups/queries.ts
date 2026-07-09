@@ -86,6 +86,8 @@ export async function listLineupsByEvent(
       owner_name: string
     } | null
 
+    // Destructure to strip the joined `entries` relation from the record.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { entries: _entries, ...record } = row as RoosterRecordRow & {
       entries: unknown
     }
