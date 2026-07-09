@@ -67,10 +67,10 @@ export function LineupsClient({
     <Box className="space-y-6">
       <Box>
         <Text fontSize="2xl" fontWeight="semibold">
-          Lineups
+          Rooster Entries
         </Text>
         <Text color="fg.muted">
-          Submit cock lineups for confirmed, fully paid entries ({cocksPerEntry}{' '}
+          Submit rooster entries for confirmed, fully paid entries ({cocksPerEntry}{' '}
           cocks per entry).
         </Text>
       </Box>

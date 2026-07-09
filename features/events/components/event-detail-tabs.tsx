@@ -8,7 +8,7 @@ const EVENT_TABS = [
   { slug: '', label: 'Overview' },
   { slug: 'registrations', label: 'Registrations' },
   { slug: 'payments', label: 'Payments' },
-  { slug: 'lineups', label: 'Lineups' },
+  { slug: 'rooster-entries', label: 'Rooster Entries' },
   { slug: 'weighing', label: 'Weighing' },
   { slug: 'matching', label: 'Matching' },
   { slug: 'fight-queue', label: 'Fight Queue' },
