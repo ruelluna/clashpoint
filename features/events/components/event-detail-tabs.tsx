@@ -31,7 +31,7 @@ export function EventDetailTabs({ eventId, eventName }: EventDetailTabsProps) {
   const basePath = `/dashboard/events/${eventId}`
 
   return (
-    <Box className="space-y-4">
+    <Flex direction="column" gap={4}>
       <Box>
         <Text fontSize="2xl" fontWeight="semibold">
           {eventName}
@@ -67,6 +67,6 @@ export function EventDetailTabs({ eventId, eventName }: EventDetailTabsProps) {
           })}
         </Flex>
       </Box>
-    </Box>
+    </Flex>
   )
 }

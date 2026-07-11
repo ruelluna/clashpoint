@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { Box } from '@chakra-ui/react'
+import { Flex } from '@chakra-ui/react'
 
 import { listEntriesByEvent } from '@/features/entries/queries'
 import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
@@ -25,7 +25,7 @@ export default async function EventPaymentsPage({ params }: EventPaymentsPagePro
   ])
 
   return (
-    <Box className="space-y-6">
+    <Flex direction="column" gap={8}>
       <EventDetailTabs eventId={event.id} eventName={event.name} />
       <PaymentsLedgerClient
         eventId={event.id}
@@ -34,6 +34,6 @@ export default async function EventPaymentsPage({ params }: EventPaymentsPagePro
         entries={entries}
         payments={payments}
       />
-    </Box>
+    </Flex>
   )
 }

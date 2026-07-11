@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { Box } from '@chakra-ui/react'
+import { Flex } from '@chakra-ui/react'
 
 import { EntriesListClient } from '@/features/entries/components/entries-list-client'
 import { listEntriesByEvent } from '@/features/entries/queries'
@@ -23,13 +23,13 @@ export default async function EventRegistrationsPage({
   const entries = await listEntriesByEvent(id)
 
   return (
-    <Box className="space-y-6">
+    <Flex direction="column" gap={8}>
       <EventDetailTabs eventId={event.id} eventName={event.name} />
       <EntriesListClient
         eventId={event.id}
         eventName={event.name}
         entries={entries}
       />
-    </Box>
+    </Flex>
   )
 }

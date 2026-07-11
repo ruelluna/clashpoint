@@ -88,7 +88,7 @@ function EntryActions({
   if (!canReview) return null
 
   return (
-    <Box mt={2}>
+    <Box mt={3}>
       <Flex gap={2} wrap="wrap">
         <form action={approveAction}>
           <input type="hidden" name="entryId" value={entry.id} />
@@ -107,7 +107,7 @@ function EntryActions({
       </Flex>
 
       {showRejectReason ? (
-        <form action={rejectAction} className="mt-2">
+        <form action={rejectAction} className="mt-3">
           <input type="hidden" name="entryId" value={entry.id} />
           <input type="hidden" name="eventId" value={eventId} />
           <Textarea
@@ -158,55 +158,57 @@ export function EntriesListClient({
   }, [entries, statusFilter])
 
   return (
-    <Box className="space-y-6">
-      <Flex
-        justify="space-between"
-        align={{ base: 'stretch', sm: 'center' }}
-        direction={{ base: 'column', sm: 'row' }}
-        gap={3}
-      >
-        <Box>
-          <Text fontSize="lg" fontWeight="semibold">
-            Registrations
-          </Text>
-          <Text color="fg.muted" fontSize="sm">
-            {eventName} · {entries.length} entr{entries.length === 1 ? 'y' : 'ies'}
-          </Text>
-        </Box>
-        <Button asChild alignSelf={{ base: 'flex-start', sm: 'auto' }}>
-          <Link href={`/dashboard/events/${eventId}/registrations/new`}>
-            New registration
-          </Link>
-        </Button>
-      </Flex>
+    <Flex direction="column" gap={8}>
+      <Flex direction="column" gap={5}>
+        <Flex
+          justify="space-between"
+          align={{ base: 'stretch', sm: 'center' }}
+          direction={{ base: 'column', sm: 'row' }}
+          gap={3}
+        >
+          <Box>
+            <Text fontSize="lg" fontWeight="semibold">
+              Registrations
+            </Text>
+            <Text color="fg.muted" fontSize="sm">
+              {eventName} · {entries.length} entr{entries.length === 1 ? 'y' : 'ies'}
+            </Text>
+          </Box>
+          <Button asChild alignSelf={{ base: 'flex-start', sm: 'auto' }}>
+            <Link href={`/dashboard/events/${eventId}/registrations/new`}>
+              New registration
+            </Link>
+          </Button>
+        </Flex>
 
-      <Flex align="center" gap={3} maxW="xs">
-        <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
-          Filter by status
-        </Text>
-        <NativeSelect.Root size="sm">
-          <NativeSelect.Field
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(
-                event.currentTarget.value as '' | EntryListItem['registration_status']
-              )
-            }
-          >
-            <option value="">All statuses</option>
-            {Object.entries(REGISTRATION_STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </NativeSelect.Field>
-        </NativeSelect.Root>
+        <Flex align="center" gap={3} maxW="xs">
+          <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
+            Filter by status
+          </Text>
+          <NativeSelect.Root size="sm">
+            <NativeSelect.Field
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(
+                  event.currentTarget.value as '' | EntryListItem['registration_status']
+                )
+              }
+            >
+              <option value="">All statuses</option>
+              {Object.entries(REGISTRATION_STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect.Field>
+          </NativeSelect.Root>
+        </Flex>
       </Flex>
 
       <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
         <Flex
           px={4}
-          py={3}
+          py={4}
           borderBottomWidth="1px"
           borderColor="border"
           fontWeight="medium"
@@ -241,13 +243,13 @@ export function EntriesListClient({
               <Box
                 key={entry.id}
                 px={4}
-                py={3}
+                py={4}
                 borderBottomWidth="1px"
                 borderColor="border"
               >
                 <Flex
                   direction={{ base: 'column', lg: 'row' }}
-                  gap={2}
+                  gap={3}
                   align={{ lg: 'center' }}
                 >
                   <Box flex="0.6">
@@ -290,6 +292,6 @@ export function EntriesListClient({
           })
         )}
       </Box>
-    </Box>
+    </Flex>
   )
 }

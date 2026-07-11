@@ -46,7 +46,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
   const isDerby = event.event_type === 'derby'
 
   return (
-    <Box className="space-y-8">
+    <Flex direction="column" gap={8}>
       <EventDetailTabs eventId={event.id} eventName={event.name} />
 
       <Flex justify="space-between" align="center" wrap="wrap" gap={3}>
@@ -153,6 +153,6 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           </Flex>
         </Box>
       ) : null}
-    </Box>
+    </Flex>
   )
 }

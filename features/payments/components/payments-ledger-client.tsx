@@ -146,7 +146,7 @@ export function PaymentsLedgerClient({
   )
 
   return (
-    <Box className="space-y-6">
+    <Flex direction="column" gap={8}>
       <Box>
         <Text fontSize="lg" fontWeight="semibold">
           Payments
@@ -156,15 +156,15 @@ export function PaymentsLedgerClient({
         </Text>
       </Box>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-        <Text fontWeight="medium" mb={4}>
+      <Box borderWidth="1px" borderColor="border" rounded="lg" p={6}>
+        <Text fontWeight="medium" mb={5}>
           Record payment
         </Text>
-        <form action={recordAction} className="space-y-4 max-w-xl">
+        <form action={recordAction} className="flex max-w-xl flex-col gap-5">
           <input type="hidden" name="eventId" value={eventId} />
 
           <Box>
-            <Text fontSize="sm" fontWeight="medium" mb={1}>
+            <Text fontSize="sm" fontWeight="medium" mb={2}>
               Entry
             </Text>
             <NativeSelect.Root>
@@ -186,7 +186,7 @@ export function PaymentsLedgerClient({
 
           <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
             <Box flex="1">
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
+              <Text fontSize="sm" fontWeight="medium" mb={2}>
                 Amount paid
               </Text>
               <Input
@@ -199,7 +199,7 @@ export function PaymentsLedgerClient({
               />
             </Box>
             <Box flex="1">
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
+              <Text fontSize="sm" fontWeight="medium" mb={2}>
                 Payment method
               </Text>
               <NativeSelect.Root>
@@ -215,14 +215,14 @@ export function PaymentsLedgerClient({
           </Flex>
 
           <Box>
-            <Text fontSize="sm" fontWeight="medium" mb={1}>
+            <Text fontSize="sm" fontWeight="medium" mb={2}>
               Receipt number
             </Text>
             <Input name="receiptNumber" maxLength={100} />
           </Box>
 
           <Box>
-            <Text fontSize="sm" fontWeight="medium" mb={1}>
+            <Text fontSize="sm" fontWeight="medium" mb={2}>
               Notes
             </Text>
             <Textarea name="notes" rows={2} maxLength={2000} />
@@ -248,7 +248,7 @@ export function PaymentsLedgerClient({
       <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
         <Flex
           px={4}
-          py={3}
+          py={4}
           borderBottomWidth="1px"
           borderColor="border"
           fontWeight="medium"
@@ -272,13 +272,13 @@ export function PaymentsLedgerClient({
             <Box
               key={payment.id}
               px={4}
-              py={3}
+              py={4}
               borderBottomWidth="1px"
               borderColor="border"
             >
               <Flex
                 direction={{ base: 'column', lg: 'row' }}
-                gap={2}
+                gap={3}
                 align={{ lg: 'center' }}
               >
                 <Box flex="1.2">
@@ -320,11 +320,11 @@ export function PaymentsLedgerClient({
         )}
       </Box>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-        <Text fontWeight="medium" mb={3}>
+      <Box borderWidth="1px" borderColor="border" rounded="lg" p={6}>
+        <Text fontWeight="medium" mb={5}>
           Entry payment summary
         </Text>
-        <Flex direction="column" gap={2}>
+        <Flex direction="column" gap={4}>
           {entries.map((entry) => (
             <Flex key={entry.id} justify="space-between" gap={3} fontSize="sm">
               <Text>
@@ -342,6 +342,6 @@ export function PaymentsLedgerClient({
           ))}
         </Flex>
       </Box>
-    </Box>
+    </Flex>
   )
 }
