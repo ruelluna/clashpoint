@@ -23,6 +23,21 @@ export function hasServiceRoleCredentials() {
   )
 }
 
+export async function canManageProfiles() {
+  const supabase = getAdminClient()
+
+  if (!supabase) {
+    return false
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .select('id', { head: true, count: 'exact' })
+    .limit(1)
+
+  return !error
+}
+
 export async function countSystemOwners() {
   const supabase = getAdminClient()
 
@@ -42,27 +57,6 @@ export async function countSystemOwners() {
   }
 
   return count ?? 0
-}
-
-export async function countAuthUsers() {
-  const supabase = getAdminClient()
-
-  if (!supabase) {
-    throw new Error(
-      'Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for auth user count'
-    )
-  }
-
-  const { data, error } = await supabase.auth.admin.listUsers({
-    page: 1,
-    perPage: 1,
-  })
-
-  if (error) {
-    throw error
-  }
-
-  return data.users?.length ?? 0
 }
 
 export async function createProfileLessTestUser() {
@@ -86,6 +80,51 @@ export async function createProfileLessTestUser() {
 
   if (createError || !created.user) {
     throw createError ?? new Error('Failed to create profile-less test user')
+  }
+
+  return {
+    id: created.user.id,
+    email,
+    password,
+  }
+}
+
+export async function createStaffTestUser() {
+  const supabase = getAdminClient()
+
+  if (!supabase) {
+    throw new Error(
+      'Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for staff auth tests'
+    )
+  }
+
+  const email = `e2e-staff-${Date.now()}@clashpoint.test`
+  const password = `Test-${crypto.randomUUID()}`
+
+  const { data: created, error: createError } =
+    await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { display_name: 'E2E Staff' },
+    })
+
+  if (createError || !created.user) {
+    throw createError ?? new Error('Failed to create staff test user')
+  }
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({
+      role: 'registration_staff',
+      display_name: 'E2E Staff',
+      is_active: true,
+    })
+    .eq('id', created.user.id)
+
+  if (updateError) {
+    await supabase.auth.admin.deleteUser(created.user.id)
+    throw updateError
   }
 
   return {

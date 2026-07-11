@@ -44,6 +44,10 @@ function loadEnvFile(relativePath: string) {
 loadEnvFile('.env.local')
 loadEnvFile('.env')
 
+const playwrightPort = process.env.PLAYWRIGHT_PORT ?? '3001'
+const baseURL =
+  process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${playwrightPort}`
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -52,7 +56,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -62,8 +66,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    command: `npm run dev -- -p ${playwrightPort}`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
 })

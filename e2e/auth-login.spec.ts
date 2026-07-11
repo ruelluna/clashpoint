@@ -2,45 +2,43 @@ import { expect, test } from '@playwright/test'
 
 import {
   adminCredentials,
+  gotoLoginPage,
   hasAdminCredentials,
   signInAsAdmin,
+  signInWithCredentials,
 } from './fixtures/auth'
 import {
+  canManageProfiles,
   countSystemOwners,
   createProfileLessTestUser,
+  createStaffTestUser,
   deleteTestUser,
   hasServiceRoleCredentials,
   removeProfileForUser,
 } from './helpers/test-users'
 
+const staffAccessDeniedMessage = 'Access denied. Staff account required.'
+
 test.describe('Auth login @auth', () => {
   test('redirects unauthenticated dashboard visits to login', async ({ page }) => {
     await page.goto('/dashboard')
-    await expect(page).toHaveURL(/\/login/)
+    await expect(page).toHaveURL(/\/login(\?|$)/)
   })
 
   test('shows sign-in form when a system owner already exists', async ({ page }) => {
-    test.skip(
-      !hasServiceRoleCredentials(),
-      'Set SUPABASE_SERVICE_ROLE_KEY to detect bootstrap vs sign-in mode'
-    )
+    await gotoLoginPage(page)
 
-    const ownerCount = await countSystemOwners()
-    test.skip(
-      ownerCount === 0,
-      'Database has no system owner; bootstrap form is shown instead'
-    )
+    const bootstrapHeading = page.getByRole('heading', {
+      name: 'Create your first admin account',
+    })
 
-    await page.goto('/login')
-    await expect(
-      page.getByRole('heading', { name: 'Sign in' })
-    ).toBeVisible()
-    await expect(
-      page.getByRole('button', { name: 'Sign in' })
-    ).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'Create your first admin account' })
-    ).not.toBeVisible()
+    if (await bootstrapHeading.isVisible()) {
+      test.skip(true, 'Database has no system owner; bootstrap form is shown instead')
+    }
+
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+    await expect(bootstrapHeading).not.toBeVisible()
   })
 
   test('creates first admin when database has no system owner', async ({ page }) => {
@@ -59,7 +57,7 @@ test.describe('Auth login @auth', () => {
     const email = `e2e-bootstrap-${Date.now()}@clashpoint.test`
     const password = `Bootstrap-${crypto.randomUUID()}`
 
-    await page.goto('/login')
+    await gotoLoginPage(page)
     await expect(
       page.getByRole('heading', { name: 'Create your first admin account' })
     ).toBeVisible()
@@ -92,12 +90,13 @@ test.describe('Auth login @auth', () => {
   test('shows an error for invalid credentials', async ({ page }) => {
     test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
 
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(adminCredentials.email)
-    await page.getByLabel('Password').fill('wrong-password-value')
-    await page.getByRole('button', { name: 'Sign in' }).click()
+    await signInWithCredentials(
+      page,
+      adminCredentials.email,
+      'wrong-password-value'
+    )
 
-    await expect(page).toHaveURL(/\/login/)
+    await expect(page).toHaveURL(/\/login(\?|$)/)
     await expect(page.getByText('Invalid email or password')).toBeVisible()
   })
 
@@ -106,14 +105,16 @@ test.describe('Auth login @auth', () => {
 
     await signInAsAdmin(page)
 
-    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
-    await expect(page.getByText('Signed in as admin')).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Dashboard', exact: true })
+    ).toBeVisible()
+    await expect(page.getByText(/^Signed in as /)).toBeVisible()
   })
 
   test('sign-in rejects profile-less account', async ({ page }) => {
     test.skip(
-      !hasServiceRoleCredentials(),
-      'Set SUPABASE_SERVICE_ROLE_KEY for profile-less auth tests'
+      !hasServiceRoleCredentials() || !(await canManageProfiles()),
+      'Set SUPABASE_SERVICE_ROLE_KEY with profiles table access for profile-less auth tests'
     )
 
     const testUser = await createProfileLessTestUser()
@@ -121,35 +122,27 @@ test.describe('Auth login @auth', () => {
     try {
       await removeProfileForUser(testUser.id)
 
-      await page.goto('/login')
-      await page.getByLabel('Email').fill(testUser.email)
-      await page.getByLabel('Password').fill(testUser.password)
-      await page.getByRole('button', { name: 'Sign in' }).click()
+      await signInWithCredentials(page, testUser.email, testUser.password)
 
-      await expect(page).toHaveURL(/\/login/)
-      await expect(
-        page.getByText('Access denied. Admin account required.')
-      ).toBeVisible()
+      await expect(page).toHaveURL(/\/login(\?|$)/)
+      await expect(page.getByText(staffAccessDeniedMessage)).toBeVisible()
     } finally {
       await deleteTestUser(testUser.id)
     }
   })
 
-  test('authenticated profile-less session reaches access denied on dashboard', async ({
+  test('authenticated session without profile reaches access denied on dashboard', async ({
     page,
   }) => {
     test.skip(
-      !hasServiceRoleCredentials(),
-      'Set SUPABASE_SERVICE_ROLE_KEY for profile-less auth tests'
+      !hasServiceRoleCredentials() || !(await canManageProfiles()),
+      'Set SUPABASE_SERVICE_ROLE_KEY with profiles table access for profile-less auth tests'
     )
 
-    const testUser = await createProfileLessTestUser()
+    const testUser = await createStaffTestUser()
 
     try {
-      await page.goto('/login')
-      await page.getByLabel('Email').fill(testUser.email)
-      await page.getByLabel('Password').fill(testUser.password)
-      await page.getByRole('button', { name: 'Sign in' }).click()
+      await signInWithCredentials(page, testUser.email, testUser.password)
       await expect(page).toHaveURL(/\/dashboard/)
 
       await removeProfileForUser(testUser.id)

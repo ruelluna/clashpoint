@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
 
-import { hasAdminCredentials, signInAsAdmin } from './fixtures/auth'
+import { expectLoginRedirect, hasAdminCredentials, signInAsAdmin } from './fixtures/auth'
 
 test.describe('Users management @auth', () => {
   test('redirects unauthenticated visits to login', async ({ page }) => {
     await page.goto('/dashboard/users')
-    await expect(page).toHaveURL(/\/login/)
+    await expectLoginRedirect(page)
   })
 
   test('shows users page for signed-in admin', async ({ page }) => {
