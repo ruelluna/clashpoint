@@ -16,7 +16,7 @@ test.describe('Users management @auth', () => {
 
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
     await expect(
-      page.getByText('Manage staff accounts and roles.')
+      page.getByText('Manage staff accounts, roles, and module access.')
     ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Invite user' })).toBeVisible()
   })

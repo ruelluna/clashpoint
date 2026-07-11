@@ -1,15 +1,18 @@
 'use client'
 
 import { Badge, Box, Button, Flex, Input, NativeSelect, Text } from '@chakra-ui/react'
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 
 import {
   deactivateUserAction,
   inviteUserAction,
+  updateUserModulesAction,
   updateUserRoleAction,
   type ActionState,
 } from '@/features/users/actions'
 import { ROLE_LABELS } from '@/features/users/schema'
+import { ACCESS_MODULES } from '@/lib/auth/modules'
+import type { AccessModuleId } from '@/lib/auth/modules'
 import type { AppRole } from '@/lib/auth/types'
 
 type UserRow = {
@@ -19,21 +22,57 @@ type UserRow = {
   display_name: string | null
   is_active: boolean
   created_at: string
+  modules: AccessModuleId[]
 }
 
 const initialState: ActionState = {}
 
-const staffRoles = Object.entries(ROLE_LABELS).filter(
-  ([role]) => role !== 'admin' && role !== 'public_viewer'
-)
+const invitableRoles = (
+  Object.entries(ROLE_LABELS) as [AppRole, string][]
+).filter(([role]) => role !== 'admin')
+
+function ModuleCheckboxGrid({
+  defaultSelected = [],
+}: {
+  defaultSelected?: AccessModuleId[]
+}) {
+  return (
+    <Box>
+      <Text fontSize="sm" fontWeight="medium" mb={2}>
+        Module access
+      </Text>
+      <Flex direction="column" gap={2}>
+        {ACCESS_MODULES.map((mod) => (
+          <Flex key={mod.id} align="center" gap={2}>
+            <input
+              type="checkbox"
+              id={`module-${mod.id}`}
+              name="modules"
+              value={mod.id}
+              defaultChecked={defaultSelected.includes(mod.id)}
+            />
+            <label htmlFor={`module-${mod.id}`}>
+              <Text fontSize="sm">{mod.label}</Text>
+            </label>
+          </Flex>
+        ))}
+      </Flex>
+    </Box>
+  )
+}
 
 export function UsersPageClient({ users }: { users: UserRow[] }) {
+  const [inviteRole, setInviteRole] = useState<AppRole>('staff')
   const [inviteState, inviteAction, invitePending] = useActionState(
     inviteUserAction,
     initialState
   )
   const [roleState, roleAction, rolePending] = useActionState(
     updateUserRoleAction,
+    initialState
+  )
+  const [modulesState, modulesAction, modulesPending] = useActionState(
+    updateUserModulesAction,
     initialState
   )
   const [, deactivateAction] = useActionState(deactivateUserAction, initialState)
@@ -44,7 +83,9 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
         <Text fontSize="2xl" fontWeight="semibold">
           Users
         </Text>
-        <Text color="fg.muted">Manage staff accounts and roles.</Text>
+        <Text color="fg.muted">
+          Manage staff accounts, roles, and module access.
+        </Text>
       </Box>
 
       <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
@@ -57,14 +98,31 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
             <Input name="password" type="password" placeholder="Password" required />
             <Input name="displayName" placeholder="Display name" />
             <NativeSelect.Root>
-              <NativeSelect.Field name="role" defaultValue="event_organizer">
-                {staffRoles.map(([value, label]) => (
+              <NativeSelect.Field
+                name="role"
+                value={inviteRole}
+                onChange={(event) =>
+                  setInviteRole(event.currentTarget.value as AppRole)
+                }
+              >
+                {invitableRoles.map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
                 ))}
               </NativeSelect.Field>
             </NativeSelect.Root>
+            {inviteRole === 'staff' ? (
+              <ModuleCheckboxGrid />
+            ) : (
+              <Text fontSize="sm" color="fg.muted">
+                {inviteRole === 'event_organizer'
+                  ? 'Event organizers receive the full operational module preset.'
+                  : inviteRole === 'promoter'
+                    ? 'Promoters receive portal and read-only event/report access.'
+                    : 'System owners receive full platform access.'}
+              </Text>
+            )}
             <Button type="submit" loading={invitePending} alignSelf="flex-start">
               Invite
             </Button>
@@ -113,6 +171,16 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
               <Text fontSize="sm" color="fg.muted">
                 {user.email}
               </Text>
+              {user.role === 'staff' && user.modules.length > 0 ? (
+                <Flex gap={1} wrap="wrap" mt={1}>
+                  {user.modules.map((moduleId) => (
+                    <Badge key={moduleId} size="sm" variant="subtle">
+                      {ACCESS_MODULES.find((mod) => mod.id === moduleId)?.label ??
+                        moduleId}
+                    </Badge>
+                  ))}
+                </Flex>
+              ) : null}
             </Box>
             <Box flex="1">
               <Badge>{ROLE_LABELS[user.role]}</Badge>
@@ -124,12 +192,12 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
             </Box>
             <Box flex="2">
               {user.is_active ? (
-                <Flex gap={2} wrap="wrap">
-                  <form action={roleAction} className="flex gap-2 items-center">
+                <Flex direction="column" gap={3}>
+                  <form action={roleAction} className="flex gap-2 items-center flex-wrap">
                     <input type="hidden" name="userId" value={user.id} />
                     <NativeSelect.Root size="sm">
                       <NativeSelect.Field name="role" defaultValue={user.role}>
-                        {staffRoles.map(([value, label]) => (
+                        {invitableRoles.map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
                           </option>
@@ -140,6 +208,20 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                       Update role
                     </Button>
                   </form>
+                  {user.role === 'staff' ? (
+                    <form action={modulesAction}>
+                      <input type="hidden" name="userId" value={user.id} />
+                      <ModuleCheckboxGrid defaultSelected={user.modules} />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        loading={modulesPending}
+                        mt={2}
+                      >
+                        Update modules
+                      </Button>
+                    </form>
+                  ) : null}
                   <form action={deactivateAction}>
                     <input type="hidden" name="userId" value={user.id} />
                     <input type="hidden" name="reason" value="Deactivated by admin" />
@@ -162,6 +244,16 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
       {roleState.success ? (
         <Text color="fg.success" fontSize="sm">
           {roleState.success}
+        </Text>
+      ) : null}
+      {modulesState.error ? (
+        <Text color="fg.error" fontSize="sm">
+          {modulesState.error}
+        </Text>
+      ) : null}
+      {modulesState.success ? (
+        <Text color="fg.success" fontSize="sm">
+          {modulesState.success}
         </Text>
       ) : null}
     </Box>

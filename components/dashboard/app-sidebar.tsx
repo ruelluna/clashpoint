@@ -14,10 +14,17 @@ import {
   Text,
   Tooltip,
 } from '@chakra-ui/react'
-import { LogOutIcon } from 'lucide-react'
+import { LogOutIcon, LayoutDashboard } from 'lucide-react'
 
 import { signOutAction } from '@/features/auth/actions'
-import { dashboardNavItems } from '@/lib/dashboard/nav'
+import {
+  dashboardNavItemConfigs,
+  filterNavItemsByPermissions,
+} from '@/lib/dashboard/nav'
+import {
+  dashboardNavIconsByHref,
+  type DashboardNavItem,
+} from '@/lib/dashboard/nav-icons'
 
 function getInitials(displayName: string) {
   return displayName
@@ -28,10 +35,21 @@ function getInitials(displayName: string) {
     .slice(0, 2)
 }
 
+function buildNavItems(permissionIds: string[]): DashboardNavItem[] {
+  return filterNavItemsByPermissions(
+    dashboardNavItemConfigs,
+    permissionIds
+  ).map((item) => ({
+    ...item,
+    icon: dashboardNavIconsByHref[item.href] ?? LayoutDashboard,
+  }))
+}
+
 type AppSidebarProps = {
   displayName: string
   avatarUrl?: string | null
   collapsed: boolean
+  permissionIds: string[]
 }
 
 function NavItem({
@@ -46,7 +64,7 @@ function NavItem({
   collapsed: boolean
   label: string
   href: string
-  icon: (typeof dashboardNavItems)[number]['icon']
+  icon: DashboardNavItem['icon']
   isActive?: boolean
   disabled?: boolean
   badge?: string
@@ -138,9 +156,11 @@ export function AppSidebar({
   displayName,
   avatarUrl,
   collapsed,
+  permissionIds,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const initials = getInitials(displayName)
+  const navItems = buildNavItems(permissionIds)
 
   return (
     <Flex direction="column" height="full" bg="bg.subtle">
@@ -219,7 +239,7 @@ export function AppSidebar({
           </Text>
         ) : null}
         <Flex direction="column" gap={1} mt={collapsed ? 0 : 1}>
-          {dashboardNavItems.map((item) => {
+          {navItems.map((item) => {
             const isActive =
               !item.disabled &&
               (pathname === item.href ||

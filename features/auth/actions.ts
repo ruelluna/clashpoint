@@ -7,7 +7,7 @@ import { createFirstUserSchema, loginSchema } from '@/features/auth/schema'
 import { createFirstAdminUser } from '@/features/auth/service'
 import { POST_BOOTSTRAP_REDIRECT, safeRedirectPath } from '@/features/auth/utils'
 import { getProfile } from '@/lib/auth/queries'
-import { canAccessDashboard } from '@/lib/auth/permissions'
+import { canAccessDashboardForProfile } from '@/lib/auth/permissions'
 import { createClient } from '@/lib/supabase/server'
 
 export type SignInState = {
@@ -52,7 +52,7 @@ export async function signInAction(
 
   const profile = await getProfile(user.id)
 
-  if (!profile || !profile.is_active || !canAccessDashboard(profile.role)) {
+  if (!profile || !(await canAccessDashboardForProfile(profile))) {
     await supabase.auth.signOut()
     return { error: 'Access denied. Staff account required.' }
   }
@@ -106,7 +106,7 @@ export async function createFirstUserAction(
 
   const profile = await getProfile(user.id)
 
-  if (!profile || !canAccessDashboard(profile.role)) {
+  if (!profile || !(await canAccessDashboardForProfile(profile))) {
     await supabase.auth.signOut()
     return { error: 'Access denied. Staff account required.' }
   }

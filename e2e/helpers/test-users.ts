@@ -116,7 +116,7 @@ export async function createStaffTestUser() {
   const { error: updateError } = await supabase
     .from('profiles')
     .update({
-      role: 'registration_staff',
+      role: 'staff',
       display_name: 'E2E Staff',
       is_active: true,
     })
@@ -125,6 +125,18 @@ export async function createStaffTestUser() {
   if (updateError) {
     await supabase.auth.admin.deleteUser(created.user.id)
     throw updateError
+  }
+
+  const { error: permissionsError } = await supabase
+    .from('user_permissions')
+    .insert([
+      { user_id: created.user.id, permission_id: 'entries.manage' },
+      { user_id: created.user.id, permission_id: 'events.view' },
+    ])
+
+  if (permissionsError) {
+    await supabase.auth.admin.deleteUser(created.user.id)
+    throw permissionsError
   }
 
   return {

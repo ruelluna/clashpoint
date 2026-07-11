@@ -22,12 +22,14 @@ const SIDEBAR_WIDTH_COLLAPSED = '4rem'
 type DashboardShellProps = {
   displayName: string
   avatarUrl?: string | null
+  permissionIds: string[]
   children: React.ReactNode
 }
 
 export function DashboardShell({
   displayName,
   avatarUrl,
+  permissionIds,
   children,
 }: DashboardShellProps) {
   const isMobile = useIsMobile()
@@ -56,6 +58,7 @@ export function DashboardShell({
       displayName={displayName}
       avatarUrl={avatarUrl}
       collapsed={isMobile ? false : collapsed}
+      permissionIds={permissionIds}
     />
   )
 

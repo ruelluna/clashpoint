@@ -4,28 +4,28 @@ overview: Simplify roles to admin, system_owner, event_organizer, promoter, and 
 todos:
   - id: db-migration
     content: "Add migration: new 5-value app_role enum, user_permissions table, data migration, update has_permission + can_access_dashboard + handle_new_user"
-    status: pending
+    status: completed
   - id: module-registry
     content: Add lib/auth/modules.ts registry (module ID → permission keys) with Vitest
-    status: pending
+    status: completed
   - id: permissions-layer
     content: "Update lib/auth/permissions.ts: staff resolves user_permissions; profile-aware dashboard access"
-    status: pending
+    status: completed
   - id: users-feature
     content: "Extend features/users: schema, service, queries, actions for staff module invite/edit + audit"
-    status: pending
+    status: completed
   - id: users-ui
     content: "Update users-page-client: 5-role dropdown + module checkbox grid for staff"
-    status: pending
+    status: completed
   - id: nav-auth-guards
     content: Filter dashboard nav by resolved permissions; update auth sign-in guard for staff with no modules
-    status: pending
+    status: completed
   - id: tests
     content: Update Vitest + E2E (test-users helper, users-management spec)
-    status: pending
+    status: completed
   - id: docs
     content: Update admin Phase 1 user-management docs with new role model and Mermaid flow
-    status: pending
+    status: completed
 isProject: false
 ---
 

@@ -1,5 +1,5 @@
 import { DashboardClientLayout } from '@/components/dashboard/dashboard-client-layout'
-import { requireDashboardAccess } from '@/lib/auth'
+import { getUserPermissionIds, requireDashboardAccess } from '@/lib/auth'
 
 export default async function DashboardLayout({
   children,
@@ -7,9 +7,13 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const profile = await requireDashboardAccess()
+  const permissionIds = await getUserPermissionIds(profile.id)
 
   return (
-    <DashboardClientLayout displayName={profile.display_name ?? 'Admin'}>
+    <DashboardClientLayout
+      displayName={profile.display_name ?? 'Admin'}
+      permissionIds={permissionIds}
+    >
       {children}
     </DashboardClientLayout>
   )

@@ -26,8 +26,8 @@ describe('writeAuditLog', () => {
       action: 'user.role_updated',
       entityType: 'profile',
       entityId: 'user-1',
-      oldValues: { role: 'registration_staff' },
-      newValues: { role: 'finance_staff' },
+      oldValues: { role: 'staff' },
+      newValues: { role: 'event_organizer' },
     })
 
     expect(result).toEqual({})
@@ -36,8 +36,8 @@ describe('writeAuditLog', () => {
       action: 'user.role_updated',
       entity_type: 'profile',
       entity_id: 'user-1',
-      old_values: { role: 'registration_staff' },
-      new_values: { role: 'finance_staff' },
+      old_values: { role: 'staff' },
+      new_values: { role: 'event_organizer' },
     })
   })
 

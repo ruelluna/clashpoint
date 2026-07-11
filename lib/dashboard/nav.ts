@@ -1,53 +1,68 @@
-import { Users, Settings, ScrollText, LayoutDashboard, Calendar, Swords, UserCircle, FileBarChart } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-
-export type DashboardNavItem = {
+export type DashboardNavItemConfig = {
   label: string
   href: string
-  icon: LucideIcon
   disabled?: boolean
   badge?: string
+  requiredPermissions?: string[]
 }
 
-export const dashboardNavItems: DashboardNavItem[] = [
+export const dashboardNavItemConfigs: DashboardNavItemConfig[] = [
   {
     label: 'Dashboard',
     href: '/dashboard',
-    icon: LayoutDashboard,
   },
   {
     label: 'Promoters',
     href: '/dashboard/promoters',
-    icon: UserCircle,
+    requiredPermissions: ['promoters.manage'],
   },
   {
     label: 'Events',
     href: '/dashboard/events',
-    icon: Calendar,
+    requiredPermissions: ['events.view', 'events.manage'],
   },
   {
     label: 'Fights',
     href: '/dashboard/fights',
-    icon: Swords,
+    requiredPermissions: ['matches.manage', 'events.view'],
   },
   {
     label: 'Users',
     href: '/dashboard/users',
-    icon: Users,
+    requiredPermissions: ['users.manage', 'users.invite'],
   },
   {
     label: 'Reports',
     href: '/dashboard/reports',
-    icon: FileBarChart,
+    requiredPermissions: ['reports.view'],
   },
   {
     label: 'Audit',
     href: '/dashboard/audit',
-    icon: ScrollText,
+    requiredPermissions: ['audit.view'],
   },
   {
     label: 'Settings',
     href: '/dashboard/settings',
-    icon: Settings,
+    requiredPermissions: ['settings.manage'],
   },
 ]
+
+export function filterNavItemsByPermissions(
+  items: DashboardNavItemConfig[],
+  grantedPermissions: string[]
+): DashboardNavItemConfig[] {
+  const hasAll = grantedPermissions.includes('*')
+
+  return items.filter((item) => {
+    if (!item.requiredPermissions || item.requiredPermissions.length === 0) {
+      return true
+    }
+
+    if (hasAll) return true
+
+    return item.requiredPermissions.some((permission) =>
+      grantedPermissions.includes(permission)
+    )
+  })
+}

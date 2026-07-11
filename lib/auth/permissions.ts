@@ -2,6 +2,7 @@ import 'server-only'
 
 import { redirect } from 'next/navigation'
 
+import { modulesToPermissions } from '@/lib/auth/modules'
 import { getProfile } from '@/lib/auth/queries'
 import { getUser } from '@/lib/auth/session'
 import type { AppRole, Profile } from '@/lib/auth/types'
@@ -13,12 +14,8 @@ export const DASHBOARD_ROLES: AppRole[] = [
   'admin',
   'system_owner',
   'event_organizer',
-  'registration_staff',
-  'finance_staff',
-  'weighing_staff',
-  'matchmaker',
-  'result_recorder',
   'promoter',
+  'staff',
 ]
 
 export function isSystemOwnerRole(role: AppRole): boolean {
@@ -29,23 +26,64 @@ export function canAccessDashboard(role: AppRole): boolean {
   return DASHBOARD_ROLES.includes(role)
 }
 
-export async function hasPermission(
-  userId: string,
-  permission: string
-): Promise<boolean> {
+export async function getUserPermissionIds(userId: string): Promise<string[]> {
   const profile = await getProfile(userId)
-  if (!profile || !profile.is_active) return false
-  if (isSystemOwnerRole(profile.role)) return true
+  if (!profile || !profile.is_active) return []
+  if (isSystemOwnerRole(profile.role)) {
+    return ['*']
+  }
 
   const supabase = await createClient()
+
+  if (profile.role === 'staff') {
+    const { data } = await supabase
+      .from('user_permissions')
+      .select('permission_id')
+      .eq('user_id', userId)
+
+    return (data ?? []).map((row) => row.permission_id)
+  }
+
   const { data } = await supabase
     .from('role_permissions')
     .select('permission_id')
     .eq('role', profile.role)
-    .eq('permission_id', permission)
-    .maybeSingle()
 
-  return !!data
+  return (data ?? []).map((row) => row.permission_id)
+}
+
+export async function hasAnyPermission(
+  userId: string,
+  permissions: string[]
+): Promise<boolean> {
+  if (permissions.length === 0) return true
+
+  const granted = await getUserPermissionIds(userId)
+  if (granted.includes('*')) return true
+
+  return permissions.some((permission) => granted.includes(permission))
+}
+
+export async function hasPermission(
+  userId: string,
+  permission: string
+): Promise<boolean> {
+  return hasAnyPermission(userId, [permission])
+}
+
+export async function canAccessDashboardForProfile(
+  profile: Profile
+): Promise<boolean> {
+  if (!profile.is_active || !canAccessDashboard(profile.role)) {
+    return false
+  }
+
+  if (profile.role !== 'staff') {
+    return true
+  }
+
+  const permissions = await getUserPermissionIds(profile.id)
+  return permissions.length > 0
 }
 
 export async function requirePermission(
@@ -68,11 +106,7 @@ export async function requireDashboardAccess(): Promise<Profile> {
   if (!user) redirect('/login')
 
   const profile = await getProfile(user.id)
-  if (
-    !profile ||
-    !profile.is_active ||
-    !canAccessDashboard(profile.role)
-  ) {
+  if (!profile || !(await canAccessDashboardForProfile(profile))) {
     redirect('/access-denied')
   }
 
@@ -94,3 +128,5 @@ export async function requirePortalAccess(): Promise<Profile> {
 
   return profile
 }
+
+export { modulesToPermissions }

@@ -2,7 +2,10 @@ export { getProfileForUser } from '@/lib/auth/get-profile'
 export { getProfile } from '@/lib/auth/queries'
 export {
   canAccessDashboard,
+  canAccessDashboardForProfile,
   canAccessPortal,
+  getUserPermissionIds,
+  hasAnyPermission,
   hasPermission,
   isSystemOwnerRole,
   requireDashboardAccess,

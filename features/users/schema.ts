@@ -1,30 +1,55 @@
 import { z } from 'zod'
 
+import {
+  isAccessModuleId,
+  type AccessModuleId,
+} from '@/lib/auth/modules'
 import type { AppRole } from '@/lib/auth/types'
 
 export const appRoleSchema = z.enum([
   'admin',
   'system_owner',
   'event_organizer',
-  'registration_staff',
-  'finance_staff',
-  'weighing_staff',
-  'matchmaker',
-  'result_recorder',
   'promoter',
-  'public_viewer',
+  'staff',
 ])
 
-export const inviteUserSchema = z.object({
-  email: z.string().email('Valid email required'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  displayName: z.string().min(1).max(100).optional(),
-  role: appRoleSchema.exclude(['admin']),
-})
+export const moduleIdSchema = z
+  .string()
+  .refine(isAccessModuleId, 'Invalid module')
+
+const modulesFieldSchema = z
+  .array(moduleIdSchema)
+  .optional()
+  .transform((value) => value ?? [])
+
+export const inviteUserSchema = z
+  .object({
+    email: z.string().email('Valid email required'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    displayName: z.string().min(1).max(100).optional(),
+    role: appRoleSchema.exclude(['admin']),
+    modules: modulesFieldSchema,
+  })
+  .superRefine((data, ctx) => {
+    if (data.role === 'staff' && data.modules.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select at least one module for staff users',
+        path: ['modules'],
+      })
+    }
+  })
 
 export const updateUserRoleSchema = z.object({
   userId: z.string().uuid(),
   role: appRoleSchema,
+  reason: z.string().min(3).optional(),
+})
+
+export const updateUserModulesSchema = z.object({
+  userId: z.string().uuid(),
+  modules: z.array(moduleIdSchema).min(1, 'Select at least one module'),
   reason: z.string().min(3).optional(),
 })
 
@@ -35,17 +60,20 @@ export const deactivateUserSchema = z.object({
 
 export type InviteUserInput = z.infer<typeof inviteUserSchema>
 export type UpdateUserRoleInput = z.infer<typeof updateUserRoleSchema>
+export type UpdateUserModulesInput = z.infer<typeof updateUserModulesSchema>
 export type DeactivateUserInput = z.infer<typeof deactivateUserSchema>
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   admin: 'Admin (legacy)',
   system_owner: 'System Owner',
   event_organizer: 'Event Organizer',
-  registration_staff: 'Registration Staff',
-  finance_staff: 'Finance Staff',
-  weighing_staff: 'Weighing Staff',
-  matchmaker: 'Matchmaker',
-  result_recorder: 'Result Recorder',
   promoter: 'Promoter',
-  public_viewer: 'Public Viewer',
+  staff: 'Staff',
+}
+
+export function parseModulesFromFormData(formData: FormData): AccessModuleId[] {
+  return formData
+    .getAll('modules')
+    .map((value) => value.toString())
+    .filter(isAccessModuleId)
 }

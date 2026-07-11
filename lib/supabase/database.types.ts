@@ -75,6 +75,21 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          user_id: string
+          permission_id: string
+        }
+        Insert: {
+          user_id: string
+          permission_id: string
+        }
+        Update: {
+          user_id?: string
+          permission_id?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           key: string
@@ -936,13 +951,8 @@ export type Database = {
         | 'admin'
         | 'system_owner'
         | 'event_organizer'
-        | 'registration_staff'
-        | 'finance_staff'
-        | 'weighing_staff'
-        | 'matchmaker'
-        | 'result_recorder'
         | 'promoter'
-        | 'public_viewer'
+        | 'staff'
       promoter_status: 'active' | 'inactive' | 'suspended'
       commission_type: 'none' | 'fixed' | 'percentage' | 'custom'
       event_type: 'house' | 'external_promoter' | 'sponsored' | 'test'
