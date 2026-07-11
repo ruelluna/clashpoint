@@ -15,6 +15,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
 
   return {
     orgName: (map.org_name as string) ?? 'ClashPoint',
+    defaultVenue: (map.default_venue as string) ?? 'Main Arena',
     legalDisclaimer:
       (map.legal_disclaimer as string) ??
       'This platform is for licensed and legally authorized derby operators only.',

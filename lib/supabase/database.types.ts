@@ -204,9 +204,9 @@ export type Database = {
           event_date: string
           registration_deadline: string | null
           event_type: Database['public']['Enums']['event_type']
-          event_format: Database['public']['Enums']['event_format']
           derby_type: Database['public']['Enums']['derby_type'] | null
           entry_fee: number
+          tax_per_fight: number
           min_entries: number | null
           max_entries: number | null
           cocks_per_entry: number
@@ -219,6 +219,7 @@ export type Database = {
           guaranteed_prize_amount: number | null
           house_deduction: number | null
           venue_share: number | null
+          registration_rules: string | null
           legal_authorized: boolean
           is_public: boolean
           publish_matches: boolean
@@ -239,9 +240,9 @@ export type Database = {
           event_date: string
           registration_deadline?: string | null
           event_type?: Database['public']['Enums']['event_type']
-          event_format?: Database['public']['Enums']['event_format']
           derby_type?: Database['public']['Enums']['derby_type'] | null
           entry_fee?: number
+          tax_per_fight?: number
           min_entries?: number | null
           max_entries?: number | null
           cocks_per_entry?: number
@@ -254,6 +255,7 @@ export type Database = {
           guaranteed_prize_amount?: number | null
           house_deduction?: number | null
           venue_share?: number | null
+          registration_rules?: string | null
           legal_authorized?: boolean
           is_public?: boolean
           publish_matches?: boolean
@@ -274,9 +276,9 @@ export type Database = {
           event_date?: string
           registration_deadline?: string | null
           event_type?: Database['public']['Enums']['event_type']
-          event_format?: Database['public']['Enums']['event_format']
           derby_type?: Database['public']['Enums']['derby_type'] | null
           entry_fee?: number
+          tax_per_fight?: number
           min_entries?: number | null
           max_entries?: number | null
           cocks_per_entry?: number
@@ -289,6 +291,7 @@ export type Database = {
           guaranteed_prize_amount?: number | null
           house_deduction?: number | null
           venue_share?: number | null
+          registration_rules?: string | null
           legal_authorized?: boolean
           is_public?: boolean
           publish_matches?: boolean
@@ -955,8 +958,7 @@ export type Database = {
         | 'staff'
       promoter_status: 'active' | 'inactive' | 'suspended'
       commission_type: 'none' | 'fixed' | 'percentage' | 'custom'
-      event_type: 'house' | 'external_promoter' | 'sponsored' | 'test'
-      event_format: 'classic' | 'derby'
+      event_type: 'classic' | 'derby'
       event_status:
         | 'draft'
         | 'open'
@@ -967,7 +969,7 @@ export type Database = {
         | 'completed'
         | 'cancelled'
         | 'archived'
-      derby_type: '3_cock' | '4_cock' | '5_cock' | 'stag' | 'bullstag' | 'custom'
+      derby_type: '2_cock' | '3_cock' | '4_cock' | '5_cock' | 'custom'
       scoring_system: 'win_loss' | 'points'
       prize_type: 'percentage' | 'fixed' | 'manual'
       registration_status:

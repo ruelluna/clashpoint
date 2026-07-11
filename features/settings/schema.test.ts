@@ -5,6 +5,7 @@ import { updateSettingsSchema } from '@/features/settings/schema'
 describe('updateSettingsSchema', () => {
   const valid = {
     orgName: 'ClashPoint',
+    defaultVenue: 'Main Arena',
     legalDisclaimer: 'Licensed derby operators only.',
     termsAccepted: true,
   }
@@ -15,6 +16,11 @@ describe('updateSettingsSchema', () => {
 
   it('rejects empty org name', () => {
     const result = updateSettingsSchema.safeParse({ ...valid, orgName: '' })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects empty default venue', () => {
+    const result = updateSettingsSchema.safeParse({ ...valid, defaultVenue: '' })
     expect(result.success).toBe(false)
   })
 

@@ -1,4 +1,4 @@
-export type EventType = 'house' | 'external_promoter' | 'sponsored' | 'test'
+export type EventType = 'classic' | 'derby'
 
 export type EventStatus =
   | 'draft'
@@ -11,15 +11,7 @@ export type EventStatus =
   | 'cancelled'
   | 'archived'
 
-export type EventFormat = 'classic' | 'derby'
-
-export type DerbyType =
-  | '3_cock'
-  | '4_cock'
-  | '5_cock'
-  | 'stag'
-  | 'bullstag'
-  | 'custom'
+export type DerbyType = '2_cock' | '3_cock' | '4_cock' | '5_cock' | 'custom'
 
 export type ScoringSystem = 'win_loss' | 'points'
 
@@ -39,9 +31,9 @@ export type EventRow = {
   event_date: string
   registration_deadline: string | null
   event_type: EventType
-  event_format: EventFormat
   derby_type: DerbyType | null
   entry_fee: number
+  tax_per_fight: number
   min_entries: number | null
   max_entries: number | null
   cocks_per_entry: number
@@ -54,6 +46,7 @@ export type EventRow = {
   guaranteed_prize_amount: number | null
   house_deduction: number | null
   venue_share: number | null
+  registration_rules: string | null
   legal_authorized: boolean
   is_public: boolean
   publish_matches: boolean
@@ -88,10 +81,10 @@ export type EventListItem = Pick<
   | 'venue'
   | 'event_date'
   | 'event_type'
-  | 'event_format'
   | 'derby_type'
   | 'status'
   | 'entry_fee'
+  | 'tax_per_fight'
   | 'is_public'
 > & {
   promoter_name: string | null

@@ -15,6 +15,8 @@ import {
   updateEvent,
   updatePrizeStructure,
 } from '@/features/events/service'
+import type { DerbyType, EventType } from '@/features/events/types'
+import { resolveCocksPerEntry } from '@/features/events/utils'
 import { requirePermission } from '@/lib/auth/permissions'
 
 export type ActionState = { error?: string; success?: string }
@@ -42,8 +44,12 @@ function parseCheckbox(value: FormDataEntryValue | null): boolean {
 }
 
 function parsePrizeStructure(formData: FormData) {
-  const prizeType = formData.get('prizeType')?.toString() ?? 'percentage'
-  const rawConfig = formData.get('prizeConfig')?.toString() ?? '[]'
+  const prizeType = formData.get('prizeType')?.toString()
+  const rawConfig = formData.get('prizeConfig')?.toString()
+
+  if (!prizeType || !rawConfig) {
+    return { prizeStructure: undefined }
+  }
 
   let config: unknown
   try {
@@ -61,37 +67,37 @@ function parsePrizeStructure(formData: FormData) {
 }
 
 function parseEventFields(formData: FormData) {
-  const prize = parsePrizeStructure(formData)
+  const eventType = (formData.get('eventType')?.toString() ?? 'derby') as EventType
+  const isClassic = eventType === 'classic'
+  const isDerby = eventType === 'derby'
+
+  const prize = isDerby ? parsePrizeStructure(formData) : { prizeStructure: undefined }
   if ('error' in prize) return prize
 
-  const eventFormat = formData.get('eventFormat')?.toString() ?? 'derby'
-  const isClassic = eventFormat === 'classic'
-  const rawDerbyType = formData.get('derbyType')?.toString()
+  const rawDerbyType = formData.get('derbyType')?.toString() as DerbyType | undefined
+  const derbyType = isClassic ? null : rawDerbyType || null
+  const customCocks = parseOptionalNumber(formData.get('cocksPerEntry'))
+  const cocksPerEntry = resolveCocksPerEntry(
+    eventType,
+    derbyType,
+    customCocks ?? undefined
+  )
 
   return {
-    promoterId: parseOptionalUuid(formData.get('promoterId')),
+    promoterId: isDerby ? parseOptionalUuid(formData.get('promoterId')) : null,
     name: formData.get('name')?.toString() ?? '',
-    venue: formData.get('venue')?.toString() ?? '',
     eventDate: parseDateTime(formData.get('eventDate')),
-    registrationDeadline: parseDateTime(formData.get('registrationDeadline')),
-    eventType: formData.get('eventType')?.toString() ?? 'house',
-    eventFormat,
-    derbyType: isClassic ? null : rawDerbyType || null,
+    registrationDeadline: isDerby
+      ? parseDateTime(formData.get('registrationDeadline'))
+      : null,
+    eventType,
+    derbyType,
     entryFee: formData.get('entryFee')?.toString() ?? '0',
-    minEntries: parseOptionalNumber(formData.get('minEntries')),
-    maxEntries: parseOptionalNumber(formData.get('maxEntries')),
-    cocksPerEntry: isClassic
-      ? '1'
-      : formData.get('cocksPerEntry')?.toString() ?? '5',
-    minWeight: parseOptionalNumber(formData.get('minWeight')),
-    maxWeight: parseOptionalNumber(formData.get('maxWeight')),
-    scoringSystem: formData.get('scoringSystem')?.toString() ?? 'points',
-    drawRule: formData.get('drawRule')?.toString() ?? '0.5 points',
-    tieBreakerRule:
-      formData.get('tieBreakerRule')?.toString() ?? 'shared_championship',
-    guaranteedPrizeAmount: parseOptionalNumber(formData.get('guaranteedPrizeAmount')),
-    houseDeduction: parseOptionalNumber(formData.get('houseDeduction')),
-    venueShare: parseOptionalNumber(formData.get('venueShare')),
+    taxPerFight: formData.get('taxPerFight')?.toString() ?? '0',
+    cocksPerEntry: String(cocksPerEntry),
+    registrationRules: isDerby
+      ? formData.get('registrationRules')?.toString().trim() || null
+      : null,
     legalAuthorized: parseCheckbox(formData.get('legalAuthorized')),
     isPublic: parseCheckbox(formData.get('isPublic')),
     publishMatches: parseCheckbox(formData.get('publishMatches')),
@@ -184,6 +190,9 @@ export async function updatePrizeStructureAction(
 
   const prize = parsePrizeStructure(formData)
   if ('error' in prize) return { error: prize.error }
+  if (!prize.prizeStructure) {
+    return { error: 'Prize structure is required' }
+  }
 
   const parsed = updatePrizeStructureSchema.safeParse({
     eventId: formData.get('eventId'),

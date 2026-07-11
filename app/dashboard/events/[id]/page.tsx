@@ -6,13 +6,13 @@ import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
 import { getEventWithPrize } from '@/features/events/queries'
 import {
   DERBY_TYPE_LABELS,
-  EVENT_FORMAT_LABELS,
   EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
   PRIZE_TYPE_LABELS,
 } from '@/features/events/schema'
 import { getUser } from '@/lib/auth/session'
 import { hasPermission, requirePermission } from '@/lib/auth/permissions'
+import { sanitizeHtml } from '@/lib/sanitize-html'
 
 type EventDetailPageProps = {
   params: Promise<{ id: string }>
@@ -43,9 +43,10 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
 
   const user = await getUser()
   const canManage = user ? await hasPermission(user.id, 'events.manage') : false
+  const isDerby = event.event_type === 'derby'
 
   return (
-    <Box className="space-y-6">
+    <Box className="space-y-8">
       <EventDetailTabs eventId={event.id} eventName={event.name} />
 
       <Flex justify="space-between" align="center" wrap="wrap" gap={3}>
@@ -60,78 +61,82 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
         ) : null}
       </Flex>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-        <Text fontWeight="medium" mb={4}>
+      <Box borderWidth="1px" borderColor="border" rounded="lg" p={6}>
+        <Text fontWeight="medium" mb={5}>
           Event details
         </Text>
-        <Flex direction="column" gap={3} fontSize="sm">
-          <Flex gap={2}>
+        <Flex direction="column" gap={4} fontSize="sm">
+          <Flex gap={4}>
             <Text color="fg.muted" minW="40">Venue</Text>
             <Text>{event.venue}</Text>
           </Flex>
-          <Flex gap={2}>
+          <Flex gap={4}>
             <Text color="fg.muted" minW="40">Date</Text>
             <Text>{formatDate(event.event_date)}</Text>
           </Flex>
-          <Flex gap={2}>
-            <Text color="fg.muted" minW="40">Registration deadline</Text>
-            <Text>{formatDate(event.registration_deadline)}</Text>
-          </Flex>
-          <Flex gap={2}>
-            <Text color="fg.muted" minW="40">Type</Text>
+          {isDerby ? (
+            <Flex gap={4}>
+              <Text color="fg.muted" minW="40">Registration deadline</Text>
+              <Text>{formatDate(event.registration_deadline)}</Text>
+            </Flex>
+          ) : null}
+          <Flex gap={4}>
+            <Text color="fg.muted" minW="40">Event type</Text>
             <Text>
-              {EVENT_TYPE_LABELS[event.event_type]} ·{' '}
-              {EVENT_FORMAT_LABELS[event.event_format]}
-              {event.event_format === 'derby' && event.derby_type
+              {EVENT_TYPE_LABELS[event.event_type]}
+              {isDerby && event.derby_type
                 ? ` · ${DERBY_TYPE_LABELS[event.derby_type]}`
                 : ''}
             </Text>
           </Flex>
-          <Flex gap={2}>
-            <Text color="fg.muted" minW="40">Promoter</Text>
-            <Text>{event.promoter_name ?? '—'}</Text>
-          </Flex>
-          <Flex gap={2}>
+          {isDerby ? (
+            <Flex gap={4}>
+              <Text color="fg.muted" minW="40">Promoter</Text>
+              <Text>{event.promoter_name ?? '—'}</Text>
+            </Flex>
+          ) : null}
+          <Flex gap={4}>
             <Text color="fg.muted" minW="40">Entry fee</Text>
             <Text>{formatCurrency(event.entry_fee)}</Text>
           </Flex>
-          <Flex gap={2}>
-            <Text color="fg.muted" minW="40">Entries</Text>
-            <Text>
-              {event.min_entries ?? '—'} – {event.max_entries ?? '—'} (max{' '}
-              {event.cocks_per_entry} cocks/entry)
-            </Text>
+          <Flex gap={4}>
+            <Text color="fg.muted" minW="40">Tax per fight</Text>
+            <Text>{formatCurrency(event.tax_per_fight)}</Text>
           </Flex>
-          <Flex gap={2}>
-            <Text color="fg.muted" minW="40">Weight range</Text>
-            <Text>
-              {event.min_weight ?? '—'} – {event.max_weight ?? '—'} kg
-            </Text>
-          </Flex>
-          <Flex gap={2}>
-            <Text color="fg.muted" minW="40">Scoring</Text>
-            <Text>
-              {event.scoring_system} · Draw: {event.draw_rule} · Tie:{' '}
-              {event.tie_breaker_rule}
-            </Text>
+          <Flex gap={4}>
+            <Text color="fg.muted" minW="40">Cocks per entry</Text>
+            <Text>{event.cocks_per_entry}</Text>
           </Flex>
           {event.notes ? (
-            <Flex gap={2}>
+            <Flex gap={4}>
               <Text color="fg.muted" minW="40">Notes</Text>
               <Text whiteSpace="pre-wrap">{event.notes}</Text>
             </Flex>
+          ) : null}
+          {isDerby && event.registration_rules ? (
+            <Box>
+              <Text color="fg.muted" mb={1}>
+                Registration rules
+              </Text>
+              <Box
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeHtml(event.registration_rules),
+                }}
+              />
+            </Box>
           ) : null}
         </Flex>
       </Box>
 
       {event.prize_structure ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-          <Text fontWeight="medium" mb={4}>
+        <Box borderWidth="1px" borderColor="border" rounded="lg" p={6}>
+          <Text fontWeight="medium" mb={5}>
             Prize structure ({PRIZE_TYPE_LABELS[event.prize_structure.prize_type]})
           </Text>
-          <Flex direction="column" gap={2}>
+          <Flex direction="column" gap={4}>
             {event.prize_structure.config.map((tier) => (
-              <Flex key={tier.place} gap={3} fontSize="sm">
+              <Flex key={tier.place} gap={4} fontSize="sm">
                 <Text fontWeight="medium" minW="16">
                   #{tier.place}
                 </Text>

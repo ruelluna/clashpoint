@@ -14,6 +14,7 @@ import {
 import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
 
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import {
   createEventAction,
   transitionStatusAction,
@@ -21,19 +22,22 @@ import {
   type ActionState,
 } from '@/features/events/actions'
 import {
+  COCKS_PER_ENTRY_BY_DERBY_TYPE,
+  getNextStatuses,
+} from '@/features/events/utils'
+import {
   DERBY_TYPE_LABELS,
-  EVENT_FORMAT_LABELS,
   EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
   PRIZE_TYPE_LABELS,
 } from '@/features/events/schema'
 import type {
-  EventFormat,
+  DerbyType,
+  EventType,
   EventWithPrize,
   PrizeConfigEntry,
   PrizeType,
 } from '@/features/events/types'
-import { getNextStatuses } from '@/features/events/utils'
 import type { PromoterListItem } from '@/features/promoters/types'
 
 type EventFormClientProps = {
@@ -80,10 +84,16 @@ export function EventFormClient({
     initialState
   )
 
-  const [eventFormat, setEventFormat] = useState<EventFormat>(
-    () => event?.event_format ?? 'derby'
+  const [eventType, setEventType] = useState<EventType>(
+    () => event?.event_type ?? 'derby'
   )
-  const isClassic = eventFormat === 'classic'
+  const isClassic = eventType === 'classic'
+  const isDerby = eventType === 'derby'
+
+  const [derbyType, setDerbyType] = useState<DerbyType>(
+    () => event?.derby_type ?? '5_cock'
+  )
+  const isCustomDerby = derbyType === 'custom'
 
   const [prizeType, setPrizeType] = useState<PrizeType>(
     () => buildInitialPrizeState(event).prizeType
@@ -96,6 +106,9 @@ export function EventFormClient({
     () => JSON.stringify(prizeConfig),
     [prizeConfig]
   )
+
+  const presetCocks =
+    derbyType !== 'custom' ? COCKS_PER_ENTRY_BY_DERBY_TYPE[derbyType] : null
 
   const nextStatuses = event ? getNextStatuses(event.status) : []
 
@@ -200,25 +213,22 @@ export function EventFormClient({
         <form action={formAction}>
           <Flex direction="column" gap={5}>
             {event ? <input type="hidden" name="eventId" value={event.id} /> : null}
-            <input type="hidden" name="eventFormat" value={eventFormat} />
-            <input type="hidden" name="prizeType" value={prizeType} />
-            <input type="hidden" name="prizeConfig" value={prizeStructureJson} />
+            <input type="hidden" name="eventType" value={eventType} />
+            {isDerby ? (
+              <>
+                <input type="hidden" name="prizeType" value={prizeType} />
+                <input type="hidden" name="prizeConfig" value={prizeStructureJson} />
+                <input type="hidden" name="derbyType" value={derbyType} />
+              </>
+            ) : null}
             {isClassic ? <input type="hidden" name="cocksPerEntry" value="1" /> : null}
 
-            <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Event name
-                </Text>
-                <Input name="name" defaultValue={event?.name ?? ''} required />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Venue
-                </Text>
-                <Input name="venue" defaultValue={event?.venue ?? ''} required />
-              </Box>
-            </Flex>
+            <Box>
+              <Text fontSize="sm" fontWeight="medium" mb={1}>
+                Event name
+              </Text>
+              <Input name="name" defaultValue={event?.name ?? ''} required />
+            </Box>
 
             <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
               <Box flex="1">
@@ -234,27 +244,14 @@ export function EventFormClient({
               </Box>
               <Box flex="1">
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Registration deadline
-                </Text>
-                <Input
-                  name="registrationDeadline"
-                  type="datetime-local"
-                  defaultValue={toDatetimeLocalValue(event?.registration_deadline)}
-                />
-              </Box>
-            </Flex>
-
-            <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Event format
+                  Event type
                 </Text>
                 <NativeSelect.Root>
                   <NativeSelect.Field
-                    value={eventFormat}
-                    onChange={(e) => setEventFormat(e.currentTarget.value as EventFormat)}
+                    value={eventType}
+                    onChange={(e) => setEventType(e.currentTarget.value as EventType)}
                   >
-                    {Object.entries(EVENT_FORMAT_LABELS).map(([value, label]) => (
+                    {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
@@ -266,57 +263,6 @@ export function EventFormClient({
                     ? 'Single weight-matched bouts, one cock per entry.'
                     : 'Multi-cock tournament with cumulative scoring.'}
                 </Text>
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Event type
-                </Text>
-                <NativeSelect.Root>
-                  <NativeSelect.Field name="eventType" defaultValue={event?.event_type ?? 'house'}>
-                    {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </NativeSelect.Field>
-                </NativeSelect.Root>
-              </Box>
-              {!isClassic ? (
-                <Box flex="1">
-                  <Text fontSize="sm" fontWeight="medium" mb={1}>
-                    Derby type
-                  </Text>
-                  <NativeSelect.Root>
-                    <NativeSelect.Field
-                      name="derbyType"
-                      defaultValue={event?.derby_type ?? '5_cock'}
-                    >
-                      {Object.entries(DERBY_TYPE_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </NativeSelect.Field>
-                  </NativeSelect.Root>
-                </Box>
-              ) : null}
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Promoter
-                </Text>
-                <NativeSelect.Root>
-                  <NativeSelect.Field
-                    name="promoterId"
-                    defaultValue={event?.promoter_id ?? ''}
-                  >
-                    <option value="">None</option>
-                    {promoters.map((promoter) => (
-                      <option key={promoter.id} value={promoter.id}>
-                        {promoter.name}
-                      </option>
-                    ))}
-                  </NativeSelect.Field>
-                </NativeSelect.Root>
               </Box>
             </Flex>
 
@@ -333,207 +279,183 @@ export function EventFormClient({
                   defaultValue={event?.entry_fee ?? 0}
                 />
               </Box>
-              {!isClassic ? (
-                <Box flex="1">
-                  <Text fontSize="sm" fontWeight="medium" mb={1}>
-                    Cocks per entry
+              <Box flex="1">
+                <Text fontSize="sm" fontWeight="medium" mb={1}>
+                  Tax per fight
+                </Text>
+                <Input
+                  name="taxPerFight"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  defaultValue={event?.tax_per_fight ?? 0}
+                />
+              </Box>
+            </Flex>
+
+            {isDerby ? (
+              <>
+                <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
+                  <Box flex="1">
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Registration deadline
+                    </Text>
+                    <Input
+                      name="registrationDeadline"
+                      type="datetime-local"
+                      defaultValue={toDatetimeLocalValue(event?.registration_deadline)}
+                    />
+                  </Box>
+                  <Box flex="1">
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Promoter
+                    </Text>
+                    <NativeSelect.Root>
+                      <NativeSelect.Field
+                        name="promoterId"
+                        defaultValue={event?.promoter_id ?? ''}
+                      >
+                        <option value="">None</option>
+                        {promoters.map((promoter) => (
+                          <option key={promoter.id} value={promoter.id}>
+                            {promoter.name}
+                          </option>
+                        ))}
+                      </NativeSelect.Field>
+                    </NativeSelect.Root>
+                  </Box>
+                </Flex>
+
+                <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
+                  <Box flex="1">
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>
+                      Derby type
+                    </Text>
+                    <NativeSelect.Root>
+                      <NativeSelect.Field
+                        value={derbyType}
+                        onChange={(e) =>
+                          setDerbyType(e.currentTarget.value as DerbyType)
+                        }
+                      >
+                        {Object.entries(DERBY_TYPE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </NativeSelect.Field>
+                    </NativeSelect.Root>
+                  </Box>
+                  {isCustomDerby ? (
+                    <Box flex="1">
+                      <Text fontSize="sm" fontWeight="medium" mb={1}>
+                        Cocks per entry
+                      </Text>
+                      <Input
+                        name="cocksPerEntry"
+                        type="number"
+                        min={1}
+                        defaultValue={event?.cocks_per_entry ?? 5}
+                      />
+                    </Box>
+                  ) : (
+                    <Box flex="1">
+                      <Text fontSize="sm" fontWeight="medium" mb={1}>
+                        Cocks per entry
+                      </Text>
+                      <Text fontSize="sm" color="fg.muted" pt={2}>
+                        {presetCocks} cocks per entry (from derby type)
+                      </Text>
+                    </Box>
+                  )}
+                </Flex>
+
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium" mb={2}>
+                    Prize structure
                   </Text>
-                  <Input
-                    name="cocksPerEntry"
-                    type="number"
-                    min={1}
-                    defaultValue={event?.cocks_per_entry ?? 5}
+                  <NativeSelect.Root maxW="xs" mb={3}>
+                    <NativeSelect.Field
+                      value={prizeType}
+                      onChange={(event) =>
+                        setPrizeType(event.currentTarget.value as PrizeType)
+                      }
+                    >
+                      {Object.entries(PRIZE_TYPE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                  </NativeSelect.Root>
+
+                  <Flex direction="column" gap={2}>
+                    {prizeConfig.map((tier, index) => (
+                      <Flex key={`${tier.place}-${index}`} gap={2} wrap="wrap">
+                        <Input
+                          type="number"
+                          min={1}
+                          value={tier.place}
+                          onChange={(event) =>
+                            updatePrizeTier(index, 'place', event.target.value)
+                          }
+                          maxW="20"
+                        />
+                        <Input
+                          value={tier.label}
+                          onChange={(event) =>
+                            updatePrizeTier(index, 'label', event.target.value)
+                          }
+                          flex="1"
+                          minW="40"
+                        />
+                        {prizeType !== 'manual' ? (
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={tier.value ?? ''}
+                            onChange={(event) =>
+                              updatePrizeTier(index, 'value', event.target.value)
+                            }
+                            maxW="32"
+                            placeholder={prizeType === 'percentage' ? '%' : 'Amount'}
+                          />
+                        ) : null}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => removePrizeTier(index)}
+                          disabled={prizeConfig.length <= 1}
+                        >
+                          Remove
+                        </Button>
+                      </Flex>
+                    ))}
+                  </Flex>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    mt={2}
+                    onClick={addPrizeTier}
+                  >
+                    Add tier
+                  </Button>
+                </Box>
+
+                <Box>
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>
+                    Registration rules
+                  </Text>
+                  <RichTextEditor
+                    name="registrationRules"
+                    defaultValue={event?.registration_rules}
                   />
                 </Box>
-              ) : null}
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Scoring system
-                </Text>
-                <NativeSelect.Root>
-                  <NativeSelect.Field
-                    name="scoringSystem"
-                    defaultValue={event?.scoring_system ?? 'points'}
-                  >
-                    <option value="points">Points</option>
-                    <option value="win_loss">Win / Loss</option>
-                  </NativeSelect.Field>
-                </NativeSelect.Root>
-              </Box>
-            </Flex>
-
-            <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Min entries
-                </Text>
-                <Input
-                  name="minEntries"
-                  type="number"
-                  min={1}
-                  defaultValue={event?.min_entries ?? ''}
-                />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Max entries
-                </Text>
-                <Input
-                  name="maxEntries"
-                  type="number"
-                  min={1}
-                  defaultValue={event?.max_entries ?? ''}
-                />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Min weight (kg)
-                </Text>
-                <Input
-                  name="minWeight"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={event?.min_weight ?? ''}
-                />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Max weight (kg)
-                </Text>
-                <Input
-                  name="maxWeight"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={event?.max_weight ?? ''}
-                />
-              </Box>
-            </Flex>
-
-            <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Draw rule
-                </Text>
-                <Input name="drawRule" defaultValue={event?.draw_rule ?? '0.5 points'} />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Tie breaker rule
-                </Text>
-                <Input
-                  name="tieBreakerRule"
-                  defaultValue={event?.tie_breaker_rule ?? 'shared_championship'}
-                />
-              </Box>
-            </Flex>
-
-            <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Guaranteed prize
-                </Text>
-                <Input
-                  name="guaranteedPrizeAmount"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={event?.guaranteed_prize_amount ?? ''}
-                />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  House deduction
-                </Text>
-                <Input
-                  name="houseDeduction"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={event?.house_deduction ?? ''}
-                />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Venue share
-                </Text>
-                <Input
-                  name="venueShare"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={event?.venue_share ?? ''}
-                />
-              </Box>
-            </Flex>
-
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={2}>
-                Prize structure
-              </Text>
-              <NativeSelect.Root maxW="xs" mb={3}>
-                <NativeSelect.Field
-                  value={prizeType}
-                  onChange={(event) => setPrizeType(event.currentTarget.value as PrizeType)}
-                >
-                  {Object.entries(PRIZE_TYPE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </NativeSelect.Field>
-              </NativeSelect.Root>
-
-              <Flex direction="column" gap={2}>
-                {prizeConfig.map((tier, index) => (
-                  <Flex key={`${tier.place}-${index}`} gap={2} wrap="wrap">
-                    <Input
-                      type="number"
-                      min={1}
-                      value={tier.place}
-                      onChange={(event) =>
-                        updatePrizeTier(index, 'place', event.target.value)
-                      }
-                      maxW="20"
-                    />
-                    <Input
-                      value={tier.label}
-                      onChange={(event) =>
-                        updatePrizeTier(index, 'label', event.target.value)
-                      }
-                      flex="1"
-                      minW="40"
-                    />
-                    {prizeType !== 'manual' ? (
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={tier.value ?? ''}
-                        onChange={(event) =>
-                          updatePrizeTier(index, 'value', event.target.value)
-                        }
-                        maxW="32"
-                        placeholder={prizeType === 'percentage' ? '%' : 'Amount'}
-                      />
-                    ) : null}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => removePrizeTier(index)}
-                      disabled={prizeConfig.length <= 1}
-                    >
-                      Remove
-                    </Button>
-                  </Flex>
-                ))}
-              </Flex>
-              <Button type="button" size="sm" variant="outline" mt={2} onClick={addPrizeTier}>
-                Add tier
-              </Button>
-            </Box>
+              </>
+            ) : null}
 
             <Flex direction="column" gap={2}>
               <Checkbox.Root defaultChecked={event?.legal_authorized ?? false} name="legalAuthorized">

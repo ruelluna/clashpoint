@@ -1,10 +1,4 @@
-import type {
-  DerbyType,
-  EventFormat,
-  EventStatus,
-  EventType,
-  ScoringSystem,
-} from '@/features/events/types'
+import type { DerbyType, EventStatus, EventType } from '@/features/events/types'
 import type { MatchListItem } from '@/features/matches/types'
 
 export type PublicEventListItem = {
@@ -13,7 +7,6 @@ export type PublicEventListItem = {
   venue: string
   event_date: string
   event_type: EventType
-  event_format: EventFormat
   derby_type: DerbyType | null
   status: EventStatus
   promoter_name: string | null
@@ -25,11 +18,11 @@ export type PublicEvent = {
   venue: string
   event_date: string
   event_type: EventType
-  event_format: EventFormat
   derby_type: DerbyType | null
   status: EventStatus
-  scoring_system: ScoringSystem
   cocks_per_entry: number
+  tax_per_fight: number
+  registration_rules: string | null
   promoter_name: string | null
   publish_matches: boolean
   publish_standings: boolean

@@ -12,6 +12,7 @@ export async function updateSystemSettings(
 
   const updates = [
     { key: 'org_name', value: input.orgName },
+    { key: 'default_venue', value: input.defaultVenue },
     { key: 'legal_disclaimer', value: input.legalDisclaimer },
     { key: 'terms_accepted', value: input.termsAccepted },
   ]

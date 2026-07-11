@@ -1,4 +1,25 @@
-import type { EventStatus } from '@/features/events/types'
+import type { DerbyType, EventStatus } from '@/features/events/types'
+
+export const COCKS_PER_ENTRY_BY_DERBY_TYPE: Record<
+  Exclude<DerbyType, 'custom'>,
+  number
+> = {
+  '2_cock': 2,
+  '3_cock': 3,
+  '4_cock': 4,
+  '5_cock': 5,
+}
+
+export function resolveCocksPerEntry(
+  eventType: 'classic' | 'derby',
+  derbyType: DerbyType | null | undefined,
+  customValue?: number
+): number {
+  if (eventType === 'classic') return 1
+  if (derbyType == null) return 5
+  if (derbyType === 'custom') return customValue ?? 5
+  return COCKS_PER_ENTRY_BY_DERBY_TYPE[derbyType]
+}
 
 export const STATUS_TRANSITIONS: Record<EventStatus, EventStatus[]> = {
   draft: ['open', 'cancelled'],

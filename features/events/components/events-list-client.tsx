@@ -5,7 +5,6 @@ import Link from 'next/link'
 
 import {
   DERBY_TYPE_LABELS,
-  EVENT_FORMAT_LABELS,
   EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
 } from '@/features/events/schema'
@@ -119,9 +118,8 @@ export function EventsListClient({ events, canManage }: EventsListClientProps) {
                 </Box>
                 <Box flex="1">
                   <Text fontSize="sm">
-                    {EVENT_TYPE_LABELS[event.event_type]} ·{' '}
-                    {EVENT_FORMAT_LABELS[event.event_format]}
-                    {event.event_format === 'derby' && event.derby_type
+                    {EVENT_TYPE_LABELS[event.event_type]}
+                    {event.event_type === 'derby' && event.derby_type
                       ? ` · ${DERBY_TYPE_LABELS[event.derby_type]}`
                       : ''}
                   </Text>

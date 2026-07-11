@@ -16,6 +16,7 @@ export async function updateSettingsAction(
 
   const parsed = updateSettingsSchema.safeParse({
     orgName: formData.get('orgName'),
+    defaultVenue: formData.get('defaultVenue'),
     legalDisclaimer: formData.get('legalDisclaimer'),
     termsAccepted: formData.get('termsAccepted') === 'on',
   })

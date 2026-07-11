@@ -11,34 +11,42 @@ import type { EventRow } from '@/features/events/types'
 import {
   canEditEventDetails,
   isValidStatusTransition,
+  resolveCocksPerEntry,
 } from '@/features/events/utils'
+import { getSystemSettings } from '@/features/settings/queries'
 import type { Json } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
 
-function toEventInsert(input: CreateEventInput | UpdateEventInput) {
-  const isClassic = input.eventFormat === 'classic'
+async function toEventInsert(input: CreateEventInput | UpdateEventInput) {
+  const settings = await getSystemSettings()
+  const isClassic = input.eventType === 'classic'
 
   return {
-    promoter_id: input.promoterId ?? null,
+    promoter_id: isClassic ? null : (input.promoterId ?? null),
     name: input.name,
-    venue: input.venue,
+    venue: settings.defaultVenue,
     event_date: input.eventDate,
-    registration_deadline: input.registrationDeadline ?? null,
+    registration_deadline: isClassic ? null : (input.registrationDeadline ?? null),
     event_type: input.eventType,
-    event_format: input.eventFormat,
-    derby_type: isClassic ? null : input.derbyType ?? null,
+    derby_type: isClassic ? null : (input.derbyType ?? null),
     entry_fee: input.entryFee,
-    min_entries: input.minEntries ?? null,
-    max_entries: input.maxEntries ?? null,
-    cocks_per_entry: isClassic ? 1 : input.cocksPerEntry,
-    min_weight: input.minWeight ?? null,
-    max_weight: input.maxWeight ?? null,
-    scoring_system: input.scoringSystem,
-    draw_rule: input.drawRule,
-    tie_breaker_rule: input.tieBreakerRule,
-    guaranteed_prize_amount: input.guaranteedPrizeAmount ?? null,
-    house_deduction: input.houseDeduction ?? null,
-    venue_share: input.venueShare ?? null,
+    tax_per_fight: input.taxPerFight,
+    min_entries: null,
+    max_entries: null,
+    cocks_per_entry: resolveCocksPerEntry(
+      input.eventType,
+      input.derbyType,
+      input.cocksPerEntry
+    ),
+    min_weight: null,
+    max_weight: null,
+    scoring_system: 'points' as const,
+    draw_rule: '0.5 points',
+    tie_breaker_rule: 'shared_championship',
+    guaranteed_prize_amount: null,
+    house_deduction: 0,
+    venue_share: 0,
+    registration_rules: isClassic ? null : (input.registrationRules ?? null),
     legal_authorized: input.legalAuthorized,
     is_public: input.isPublic,
     publish_matches: input.publishMatches,
@@ -58,7 +66,7 @@ export async function createEvent(
   const { data: event, error: eventError } = await supabase
     .from('events')
     .insert({
-      ...toEventInsert(input),
+      ...(await toEventInsert(input)),
       status: 'draft',
       created_by: actorId,
     })
@@ -69,15 +77,17 @@ export async function createEvent(
     return { error: eventError?.message ?? 'Failed to create event' }
   }
 
-  const { error: prizeError } = await supabase.from('prize_structures').insert({
-    event_id: event.id,
-    prize_type: input.prizeStructure.prizeType,
-    config: input.prizeStructure.config as Json,
-  })
+  if (input.prizeStructure) {
+    const { error: prizeError } = await supabase.from('prize_structures').insert({
+      event_id: event.id,
+      prize_type: input.prizeStructure.prizeType,
+      config: input.prizeStructure.config as Json,
+    })
 
-  if (prizeError) {
-    await supabase.from('events').delete().eq('id', event.id)
-    return { error: prizeError.message }
+    if (prizeError) {
+      await supabase.from('events').delete().eq('id', event.id)
+      return { error: prizeError.message }
+    }
   }
 
   await writeAuditLog({
@@ -88,8 +98,8 @@ export async function createEvent(
     newValues: {
       name: input.name,
       status: 'draft',
-      format: input.eventFormat,
-      prizeType: input.prizeStructure.prizeType,
+      eventType: input.eventType,
+      prizeType: input.prizeStructure?.prizeType ?? null,
     },
   })
 
@@ -117,10 +127,29 @@ export async function updateEvent(
 
   const { error } = await supabase
     .from('events')
-    .update(toEventInsert(input))
+    .update(await toEventInsert(input))
     .eq('id', input.eventId)
 
   if (error) return { error: error.message }
+
+  if (input.prizeStructure) {
+    const { data: existingPrize } = await supabase
+      .from('prize_structures')
+      .select('id')
+      .eq('event_id', input.eventId)
+      .maybeSingle()
+
+    const payload = {
+      prize_type: input.prizeStructure.prizeType,
+      config: input.prizeStructure.config as Json,
+    }
+
+    const { error: prizeError } = existingPrize
+      ? await supabase.from('prize_structures').update(payload).eq('event_id', input.eventId)
+      : await supabase.from('prize_structures').insert({ event_id: input.eventId, ...payload })
+
+    if (prizeError) return { error: prizeError.message }
+  }
 
   await writeAuditLog({
     actorId,

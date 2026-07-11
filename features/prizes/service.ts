@@ -53,11 +53,8 @@ export async function computePrizePoolForEvent(
   return computePrizePool({
     entryCount: count,
     entryFee: event.entry_fee,
-    houseDeduction: event.house_deduction,
-    venueShare: event.venue_share,
     promoterCommissionType,
     promoterCommissionValue,
-    guaranteedPrizeAmount: event.guaranteed_prize_amount,
   })
 }
 

@@ -32,6 +32,15 @@ export function SettingsPageClient({ settings }: { settings: SystemSettings }) {
             </Box>
             <Box>
               <Text fontSize="sm" fontWeight="medium" mb={1}>
+                Default venue name
+              </Text>
+              <Input name="defaultVenue" defaultValue={settings.defaultVenue} required />
+              <Text fontSize="xs" color="fg.muted" mt={1}>
+                Applied to new and updated events. Shown on event lists and public pages.
+              </Text>
+            </Box>
+            <Box>
+              <Text fontSize="sm" fontWeight="medium" mb={1}>
                 Legal disclaimer
               </Text>
               <Textarea
