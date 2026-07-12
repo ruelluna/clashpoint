@@ -45,16 +45,16 @@ type EntryEditClientProps = {
   roosters: EntryRoosterEditItem[]
   promoters: PromoterListItem[]
   linkedCompetitor: CompetitorSearchResult | null
-  minWeight: number | null
-  maxWeight: number | null
+  minWeightGrams: number | null
+  maxWeightGrams: number | null
   eligibilityContext?: EntryFormEligibilityContext | null
 }
 
 const initialState: EntryActionState = {}
 
-function formatWeightRange(minWeight: number | null, maxWeight: number | null) {
-  if (minWeight == null && maxWeight == null) return 'No weight limits configured'
-  return `${minWeight ?? '—'} – ${maxWeight ?? '—'} kg`
+function formatWeightRange(minWeightGrams: number | null, maxWeightGrams: number | null) {
+  if (minWeightGrams == null && maxWeightGrams == null) return 'No weight limits configured'
+  return `${minWeightGrams ?? '—'} – ${maxWeightGrams ?? '—'} g`
 }
 
 export function EntryEditClient({
@@ -66,8 +66,8 @@ export function EntryEditClient({
   roosters,
   promoters,
   linkedCompetitor,
-  minWeight,
-  maxWeight,
+  minWeightGrams,
+  maxWeightGrams,
   eligibilityContext = null,
 }: EntryEditClientProps) {
   const [formState, formAction, pending] = useActionState(updateEntryAction, initialState)
@@ -83,7 +83,7 @@ export function EntryEditClient({
     <PageStack maxW="2xl">
       <PageHeader
         title="Edit rooster entry"
-        description={`${eventName} · Entry #${entry.entry_number} · ${roosters.length}/${cocksPerEntry} cocks · Weight limits: ${formatWeightRange(minWeight, maxWeight)}`}
+        description={`${eventName} · Entry #${entry.entry_number} · ${roosters.length}/${cocksPerEntry} cocks · Weight limits: ${formatWeightRange(minWeightGrams, maxWeightGrams)}`}
       />
 
       <form action={formAction}>

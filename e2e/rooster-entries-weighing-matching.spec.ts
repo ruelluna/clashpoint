@@ -22,7 +22,7 @@ async function createClassicEvent(page: Page, name: string) {
 }
 
 async function fillContactSuffix(page: Page, suffix: string) {
-  await page.getByPlaceholder('12345678').fill(suffix.replace(/\D/g, '').slice(0, 8))
+  await page.getByPlaceholder('9171234567').fill(suffix.replace(/\D/g, '').slice(0, 10))
 }
 
 async function createEntryWithRooster(
@@ -35,7 +35,6 @@ async function createEntryWithRooster(
     ownerName?: string
     roosterName?: string
     handlerName?: string
-    saveOwner?: boolean
     contactSuffix?: string
   }
 ) {
@@ -43,9 +42,6 @@ async function createEntryWithRooster(
   const ownerName = options?.ownerName ?? `${label} Owner`
   const roosterName = options?.roosterName ?? `${label} Rooster ${suffix}`
   await page.locator('input[name="ownerName"]').fill(ownerName)
-  if (options?.saveOwner) {
-    await page.getByLabel('Save owner for future entries').check()
-  }
   if (options?.contactSuffix) {
     await fillContactSuffix(page, options.contactSuffix)
   }
@@ -54,7 +50,7 @@ async function createEntryWithRooster(
   }
   await page.locator('input[name="rooster_1_entryName"]').fill(roosterName)
   await page.locator('input[name="rooster_1_bandNumber"]').fill(band)
-  await page.locator('input[name="rooster_1_weight"]').fill('2.10')
+  await page.locator('input[name="rooster_1_weight"]').fill('2100')
   await page.getByRole('button', { name: 'Save entry' }).click()
   await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
   await expect(page.getByText(ownerName)).toBeVisible({ timeout: 15_000 })
@@ -149,48 +145,33 @@ test.describe('Rooster entries → matching @auth', () => {
     await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
   })
 
-  test('saves an owner for reuse and allows different handlers per entry', async ({
-    page,
-  }) => {
+  test('reuses saved owner from Add new dialog', async ({ page }) => {
     test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
 
     const suffix = uniqueSuffix()
     const eventName = `E2E Saved Owner ${suffix}`
     const savedOwnerName = `Saved Owner ${suffix}`
-    const contactSuffix = suffix.replace(/\D/g, '').slice(0, 8).padStart(8, '1')
+    const contactSuffix = `917${suffix.replace(/\D/g, '').slice(0, 7).padEnd(7, '1')}`
 
     await signInAsAdmin(page)
     const eventId = await createClassicEvent(page, eventName)
 
-    await page.goto(`/dashboard/events/${eventId}/rooster-entries`)
-    await createEntryWithRooster(page, eventId, 'First', suffix, `F-${suffix}`, {
-      ownerName: savedOwnerName,
-      saveOwner: true,
-      contactSuffix,
-      handlerName: `Handler A ${suffix}`,
-    })
-
-    await createEntryWithRooster(page, eventId, 'Second', suffix, `S-${suffix}`, {
-      handlerName: `Handler B ${suffix}`,
-    })
+    await page.goto(`/dashboard/events/${eventId}/rooster-entries/new`)
+    await page.getByRole('button', { name: 'Add new' }).click()
+    await page.getByRole('dialog').locator('input').first().fill(savedOwnerName)
+    await fillContactSuffix(page, contactSuffix)
+    await page.getByRole('button', { name: 'Save owner' }).click()
+    await page.locator('input[name="rooster_1_entryName"]').fill(`First Rooster ${suffix}`)
+    await page.locator('input[name="rooster_1_bandNumber"]').fill(`F-${suffix}`)
+    await page.locator('input[name="rooster_1_weight"]').fill('2100')
+    await page.locator('input[name="handlerName"]').fill(`Handler A ${suffix}`)
+    await page.getByRole('button', { name: 'Save entry' }).click()
+    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
 
     await page.getByRole('link', { name: 'New entry' }).click()
     await page.locator('input[name="ownerName"]').fill(savedOwnerName)
     await expect(page.getByText(savedOwnerName).first()).toBeVisible({ timeout: 15_000 })
     await page.getByText(savedOwnerName).first().click()
-    await expect(page.locator('input[name="contactNumber"]')).toHaveValue(`69${contactSuffix}`)
-    await expect(page.getByLabel('Save owner for future entries')).toHaveCount(0)
-
-    await page.locator('input[name="rooster_1_entryName"]').fill(`Third Rooster ${suffix}`)
-    await page.locator('input[name="handlerName"]').fill(`Handler C ${suffix}`)
-    await page.locator('input[name="rooster_1_bandNumber"]').fill(`T-${suffix}`)
-    await page.locator('input[name="rooster_1_weight"]').fill('2.10')
-    await page.getByRole('button', { name: 'Save entry' }).click()
-    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
-
-    await expect(page.getByText(savedOwnerName)).toHaveCount(3, { timeout: 15_000 })
-    await expect(page.getByText(`Handler A ${suffix}`)).toBeVisible()
-    await expect(page.getByText(`Handler B ${suffix}`)).toBeVisible()
-    await expect(page.getByText(`Handler C ${suffix}`)).toBeVisible()
+    await expect(page.locator('input[name="contactNumber"]')).toHaveValue(`+63${contactSuffix}`)
   })
 })

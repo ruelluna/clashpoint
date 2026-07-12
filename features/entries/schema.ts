@@ -69,11 +69,16 @@ export const entryMetadataSchema = z.object({
   notes: optionalText(2000),
 })
 
+export const weightGramsSchema = z.coerce
+  .number()
+  .int('Weight must be a whole number of grams')
+  .positive('Weight must be greater than zero')
+
 export const roosterEntryItemSchema = z.object({
   cockIndex: z.number().int().positive().optional(),
   entryName: z.string().min(1, 'Entry name is required').max(200),
   bandNumber: z.string().min(1, 'Band number is required').max(50),
-  weight: z.coerce.number().positive('Weight must be greater than zero'),
+  weight: weightGramsSchema,
   category: optionalText(100),
   colorMarking: optionalText(200),
   ...entryRoosterPolicyFieldsSchema,
@@ -95,10 +100,7 @@ export const updateEntryRosterItemSchema = z.object({
   roosterId: z.string().uuid(),
   entryName: z.string().min(1, 'Entry name is required').max(200),
   bandNumber: z.string().min(1, 'Band number is required').max(50),
-  weight: z.coerce
-    .number()
-    .int('Weight must be a whole number of grams')
-    .positive('Weight must be greater than zero'),
+  weight: weightGramsSchema,
   category: optionalText(100),
   colorMarking: optionalText(200),
   ...entryRoosterPolicyFieldsSchema,
@@ -234,7 +236,6 @@ export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEn
     eventId: formData.get('eventId'),
     referredByPromoterId: formData.get('referredByPromoterId')?.toString().trim() || undefined,
     competitorId: formData.get('competitorId')?.toString().trim() || undefined,
-    saveOwner: formData.get('saveOwner') === 'on',
     ownerName: formData.get('ownerName'),
     handlerName: formData.get('handlerName')?.toString().trim() || undefined,
     contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,

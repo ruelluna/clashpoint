@@ -236,7 +236,7 @@ export async function listEntryRoostersForEdit(
       eligibility_status,
       eligibility_snapshot,
       registry_rooster_id,
-      weighings ( official_weight )
+      weighings ( official_weight_grams )
     `
     )
     .eq('entry_id', entryId)
@@ -330,7 +330,9 @@ export async function listEntryRoostersForEdit(
       rooster_name: registry?.name ?? null,
       band_number: row.band_number as string,
       weight:
-        weighing?.official_weight != null ? Number(weighing.official_weight) : null,
+        weighing?.official_weight_grams != null
+          ? Number(weighing.official_weight_grams)
+          : null,
       category: (row.category as string | null) ?? null,
       color_marking: (row.color_marking as string | null) ?? null,
       is_paired: pairedIds.has(roosterId),

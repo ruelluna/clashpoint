@@ -23,3 +23,15 @@ No migration. Deploy app only.
 npm run test:run -- features/entries/schema.test.ts
 npx playwright test e2e/rooster-entries-weighing-matching.spec.ts
 npx playwright test e2e/rooster-entry-eligibility.spec.ts
+
+## Changelog (2026-07-12 follow-up)
+
+- Entry rooster weight entered and validated in **grams** (Weight (g))
+- Contact numbers use **+63** prefix; stored as +63 + 10 digits (e.g. +639171234567)
+- Removed **Save owner for future entries** checkbox; owners saved via **Add new** dialog only
+- User doc updated for grams, +63, and owner workflow
+
+## Verification
+
+- npm run test:run -- features/entries/schema.test.ts features/entries/policy-validation.test.ts features/entries/service.test.ts
+- npm run build

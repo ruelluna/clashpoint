@@ -5,7 +5,7 @@ import { validateRoosterAgainstPolicy } from '@/features/entries/policy-validati
 describe('entry policy validation', () => {
   it('requires band level when banding is required', () => {
     const error = validateRoosterAgainstPolicy(
-      { weight: 2.0, ageClass: 'cock' },
+      { weight: 2000, ageClass: 'cock' },
       {
         enabledFields: ['banding'],
         unknownValueHandling: 'approval_required',

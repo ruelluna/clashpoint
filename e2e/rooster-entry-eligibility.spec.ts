@@ -55,13 +55,13 @@ test.describe('Rooster entry eligibility @auth', () => {
     await page.locator('input[name="ownerName"]').fill(`Owner ${suffix}`)
     await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
     await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
-    await page.locator('input[name="rooster_1_weight"]').fill('1.50')
+    await page.locator('input[name="rooster_1_weight"]').fill('1500')
     await page.locator('select[name="ageClass_rooster_1"]').selectOption('stag')
     await page.getByRole('button', { name: 'Save entry' }).click()
 
     await expect(page.getByText('Weight is below the event minimum', { exact: false })).toBeVisible()
 
-    await page.locator('input[name="rooster_1_weight"]').fill('2.00')
+    await page.locator('input[name="rooster_1_weight"]').fill('2000')
     await page.getByRole('button', { name: 'Save entry' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))

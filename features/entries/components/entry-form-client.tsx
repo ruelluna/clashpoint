@@ -39,26 +39,26 @@ type EntryFormClientProps = {
   eventType: 'classic' | 'derby'
   promoters: PromoterListItem[]
   cocksPerEntry: number
-  minWeight: number | null
-  maxWeight: number | null
+  minWeightGrams: number | null
+  maxWeightGrams: number | null
   eligibilityContext?: EntryFormEligibilityContext | null
 }
 
 const initialState: EntryActionState = {}
 
-function formatWeightRange(minWeight: number | null, maxWeight: number | null) {
-  if (minWeight == null && maxWeight == null) return 'No weight limits configured'
-  return `${minWeight ?? '—'} – ${maxWeight ?? '—'} kg`
+function formatWeightRange(minWeightGrams: number | null, maxWeightGrams: number | null) {
+  if (minWeightGrams == null && maxWeightGrams == null) return 'No weight limits configured'
+  return `${minWeightGrams ?? '—'} – ${maxWeightGrams ?? '—'} g`
 }
 
 function formatDescription(
   eventName: string,
   eventType: 'classic' | 'derby',
   cocksPerEntry: number,
-  minWeight: number | null,
-  maxWeight: number | null
+  minWeightGrams: number | null,
+  maxWeightGrams: number | null
 ) {
-  const weightText = formatWeightRange(minWeight, maxWeight)
+  const weightText = formatWeightRange(minWeightGrams, maxWeightGrams)
   if (eventType === 'classic') {
     return `${eventName} · Register game farm / handler and one rooster. Weight limits: ${weightText}`
   }
@@ -71,8 +71,8 @@ export function EntryFormClient({
   eventType,
   promoters,
   cocksPerEntry,
-  minWeight,
-  maxWeight,
+  minWeightGrams,
+  maxWeightGrams,
   eligibilityContext = null,
 }: EntryFormClientProps) {
   const [formState, formAction, pending] = useActionState(
@@ -95,8 +95,8 @@ export function EntryFormClient({
           eventName,
           eventType,
           cocksPerEntry,
-          minWeight,
-          maxWeight
+          minWeightGrams,
+          maxWeightGrams
         )}
       />
 

@@ -1,7 +1,6 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
-import { findOrCreateCompetitor } from '@/features/competitors/service'
 import { getCompetitor } from '@/features/competitors/queries'
 import { applyRegistrationEligibility } from '@/features/eligibility/registration-bridge'
 import {
@@ -20,14 +19,15 @@ import type {
 } from '@/features/entries/schema'
 import { getEvent } from '@/features/events/queries'
 import { createRoosterForEntry } from '@/features/weighing/service'
-import { evaluateWeightStatus } from '@/features/weighing/schema'
-import { kgToGrams, parseCategoryToAgeClass } from '@/lib/derby/enums'
+import { evaluateWeightStatusGrams } from '@/features/weighing/schema'
+import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
+import { parseCategoryToAgeClass } from '@/lib/derby/enums'
 import { createExtendedClient } from '@/lib/supabase/extended'
 import { createClient } from '@/lib/supabase/server'
 
 type EntryOwnerFields = Pick<
   CreateEntryInput,
-  'competitorId' | 'saveOwner' | 'ownerName' | 'contactNumber' | 'email'
+  'competitorId' | 'ownerName' | 'contactNumber' | 'email'
 >
 
 export async function resolveEntryCompetitor(
@@ -41,21 +41,6 @@ export async function resolveEntryCompetitor(
     }
 
     return { competitorId: competitor.id }
-  }
-
-  if (input.saveOwner) {
-    const result = await findOrCreateCompetitor(actorId, {
-      displayName: input.ownerName,
-      contactNumber: input.contactNumber,
-      email: input.email,
-      address: undefined,
-    })
-
-    if (result.error) {
-      return { error: result.error }
-    }
-
-    return { competitorId: result.competitorId ?? null }
   }
 
   return { competitorId: null }
@@ -370,11 +355,12 @@ export async function updateEntryRoosters(
       return { error: `Band number ${band} is already registered for this event` }
     }
 
-    const weightGrams = kgToGrams(rooster.weight)
-    const weightStatus = evaluateWeightStatus(
-      rooster.weight,
-      event.min_weight,
-      event.max_weight
+    const weightGrams = Math.round(rooster.weight)
+    const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+    const weightStatus = evaluateWeightStatusGrams(
+      weightGrams,
+      minWeightGrams,
+      maxWeightGrams
     )
     const ageClass = rooster.ageClass ?? parseCategoryToAgeClass(rooster.category)
 
@@ -382,7 +368,7 @@ export async function updateEntryRoosters(
       .from('rooster_event_registrations')
       .update({
         band_number: band,
-        declared_weight: rooster.weight,
+        declared_weight: weightGrams / 1000,
         declared_weight_grams: weightGrams,
         official_weight_grams: weightGrams,
         category: rooster.category ?? null,
@@ -449,7 +435,7 @@ export async function updateEntryRoosters(
       .maybeSingle()
 
     const weighingPayload = {
-      official_weight: rooster.weight,
+      official_weight: weightGrams / 1000,
       official_weight_grams: weightGrams,
       weight_status: weightStatus,
       verified_by: actorId,
@@ -482,7 +468,7 @@ export async function updateEntryRoosters(
       newValues: {
         entry_id: entryId,
         band_number: band,
-        weight: rooster.weight,
+        weight: weightGrams,
         weight_status: weightStatus,
       },
     })

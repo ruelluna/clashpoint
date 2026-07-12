@@ -89,12 +89,12 @@ function RoosterSlotFields({
             disabled={disabled}
           />
         </FormField>
-        <FormField label="Weight (kg)" required={required} flex="1">
+        <FormField label="Weight (g)" required={required} flex="1">
           <Input
             name={weightField}
             type="number"
-            step="0.01"
-            min="0"
+            step="1"
+            min="1"
             required={required}
             defaultValue={
               defaults?.weight != null ? String(defaults.weight) : undefined

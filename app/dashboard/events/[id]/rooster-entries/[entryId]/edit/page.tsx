@@ -7,6 +7,7 @@ import { getCompetitor } from '@/features/competitors/queries'
 import { getEvent } from '@/features/events/queries'
 import { listPromoters } from '@/features/promoters/queries'
 import { EventPageLayout } from '@/components/dashboard'
+import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
 import { requirePermission } from '@/lib/auth/permissions'
 
 type EditRoosterEntryPageProps = {
@@ -31,6 +32,8 @@ export default async function EditRoosterEntryPage({ params }: EditRoosterEntryP
     ? await getCompetitor(entry.competitor_id)
     : null
 
+  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>
       <EntryEditClient
@@ -42,8 +45,8 @@ export default async function EditRoosterEntryPage({ params }: EditRoosterEntryP
         roosters={roosters}
         promoters={promoters}
         linkedCompetitor={linkedCompetitor}
-        minWeight={event.min_weight}
-        maxWeight={event.max_weight}
+        minWeightGrams={minWeightGrams}
+        maxWeightGrams={maxWeightGrams}
         eligibilityContext={eligibilityContext}
       />
     </EventPageLayout>

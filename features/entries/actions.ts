@@ -165,7 +165,6 @@ export async function updateEntryAction(
     entryId: formData.get('entryId'),
     referredByPromoterId: parseOptionalUuid(formData.get('referredByPromoterId')),
     competitorId: parseOptionalUuid(formData.get('competitorId')),
-    saveOwner: formData.get('saveOwner') === 'on',
     ownerName: formData.get('ownerName'),
     handlerName: formData.get('handlerName')?.toString().trim() || undefined,
     contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,

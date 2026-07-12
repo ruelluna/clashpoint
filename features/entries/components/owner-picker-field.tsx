@@ -1,8 +1,10 @@
 'use client'
 
 import {
+  Box,
   Button,
   Combobox,
+  Field,
   Flex,
   Portal,
   Stack,
@@ -11,10 +13,9 @@ import {
 } from '@chakra-ui/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { FormField } from '@/components/dashboard'
+import { CreateOwnerDialog } from '@/features/entries/components/create-owner-dialog'
 import { searchCompetitorsAction } from '@/features/competitors/actions'
 import type { CompetitorSearchResult } from '@/features/competitors/types'
-import { CreateOwnerDialog } from '@/features/entries/components/create-owner-dialog'
 
 export type OwnerProfileValues = {
   contactNumber: string
@@ -109,81 +110,88 @@ export function OwnerPickerField({
     <Stack gap={3}>
       <input type="hidden" name="competitorId" value={competitorId} />
 
-      <Flex gap={3} align="flex-end" direction={{ base: 'column', sm: 'row' }}>
-        <FormField
-          label="Owner Name/Game Farm"
-          required
-          flex="1"
-          helpText="Search saved owners or use Add new to register a game farm. Handler is recorded per entry only."
+      <Field.Root required flex="1">
+        <Field.Label>Owner Name/Game Farm</Field.Label>
+        <Flex
+          gap={3}
+          align="center"
+          direction={{ base: 'column', sm: 'row' }}
         >
-          <Combobox.Root
-            collection={collection}
-            allowCustomValue
-            inputValue={inputValue}
-            value={competitorId ? [competitorId] : []}
-            onInputValueChange={(details) => {
-              setInputValue(details.inputValue)
-              if (
-                competitorId &&
-                details.inputValue.trim() !== selectedCompetitor?.displayName
-              ) {
-                setCompetitorId('')
-              }
-            }}
-            onValueChange={(details) => {
-              const nextId = details.value[0] ?? ''
-              setCompetitorId(nextId)
+          <Box flex="1" width={{ base: '100%', sm: 'auto' }}>
+            <Combobox.Root
+              collection={collection}
+              allowCustomValue
+              inputValue={inputValue}
+              value={competitorId ? [competitorId] : []}
+              onInputValueChange={(details) => {
+                setInputValue(details.inputValue)
+                if (
+                  competitorId &&
+                  details.inputValue.trim() !== selectedCompetitor?.displayName
+                ) {
+                  setCompetitorId('')
+                }
+              }}
+              onValueChange={(details) => {
+                const nextId = details.value[0] ?? ''
+                setCompetitorId(nextId)
 
-              const owner = searchResults.find((item) => item.id === nextId)
-              if (owner) {
-                setInputValue(owner.displayName)
-                applyOwnerProfile(owner)
-              }
-            }}
-            openOnClick
-            data-testid="owner-picker"
-          >
-            <Combobox.Control>
-              <Combobox.Input
-                name="ownerName"
-                required
-                maxLength={200}
-                placeholder="Search or enter owner / game farm"
-              />
-              <Combobox.IndicatorGroup>
-                <Combobox.ClearTrigger
-                  onClick={() => {
-                    setCompetitorId('')
-                  }}
+                const owner = searchResults.find((item) => item.id === nextId)
+                if (owner) {
+                  setInputValue(owner.displayName)
+                  applyOwnerProfile(owner)
+                }
+              }}
+              openOnClick
+              data-testid="owner-picker"
+            >
+              <Combobox.Control>
+                <Combobox.Input
+                  name="ownerName"
+                  required
+                  maxLength={200}
+                  placeholder="Search or enter owner / game farm"
                 />
-                <Combobox.Trigger />
-              </Combobox.IndicatorGroup>
-            </Combobox.Control>
+                <Combobox.IndicatorGroup>
+                  <Combobox.ClearTrigger
+                    onClick={() => {
+                      setCompetitorId('')
+                    }}
+                  />
+                  <Combobox.Trigger />
+                </Combobox.IndicatorGroup>
+              </Combobox.Control>
 
-            <Portal>
-              <Combobox.Positioner>
-                <Combobox.Content>
-                  <Combobox.Empty>No saved owners found</Combobox.Empty>
-                  {collection.items.map((item) => (
-                    <Combobox.Item key={item.id} item={item}>
-                      <Combobox.ItemText>{item.displayName}</Combobox.ItemText>
-                      <Combobox.ItemIndicator />
-                    </Combobox.Item>
-                  ))}
-                </Combobox.Content>
-              </Combobox.Positioner>
-            </Portal>
-          </Combobox.Root>
-        </FormField>
-        <Button
-          type="button"
-          variant="outline"
-          alignSelf={{ base: 'stretch', sm: 'flex-end' }}
-          onClick={() => setDialogOpen(true)}
-        >
-          Add new
-        </Button>
-      </Flex>
+              <Portal>
+                <Combobox.Positioner>
+                  <Combobox.Content>
+                    <Combobox.Empty>No saved owners found</Combobox.Empty>
+                    {collection.items.map((item) => (
+                      <Combobox.Item key={item.id} item={item}>
+                        <Combobox.ItemText>{item.displayName}</Combobox.ItemText>
+                        <Combobox.ItemIndicator />
+                      </Combobox.Item>
+                    ))}
+                  </Combobox.Content>
+                </Combobox.Positioner>
+              </Portal>
+            </Combobox.Root>
+          </Box>
+          <Button
+            type="button"
+            variant="outline"
+            flexShrink={0}
+            alignSelf={{ base: 'stretch', sm: 'auto' }}
+            onClick={() => setDialogOpen(true)}
+          >
+            Add new
+          </Button>
+        </Flex>
+        <Field.HelperText>
+          Search saved owners or use Add new to register a game farm. Handler is
+          recorded per entry only.
+        </Field.HelperText>
+      </Field.Root>
 
       <CreateOwnerDialog
         open={dialogOpen}
