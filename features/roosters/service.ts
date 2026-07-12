@@ -9,6 +9,7 @@ import {
   type CreateRoosterInput,
   type UpdateRoosterInput,
 } from '@/features/roosters/schema'
+import { catalogReferenceValues } from '@/features/reference-values/service'
 import { createExtendedClient } from '@/lib/supabase/extended'
 
 export async function generateRoosterCode(): Promise<string> {
@@ -32,6 +33,11 @@ export async function createRooster(
   const supabase = await createExtendedClient()
   const roosterCode = await generateRoosterCode()
 
+  const cataloged = await catalogReferenceValues({
+    breed: input.breed,
+    bloodline: input.bloodline,
+  })
+
   const { data, error } = await supabase
     .from('roosters')
     .insert({
@@ -44,8 +50,8 @@ export async function createRooster(
       hatch_date: input.hatchDate ?? null,
       hatch_date_is_estimated: input.hatchDateIsEstimated,
       competition_class: input.competitionClass,
-      breed: input.breed ?? null,
-      bloodline: input.bloodline ?? null,
+      breed: cataloged.breed,
+      bloodline: cataloged.bloodline,
       declared_external_experience_status:
         input.declaredExternalExperienceStatus ?? null,
       calculated_experience_status: 'maiden',
@@ -97,6 +103,11 @@ export async function updateRooster(
   if (fetchError) return { error: fetchError.message }
   if (!existing) return { error: 'Rooster not found' }
 
+  const cataloged = await catalogReferenceValues({
+    breed: input.breed,
+    bloodline: input.bloodline,
+  })
+
   const { error } = await supabase
     .from('roosters')
     .update({
@@ -108,8 +119,8 @@ export async function updateRooster(
       hatch_date: input.hatchDate ?? null,
       hatch_date_is_estimated: input.hatchDateIsEstimated,
       competition_class: input.competitionClass,
-      breed: input.breed ?? null,
-      bloodline: input.bloodline ?? null,
+      breed: cataloged.breed,
+      bloodline: cataloged.bloodline,
       declared_external_experience_status:
         input.declaredExternalExperienceStatus ?? null,
       origin_type: input.originType,

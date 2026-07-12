@@ -21,7 +21,7 @@ import { getEvent } from '@/features/events/queries'
 import { createRoosterForEntry } from '@/features/weighing/service'
 import { evaluateWeightStatusGrams } from '@/features/weighing/schema'
 import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
-import { parseCategoryToAgeClass } from '@/lib/derby/enums'
+import { catalogReferenceValues } from '@/features/reference-values/service'
 import { createExtendedClient } from '@/lib/supabase/extended'
 import { createClient } from '@/lib/supabase/server'
 
@@ -143,16 +143,29 @@ function toCreateRoosterInput(
     entryName: rooster.entryName,
     bandNumber: rooster.bandNumber,
     weight: rooster.weight,
-    category: rooster.category,
     colorMarking: rooster.colorMarking,
-    ageClass: rooster.ageClass,
-    originType: rooster.originType,
-    breedingRelationship: rooster.breedingRelationship,
-    experienceStatus: rooster.experienceStatus,
-    bandLevel: rooster.bandLevel,
-    bandOrganization: rooster.bandOrganization,
-    bandYear: rooster.bandYear,
-    bandSeason: rooster.bandSeason,
+    ageClass: 'ageClass' in rooster ? rooster.ageClass : undefined,
+    originType: 'originType' in rooster ? rooster.originType : undefined,
+    breedingRelationship:
+      'breedingRelationship' in rooster ? rooster.breedingRelationship : undefined,
+    experienceStatus: 'experienceStatus' in rooster ? rooster.experienceStatus : undefined,
+    bandLevel: 'bandLevel' in rooster ? rooster.bandLevel : undefined,
+    bandOrganization: 'bandOrganization' in rooster ? rooster.bandOrganization : undefined,
+    bandYear: 'bandYear' in rooster ? rooster.bandYear : undefined,
+    bandSeason: 'bandSeason' in rooster ? rooster.bandSeason : undefined,
+    breed: 'breed' in rooster ? rooster.breed : undefined,
+    bloodline: 'bloodline' in rooster ? rooster.bloodline : undefined,
+    competitionClass: 'competitionClass' in rooster ? rooster.competitionClass : undefined,
+    hatchDate: 'hatchDate' in rooster ? rooster.hatchDate : undefined,
+    hatchDateIsEstimated:
+      'hatchDateIsEstimated' in rooster ? rooster.hatchDateIsEstimated : undefined,
+    countryOfOrigin: 'countryOfOrigin' in rooster ? rooster.countryOfOrigin : undefined,
+    provinceOfOrigin: 'provinceOfOrigin' in rooster ? rooster.provinceOfOrigin : undefined,
+    municipalityOfOrigin:
+      'municipalityOfOrigin' in rooster ? rooster.municipalityOfOrigin : undefined,
+    breederNameExternal:
+      'breederNameExternal' in rooster ? rooster.breederNameExternal : undefined,
+    originNotes: 'originNotes' in rooster ? rooster.originNotes : undefined,
   }
 }
 
@@ -362,7 +375,13 @@ export async function updateEntryRoosters(
       minWeightGrams,
       maxWeightGrams
     )
-    const ageClass = rooster.ageClass ?? parseCategoryToAgeClass(rooster.category)
+    const ageClass = rooster.ageClass ?? 'unknown'
+
+    const cataloged = await catalogReferenceValues({
+      breed: rooster.breed,
+      bloodline: rooster.bloodline,
+      colorMarking: rooster.colorMarking,
+    })
 
     const { error: roosterUpdateError } = await extended
       .from('rooster_event_registrations')
@@ -371,8 +390,7 @@ export async function updateEntryRoosters(
         declared_weight: weightGrams / 1000,
         declared_weight_grams: weightGrams,
         official_weight_grams: weightGrams,
-        category: rooster.category ?? null,
-        color_marking: rooster.colorMarking ?? null,
+        color_marking: cataloged.colorMarking,
         weight_verification_status: weightStatus,
         updated_at: new Date().toISOString(),
       })
@@ -386,8 +404,18 @@ export async function updateEntryRoosters(
         .update({
           name: rooster.entryName,
           age_class: ageClass,
+          competition_class: rooster.competitionClass ?? 'unclassified',
+          hatch_date: rooster.hatchDate ?? null,
+          hatch_date_is_estimated: rooster.hatchDateIsEstimated ?? false,
+          breed: cataloged.breed,
+          bloodline: cataloged.bloodline,
           origin_type: rooster.originType ?? 'unknown',
+          country_of_origin: rooster.countryOfOrigin ?? null,
+          province_of_origin: rooster.provinceOfOrigin ?? null,
+          municipality_of_origin: rooster.municipalityOfOrigin ?? null,
+          breeder_name_external: rooster.breederNameExternal ?? null,
           breeding_relationship: rooster.breedingRelationship ?? 'unknown',
+          origin_notes: rooster.originNotes ?? null,
           declared_external_experience_status: rooster.experienceStatus ?? null,
           updated_at: new Date().toISOString(),
         })

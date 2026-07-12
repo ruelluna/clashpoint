@@ -52,7 +52,7 @@ describe('formatEligibilityErrors', () => {
 describe('validateRoosterAgainstPolicy', () => {
   it('rejects weight below policy minimum', () => {
     const error = validateRoosterAgainstPolicy(
-      { weight: 1.5, ageClass: 'stag' },
+      { weight: 1500, ageClass: 'stag' },
       baseContext
     )
     expect(error).toBe('Weight is below the event minimum.')
@@ -60,7 +60,7 @@ describe('validateRoosterAgainstPolicy', () => {
 
   it('rejects disallowed age class when unknown is prohibited', () => {
     const error = validateRoosterAgainstPolicy(
-      { weight: 2.0 },
+      { weight: 2000 },
       baseContext
     )
     expect(error).toBe('Age class is required for this event.')
@@ -68,13 +68,13 @@ describe('validateRoosterAgainstPolicy', () => {
 
   it('accepts rooster matching enabled policy rules', () => {
     const error = validateRoosterAgainstPolicy(
-      { weight: 2.0, ageClass: 'stag' },
+      { weight: 2000, ageClass: 'stag' },
       baseContext
     )
     expect(error).toBeNull()
   })
 
   it('skips validation when no policy context', () => {
-    expect(validateRoosterAgainstPolicy({ weight: 0.5 }, null)).toBeNull()
+    expect(validateRoosterAgainstPolicy({ weight: 500 }, null)).toBeNull()
   })
 })

@@ -26,6 +26,7 @@ import {
   type RoosterActionState,
 } from '@/features/roosters/actions'
 import type { RoosterRow } from '@/features/roosters/types'
+import { ReferenceValueCombobox } from '@/features/reference-values/components/reference-value-combobox'
 import {
   AGE_CLASS_LABELS,
   COMPETITION_CLASS_LABELS,
@@ -165,16 +166,22 @@ export function RoosterFormClient(props: RoosterFormClientProps) {
           </Flex>
 
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <FormField label="Breed" flex="1">
-              <Input name="breed" maxLength={100} defaultValue={rooster?.breed ?? ''} />
-            </FormField>
-            <FormField label="Bloodline" flex="1">
-              <Input
-                name="bloodline"
-                maxLength={200}
-                defaultValue={rooster?.bloodline ?? ''}
-              />
-            </FormField>
+            <ReferenceValueCombobox
+              kind="breed"
+              name="breed"
+              label="Breed"
+              defaultValue={rooster?.breed ?? ''}
+              maxLength={100}
+              flex="1"
+            />
+            <ReferenceValueCombobox
+              kind="bloodline"
+              name="bloodline"
+              label="Bloodline"
+              defaultValue={rooster?.bloodline ?? ''}
+              maxLength={200}
+              flex="1"
+            />
           </Flex>
 
           <FormField label="Declared external experience">

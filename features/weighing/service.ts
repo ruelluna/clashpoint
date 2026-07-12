@@ -15,11 +15,8 @@ import {
 } from '@/features/weighing/schema'
 import type { WeightStatus } from '@/features/weighing/types'
 import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
-import {
-  parseCategoryToAgeClass,
-  type AgeClass,
-  type BandLevel,
-} from '@/lib/derby/enums'
+import { catalogReferenceValues } from '@/features/reference-values/service'
+import type { AgeClass, BandLevel } from '@/lib/derby/enums'
 import { createExtendedClient } from '@/lib/supabase/extended'
 import { createClient } from '@/lib/supabase/server'
 
@@ -49,8 +46,7 @@ async function rollbackRoosterCreation(input: {
 }
 
 function resolveAgeClass(input: CreateRoosterInput): AgeClass {
-  if (input.ageClass) return input.ageClass
-  return parseCategoryToAgeClass(input.category)
+  return input.ageClass ?? 'unknown'
 }
 
 async function createRegistryBand(
@@ -135,14 +131,29 @@ export async function createRoosterForEntry(
   const verifiedAt = new Date().toISOString()
   const ageClass = resolveAgeClass(input)
 
+  const cataloged = await catalogReferenceValues({
+    breed: input.breed,
+    bloodline: input.bloodline,
+    colorMarking: input.colorMarking,
+  })
+
   const registryResult = await createRooster(
     actorId,
     registryRoosterSchema.parse({
       name: input.entryName,
       ageClass,
-      competitionClass: 'unclassified',
+      competitionClass: input.competitionClass ?? 'unclassified',
+      hatchDate: input.hatchDate,
+      hatchDateIsEstimated: input.hatchDateIsEstimated ?? false,
+      breed: cataloged.breed,
+      bloodline: cataloged.bloodline,
       originType: input.originType ?? 'unknown',
+      countryOfOrigin: input.countryOfOrigin,
+      provinceOfOrigin: input.provinceOfOrigin,
+      municipalityOfOrigin: input.municipalityOfOrigin,
+      breederNameExternal: input.breederNameExternal,
       breedingRelationship: input.breedingRelationship ?? 'unknown',
+      originNotes: input.originNotes,
       declaredExternalExperienceStatus: input.experienceStatus ?? null,
     })
   )
@@ -186,8 +197,8 @@ export async function createRoosterForEntry(
       declared_weight: weightGrams / 1000,
       declared_weight_grams: weightGrams,
       official_weight_grams: weightGrams,
-      category: input.category ?? null,
-      color_marking: input.colorMarking ?? null,
+      category: null,
+      color_marking: cataloged.colorMarking,
       status: requiresApproval ? 'submitted' : 'submitted',
       registration_status: 'submitted',
       approval_status: 'pending',
@@ -237,23 +248,12 @@ export async function createRoosterForEntry(
   }
 
   if (isDerby) {
-    const eligibilityResult = await applyRegistrationEligibility(
+    await applyRegistrationEligibility(
       actorId,
       input.eventId,
       rooster.id,
-      { blockOnIneligible: true, currentRegistrationStatus: 'submitted' }
+      { blockOnIneligible: false, currentRegistrationStatus: 'submitted' }
     )
-
-    if (eligibilityResult.blocked || eligibilityResult.error) {
-      await rollbackRoosterCreation({
-        supabase,
-        extended,
-        registrationId: rooster.id,
-        weighingId: weighing.id,
-        registryRoosterId: registryResult.roosterId,
-      })
-      return { error: eligibilityResult.error ?? 'Rooster is ineligible for this event' }
-    }
   } else if (!requiresApproval) {
     await supabase
       .from('rooster_event_registrations')

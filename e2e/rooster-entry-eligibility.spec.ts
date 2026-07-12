@@ -41,7 +41,7 @@ async function createDerbyEventWithEligibility(page: Page, name: string) {
 }
 
 test.describe('Rooster entry eligibility @auth', () => {
-  test('blocks ineligible rooster and accepts eligible entry', async ({ page }) => {
+  test('creates minimal entry then validates eligibility on edit', async ({ page }) => {
     test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
 
     const suffix = uniqueSuffix()
@@ -56,7 +56,6 @@ test.describe('Rooster entry eligibility @auth', () => {
     await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
     await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
     await page.locator('input[name="rooster_1_weight"]').fill('1500')
-    await page.locator('select[name="ageClass_rooster_1"]').selectOption('stag')
     await page.getByRole('button', { name: 'Save entry' }).click()
 
     await expect(page.getByText('Weight is below the event minimum', { exact: false })).toBeVisible()
@@ -66,6 +65,18 @@ test.describe('Rooster entry eligibility @auth', () => {
 
     await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
     await expect(page.getByText(`Owner ${suffix}`)).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByText('1/')).toBeVisible()
+
+    await page.getByRole('link', { name: 'Edit' }).first().click()
+    await page.locator('select[name^="ageClass_"]').first().selectOption('stag')
+    await page.locator('input[name="rooster_1_weight"], input[name^="weight_"]').first().fill('1500')
+    await page.getByRole('button', { name: 'Save entry' }).click()
+
+    await expect(page.getByText('Weight is below the event minimum', { exact: false })).toBeVisible()
+
+    await page.locator('input[name^="weight_"]').first().fill('2000')
+    await page.getByRole('button', { name: 'Save entry' }).click()
+
+    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
+    await expect(page.getByText(`Owner ${suffix}`)).toBeVisible({ timeout: 15_000 })
   })
 })

@@ -27,7 +27,6 @@ export type RoosterPolicyValidationContext = {
 export type RoosterPolicyInput = {
   weight: number
   ageClass?: string
-  category?: string
   originType?: string
   breedingRelationship?: string
   experienceStatus?: string

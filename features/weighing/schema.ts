@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { entryRoosterPolicyFieldsSchema } from '@/features/entries/policy-validation'
+import { entryRoosterRegistryFieldsSchema } from '@/features/entries/schema'
 import { weightGramsSchema } from '@/features/entries/schema'
 import type { WeightStatus } from '@/features/weighing/types'
 
@@ -34,31 +34,24 @@ export const verifyWeightSchema = z.object({
     .transform((value) => value || undefined),
 })
 
-export const createRoosterSchema = z.object({
-  eventId: z.string().uuid(),
-  entryId: z.string().uuid(),
-  entryName: z
+const optionalText = (max: number) =>
+  z
     .string()
-    .max(200)
+    .max(max)
     .optional()
     .or(z.literal(''))
-    .transform((value) => value || undefined),
-  bandNumber: z.string().min(1, 'Band number is required').max(50),
-  weight: weightGramsSchema,
-  category: z
-    .string()
-    .max(100)
-    .optional()
-    .or(z.literal(''))
-    .transform((value) => value || undefined),
-  colorMarking: z
-    .string()
-    .max(200)
-    .optional()
-    .or(z.literal(''))
-    .transform((value) => value || undefined),
-  ...entryRoosterPolicyFieldsSchema,
-})
+    .transform((value) => value || undefined)
+
+export const createRoosterSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    entryId: z.string().uuid(),
+    entryName: optionalText(200),
+    bandNumber: z.string().min(1, 'Band number is required').max(50),
+    weight: weightGramsSchema,
+    colorMarking: optionalText(200),
+  })
+  .extend(entryRoosterRegistryFieldsSchema)
 
 export type RecordWeightInput = z.infer<typeof recordWeightSchema>
 export type VerifyWeightInput = z.infer<typeof verifyWeightSchema>

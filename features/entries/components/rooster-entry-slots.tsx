@@ -9,6 +9,8 @@ import {
 } from '@/features/entries/components/rooster-policy-fields'
 import type { EntryRoosterEditItem } from '@/features/entries/queries'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
+import { ReferenceValueCombobox } from '@/features/reference-values/components/reference-value-combobox'
+import { RoosterProfileFields } from '@/features/roosters/components/rooster-profile-fields'
 
 type RoosterEntrySlotsProps = {
   mode: 'create' | 'edit'
@@ -30,8 +32,17 @@ function fieldPrefixForExistingEdit(roosterId: string) {
   return `${roosterId}_`
 }
 
+function colorMarkingFieldName(mode: 'create' | 'edit', slotKey: string) {
+  if (mode === 'create') {
+    return `colorMarking_rooster_${slotKey}`
+  }
+  return `colorMarking_${slotKey}`
+}
+
 type RoosterSlotFieldsProps = {
+  mode: 'create' | 'edit'
   prefix: string
+  slotKey: string
   cockNumber: number
   title: string
   required?: boolean
@@ -43,7 +54,9 @@ type RoosterSlotFieldsProps = {
 }
 
 function RoosterSlotFields({
+  mode,
   prefix,
+  slotKey,
   cockNumber,
   title,
   required = false,
@@ -103,23 +116,49 @@ function RoosterSlotFields({
           />
         </FormField>
       </Flex>
-      <RoosterPolicyFields
-        eligibilityContext={eligibilityContext}
-        fieldPrefix={fieldPrefixForPolicy}
+      <ReferenceValueCombobox
+        kind="color_marking"
+        name={colorMarkingFieldName(mode, slotKey)}
+        label="Color / marking"
+        defaultValue={defaults?.color_marking ?? ''}
+        maxLength={200}
         disabled={disabled}
-        defaults={{
-          ageClass: defaults?.age_class ?? undefined,
-          category: defaults?.category ?? undefined,
-          colorMarking: defaults?.color_marking ?? undefined,
-          originType: defaults?.origin_type ?? undefined,
-          breedingRelationship: defaults?.breeding_relationship ?? undefined,
-          experienceStatus: defaults?.experience_status ?? undefined,
-          bandLevel: defaults?.band_level ?? undefined,
-          bandOrganization: defaults?.band_organization ?? undefined,
-          bandYear: defaults?.band_year,
-          bandSeason: defaults?.band_season ?? undefined,
-        }}
       />
+      {mode === 'edit' ? (
+        <>
+          <RoosterProfileFields
+            fieldSuffix={fieldPrefixForPolicy}
+            disabled={disabled}
+            defaults={{
+              ageClass: defaults?.age_class ?? undefined,
+              competitionClass: defaults?.competition_class ?? undefined,
+              hatchDate: defaults?.hatch_date ?? undefined,
+              hatchDateIsEstimated: defaults?.hatch_date_is_estimated ?? undefined,
+              breed: defaults?.breed ?? undefined,
+              bloodline: defaults?.bloodline ?? undefined,
+              experienceStatus: defaults?.experience_status ?? undefined,
+              originType: defaults?.origin_type ?? undefined,
+              countryOfOrigin: defaults?.country_of_origin ?? undefined,
+              provinceOfOrigin: defaults?.province_of_origin ?? undefined,
+              municipalityOfOrigin: defaults?.municipality_of_origin ?? undefined,
+              breedingRelationship: defaults?.breeding_relationship ?? undefined,
+              breederNameExternal: defaults?.breeder_name_external ?? undefined,
+              originNotes: defaults?.origin_notes ?? undefined,
+            }}
+          />
+          <RoosterPolicyFields
+            eligibilityContext={eligibilityContext}
+            fieldPrefix={fieldPrefixForPolicy}
+            disabled={disabled}
+            defaults={{
+              bandLevel: defaults?.band_level ?? undefined,
+              bandOrganization: defaults?.band_organization ?? undefined,
+              bandYear: defaults?.band_year,
+              bandSeason: defaults?.band_season ?? undefined,
+            }}
+          />
+        </>
+      ) : null}
       {defaults?.eligibility_status ? (
         <EligibilityStatusSummary
           status={defaults.eligibility_status}
@@ -149,7 +188,9 @@ export function RoosterEntrySlots({
           return (
             <RoosterSlotFields
               key={cockNumber}
+              mode="create"
               prefix={fieldPrefixForCreate(cockNumber)}
+              slotKey={String(cockNumber)}
               cockNumber={cockNumber}
               title={isClassic ? 'Rooster & weight' : `Cock #${cockNumber}`}
               required={isClassic}
@@ -160,7 +201,8 @@ export function RoosterEntrySlots({
         })}
         {eventType === 'derby' ? (
           <Text fontSize="sm" color="fg.muted">
-            Fill at least one cock to save. You can add remaining cocks later from Edit entry.
+            Fill at least one cock to save. Complete breed, bloodline, and eligibility
+            details from Edit entry.
           </Text>
         ) : null}
       </>
@@ -183,7 +225,9 @@ export function RoosterEntrySlots({
       {existingRoosters.map((rooster) => (
         <RoosterSlotFields
           key={rooster.rooster_id}
+          mode="edit"
           prefix=""
+          slotKey={rooster.rooster_id}
           cockNumber={rooster.cock_number}
           title={`Cock #${rooster.cock_number}`}
           required
@@ -197,7 +241,9 @@ export function RoosterEntrySlots({
       {missingSlots.map((cockNumber) => (
         <RoosterSlotFields
           key={`new-${cockNumber}`}
+          mode="edit"
           prefix={fieldPrefixForNewEdit(cockNumber)}
+          slotKey={`new_rooster_${cockNumber}`}
           cockNumber={cockNumber}
           title={`New cock #${cockNumber}`}
           eligibilityContext={eligibilityContext}

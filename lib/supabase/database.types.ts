@@ -602,6 +602,33 @@ export type Database = {
           },
         ]
       }
+      reference_values: {
+        Row: {
+          id: string
+          kind: Database['public']['Enums']['reference_value_kind']
+          name: string
+          normalized_name: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          kind: Database['public']['Enums']['reference_value_kind']
+          name: string
+          normalized_name: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: Database['public']['Enums']['reference_value_kind']
+          name?: string
+          normalized_name?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rooster_event_registrations: {
         Row: {
           id: string
@@ -1321,6 +1348,7 @@ export type Database = {
         | 'partial'
         | 'paid'
         | 'refunded'
+      reference_value_kind: 'breed' | 'bloodline' | 'color_marking'
       rejection_category:
         | 'age_ineligible'
         | 'weight_below_minimum'

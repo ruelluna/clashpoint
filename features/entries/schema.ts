@@ -2,6 +2,13 @@ import { z } from 'zod'
 
 import { entryRoosterPolicyFieldsSchema } from '@/features/entries/policy-validation'
 import type { EntrySource, RegistrationStatus } from '@/features/entries/types'
+import {
+  ageClassSchema,
+  breedingRelationshipSchema,
+  competitionClassSchema,
+  experienceStatusSchema,
+  originTypeSchema,
+} from '@/lib/derby/enums'
 
 export const registrationStatusSchema = z.enum([
   'submitted',
@@ -79,10 +86,36 @@ export const roosterEntryItemSchema = z.object({
   entryName: z.string().min(1, 'Entry name is required').max(200),
   bandNumber: z.string().min(1, 'Band number is required').max(50),
   weight: weightGramsSchema,
-  category: optionalText(100),
   colorMarking: optionalText(200),
-  ...entryRoosterPolicyFieldsSchema,
 })
+
+export const entryRoosterRegistryFieldsSchema = {
+  ageClass: ageClassSchema.optional(),
+  competitionClass: competitionClassSchema.optional(),
+  hatchDate: z
+    .string()
+    .date()
+    .nullable()
+    .optional()
+    .or(z.literal(''))
+    .transform((value) => value || undefined),
+  hatchDateIsEstimated: z.coerce.boolean().optional(),
+  breed: optionalText(100),
+  bloodline: optionalText(200),
+  experienceStatus: experienceStatusSchema.optional(),
+  originType: originTypeSchema.optional(),
+  countryOfOrigin: optionalText(100),
+  provinceOfOrigin: optionalText(100),
+  municipalityOfOrigin: optionalText(100),
+  breedingRelationship: breedingRelationshipSchema.optional(),
+  breederNameExternal: optionalText(200),
+  originNotes: optionalText(2000),
+  ...entryRoosterPolicyFieldsSchema,
+}
+
+export const entryRoosterEditItemSchema = roosterEntryItemSchema.extend(
+  entryRoosterRegistryFieldsSchema
+)
 
 export const createEntrySchema = entryMetadataSchema.extend({
   roosters: z.array(roosterEntryItemSchema).min(1, 'At least one rooster is required'),
@@ -90,23 +123,18 @@ export const createEntrySchema = entryMetadataSchema.extend({
 
 export type CreateEntryInput = z.infer<typeof createEntrySchema>
 export type RoosterEntryItemInput = z.infer<typeof roosterEntryItemSchema>
+export type EntryRoosterEditItemInput = z.infer<typeof entryRoosterEditItemSchema>
 export type EntryMetadataInput = z.infer<typeof entryMetadataSchema>
 
 export const updateEntrySchema = entryMetadataSchema.extend({
   entryId: z.string().uuid(),
 })
 
-export const updateEntryRosterItemSchema = z.object({
+export const updateEntryRosterItemSchema = entryRoosterEditItemSchema.extend({
   roosterId: z.string().uuid(),
-  entryName: z.string().min(1, 'Entry name is required').max(200),
-  bandNumber: z.string().min(1, 'Band number is required').max(50),
-  weight: weightGramsSchema,
-  category: optionalText(100),
-  colorMarking: optionalText(200),
-  ...entryRoosterPolicyFieldsSchema,
 })
 
-export const newEntryRosterItemSchema = roosterEntryItemSchema.extend({
+export const newEntryRosterItemSchema = entryRoosterEditItemSchema.extend({
   cockIndex: z.number().int().positive(),
 })
 
@@ -143,24 +171,41 @@ function parseOptionalNumber(value: FormDataEntryValue | null): number | undefin
   return Number.isNaN(parsed) ? undefined : parsed
 }
 
-function parseRoosterPolicyFieldsFromForm(
+function parseRoosterRegistryFieldsFromForm(
   formData: FormData,
-  fieldPrefix: string
+  fieldSuffix: string
 ): Record<string, unknown> {
-  const field = (name: string) =>
-    formData.get(fieldPrefix ? `${name}_${fieldPrefix}` : name)
+  const field = (name: string) => formData.get(`${name}_${fieldSuffix}`)
+  const hatchDateRaw = field('hatchDate')?.toString().trim()
+  const hatchDateIsEstimated = field('hatchDateIsEstimated') != null
+
   return {
     ageClass: field('ageClass')?.toString().trim() || undefined,
-    originType: field('originType')?.toString().trim() || undefined,
-    breedingRelationship: field('breedingRelationship')?.toString().trim() || undefined,
+    competitionClass: field('competitionClass')?.toString().trim() || undefined,
+    hatchDate: hatchDateRaw || undefined,
+    hatchDateIsEstimated,
+    breed: field('breed')?.toString().trim() || undefined,
+    bloodline: field('bloodline')?.toString().trim() || undefined,
     experienceStatus: field('experienceStatus')?.toString().trim() || undefined,
+    originType: field('originType')?.toString().trim() || undefined,
+    countryOfOrigin: field('countryOfOrigin')?.toString().trim() || undefined,
+    provinceOfOrigin: field('provinceOfOrigin')?.toString().trim() || undefined,
+    municipalityOfOrigin: field('municipalityOfOrigin')?.toString().trim() || undefined,
+    breedingRelationship: field('breedingRelationship')?.toString().trim() || undefined,
+    breederNameExternal: field('breederNameExternal')?.toString().trim() || undefined,
+    originNotes: field('originNotes')?.toString().trim() || undefined,
     bandLevel: field('bandLevel')?.toString().trim() || undefined,
     bandOrganization: field('bandOrganization')?.toString().trim() || undefined,
     bandYear: parseOptionalNumber(field('bandYear')),
     bandSeason: field('bandSeason')?.toString().trim() || undefined,
-    category: field('category')?.toString().trim() || undefined,
-    colorMarking: field('colorMarking')?.toString().trim() || undefined,
   }
+}
+
+function parseRoosterPolicyFieldsFromForm(
+  formData: FormData,
+  fieldPrefix: string
+): Record<string, unknown> {
+  return parseRoosterRegistryFieldsFromForm(formData, fieldPrefix)
 }
 
 function slotHasContent(formData: FormData, slotKey: string, mode: 'create' | 'new'): boolean {
@@ -176,18 +221,36 @@ function parseRoosterSlotFromForm(
   slotKey: string,
   cockIndex: number,
   mode: 'create' | 'new'
-): RoosterEntryItemInput | null {
+): RoosterEntryItemInput | EntryRoosterEditItemInput | null {
   const prefix = mode === 'create' ? `rooster_${slotKey}_` : `new_rooster_${slotKey}_`
   if (!slotHasContent(formData, slotKey, mode)) return null
 
   const policyPrefix = mode === 'create' ? `rooster_${slotKey}` : `new_rooster_${slotKey}`
 
-  const parsed = roosterEntryItemSchema.safeParse({
+  const parsed = entryRoosterEditItemSchema.safeParse({
     cockIndex,
     entryName: formData.get(`${prefix}entryName`),
     bandNumber: formData.get(`${prefix}bandNumber`),
     weight: formData.get(`${prefix}weight`),
-    ...parseRoosterPolicyFieldsFromForm(formData, policyPrefix),
+    colorMarking:
+      formData.get(`colorMarking_${policyPrefix}`)?.toString().trim() || undefined,
+    ...parseRoosterRegistryFieldsFromForm(formData, policyPrefix),
+  })
+
+  return parsed.success ? parsed.data : null
+}
+
+export function parseUpdateEntryRosterFromForm(
+  formData: FormData,
+  roosterId: string
+): UpdateEntryRosterItemInput | null {
+  const parsed = updateEntryRosterItemSchema.safeParse({
+    roosterId,
+    entryName: formData.get(`entryName_${roosterId}`),
+    bandNumber: formData.get(`bandNumber_${roosterId}`),
+    weight: formData.get(`weight_${roosterId}`),
+    colorMarking: formData.get(`colorMarking_${roosterId}`)?.toString().trim() || undefined,
+    ...parseRoosterRegistryFieldsFromForm(formData, roosterId),
   })
 
   return parsed.success ? parsed.data : null
@@ -215,14 +278,14 @@ export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEn
     const entryName = formData.get(`${prefix}entryName`)?.toString().trim()
     const bandNumber = formData.get(`${prefix}bandNumber`)?.toString().trim()
     const weight = formData.get(`${prefix}weight`)
-    const policyPrefix = `rooster_${index}`
 
     const parsed = roosterEntryItemSchema.safeParse({
       cockIndex: index,
       entryName,
       bandNumber,
       weight,
-      ...parseRoosterPolicyFieldsFromForm(formData, policyPrefix),
+      colorMarking:
+        formData.get(`colorMarking_rooster_${index}`)?.toString().trim() || undefined,
     })
 
     if (parsed.success) {

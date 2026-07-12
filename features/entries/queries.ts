@@ -14,11 +14,20 @@ export type EntryRoosterEditItem = {
   rooster_name: string | null
   band_number: string
   weight: number | null
-  category: string | null
   color_marking: string | null
   is_paired: boolean
   age_class: string | null
+  competition_class: string | null
+  hatch_date: string | null
+  hatch_date_is_estimated: boolean | null
+  breed: string | null
+  bloodline: string | null
   origin_type: string | null
+  country_of_origin: string | null
+  province_of_origin: string | null
+  municipality_of_origin: string | null
+  breeder_name_external: string | null
+  origin_notes: string | null
   breeding_relationship: string | null
   experience_status: string | null
   band_level: string | null
@@ -231,7 +240,6 @@ export async function listEntryRoostersForEdit(
       id,
       cock_number,
       band_number,
-      category,
       color_marking,
       eligibility_status,
       eligibility_snapshot,
@@ -254,7 +262,17 @@ export async function listEntryRoostersForEdit(
     {
       name: string | null
       age_class: string | null
+      competition_class: string | null
+      hatch_date: string | null
+      hatch_date_is_estimated: boolean | null
+      breed: string | null
+      bloodline: string | null
       origin_type: string | null
+      country_of_origin: string | null
+      province_of_origin: string | null
+      municipality_of_origin: string | null
+      breeder_name_external: string | null
+      origin_notes: string | null
       breeding_relationship: string | null
       declared_external_experience_status: string | null
       calculated_experience_status: string | null
@@ -275,7 +293,7 @@ export async function listEntryRoostersForEdit(
       extended
         .from('roosters')
         .select(
-          'id, name, age_class, origin_type, breeding_relationship, declared_external_experience_status, calculated_experience_status'
+          'id, name, age_class, competition_class, hatch_date, hatch_date_is_estimated, breed, bloodline, origin_type, country_of_origin, province_of_origin, municipality_of_origin, breeder_name_external, origin_notes, breeding_relationship, declared_external_experience_status, calculated_experience_status'
         )
         .in('id', registryIds),
       extended
@@ -289,7 +307,17 @@ export async function listEntryRoostersForEdit(
       registryMap.set(rooster.id as string, {
         name: rooster.name as string | null,
         age_class: rooster.age_class as string | null,
+        competition_class: rooster.competition_class as string | null,
+        hatch_date: rooster.hatch_date as string | null,
+        hatch_date_is_estimated: rooster.hatch_date_is_estimated as boolean | null,
+        breed: rooster.breed as string | null,
+        bloodline: rooster.bloodline as string | null,
         origin_type: rooster.origin_type as string | null,
+        country_of_origin: rooster.country_of_origin as string | null,
+        province_of_origin: rooster.province_of_origin as string | null,
+        municipality_of_origin: rooster.municipality_of_origin as string | null,
+        breeder_name_external: rooster.breeder_name_external as string | null,
+        origin_notes: rooster.origin_notes as string | null,
         breeding_relationship: rooster.breeding_relationship as string | null,
         declared_external_experience_status:
           rooster.declared_external_experience_status as string | null,
@@ -333,11 +361,20 @@ export async function listEntryRoostersForEdit(
         weighing?.official_weight_grams != null
           ? Number(weighing.official_weight_grams)
           : null,
-      category: (row.category as string | null) ?? null,
       color_marking: (row.color_marking as string | null) ?? null,
       is_paired: pairedIds.has(roosterId),
       age_class: registry?.age_class ?? null,
+      competition_class: registry?.competition_class ?? null,
+      hatch_date: registry?.hatch_date ?? null,
+      hatch_date_is_estimated: registry?.hatch_date_is_estimated ?? null,
+      breed: registry?.breed ?? null,
+      bloodline: registry?.bloodline ?? null,
       origin_type: registry?.origin_type ?? null,
+      country_of_origin: registry?.country_of_origin ?? null,
+      province_of_origin: registry?.province_of_origin ?? null,
+      municipality_of_origin: registry?.municipality_of_origin ?? null,
+      breeder_name_external: registry?.breeder_name_external ?? null,
+      origin_notes: registry?.origin_notes ?? null,
       breeding_relationship: registry?.breeding_relationship ?? null,
       experience_status:
         registry?.declared_external_experience_status ??

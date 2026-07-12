@@ -7,15 +7,16 @@ import {
   getEntryFormEligibilityContext,
   toPolicyValidationContext,
 } from '@/features/eligibility/registration-bridge'
+import { isEligibilityFieldEnabled } from '@/lib/derby/eligibility-fields'
+import type { EligibilityFieldKey } from '@/lib/derby/eligibility-fields'
 import {
   createEntrySchema,
   deleteEntrySchema,
   parseCreateEntryFromFormData,
   parseNewRosterSlotsFromFormData,
-  updateEntryRosterItemSchema,
+  parseUpdateEntryRosterFromForm,
   updateEntrySchema,
   validateEntryRosterCount,
-  type UpdateEntryRosterItemInput,
 } from '@/features/entries/schema'
 import { validateRoosterAgainstPolicy } from '@/features/entries/policy-validation'
 import {
@@ -36,61 +37,58 @@ function parseOptionalUuid(value: FormDataEntryValue | null): string | null {
   return value.toString()
 }
 
-function parseOptionalNumber(value: FormDataEntryValue | null): number | undefined {
-  if (value == null || value.toString().trim() === '') return undefined
-  const parsed = Number(value)
-  return Number.isNaN(parsed) ? undefined : parsed
-}
-
-function parseRosterUpdates(
-  formData: FormData,
-  pairedIds: Set<string>
-): UpdateEntryRosterItemInput[] {
-  const roosterIds =
-    formData
-      .get('roosterIds')
-      ?.toString()
-      .split(',')
-      .map((id) => id.trim())
-      .filter(Boolean) ?? []
-
-  const updates: UpdateEntryRosterItemInput[] = []
-
-  for (const roosterId of roosterIds) {
-    if (pairedIds.has(roosterId)) continue
-
-    const parsed = updateEntryRosterItemSchema.safeParse({
-      roosterId,
-      entryName: formData.get(`entryName_${roosterId}`),
-      bandNumber: formData.get(`bandNumber_${roosterId}`),
-      weight: formData.get(`weight_${roosterId}`),
-      category: formData.get(`category_${roosterId}`)?.toString().trim() || undefined,
-      colorMarking: formData.get(`colorMarking_${roosterId}`)?.toString().trim() || undefined,
-      ageClass: formData.get(`ageClass_${roosterId}`)?.toString().trim() || undefined,
-      originType: formData.get(`originType_${roosterId}`)?.toString().trim() || undefined,
-      breedingRelationship:
-        formData.get(`breedingRelationship_${roosterId}`)?.toString().trim() || undefined,
-      experienceStatus:
-        formData.get(`experienceStatus_${roosterId}`)?.toString().trim() || undefined,
-      bandLevel: formData.get(`bandLevel_${roosterId}`)?.toString().trim() || undefined,
-      bandOrganization:
-        formData.get(`bandOrganization_${roosterId}`)?.toString().trim() || undefined,
-      bandYear: parseOptionalNumber(formData.get(`bandYear_${roosterId}`)),
-      bandSeason: formData.get(`bandSeason_${roosterId}`)?.toString().trim() || undefined,
-    })
-
-    if (parsed.success) {
-      updates.push(parsed.data)
-    }
-  }
-
-  return updates
-}
-
 function revalidateEntryPaths(eventId: string) {
   revalidatePath(`/dashboard/events/${eventId}/rooster-entries`)
   revalidatePath(`/dashboard/events/${eventId}/matching`)
   revalidatePath(`/dashboard/events/${eventId}/reports/weighing`)
+}
+
+function validateCreateWeightOnly(
+  roosters: Array<{ weight: number }>,
+  eligibilityContext: Awaited<ReturnType<typeof getEntryFormEligibilityContext>>
+): string | null {
+  if (!eligibilityContext) return null
+  if (!isEligibilityFieldEnabled(eligibilityContext.enabledFields, 'weight')) {
+    return null
+  }
+
+  const policyContext = toPolicyValidationContext(eligibilityContext)
+  const weightOnlyContext = {
+    ...policyContext,
+    enabledFields: ['weight'] as EligibilityFieldKey[],
+  }
+
+  for (const rooster of roosters) {
+    const policyError = validateRoosterAgainstPolicy(
+      { weight: rooster.weight },
+      weightOnlyContext
+    )
+    if (policyError) return policyError
+  }
+
+  return null
+}
+
+function validateEditRosterPolicy(
+  roosters: Array<{
+    weight: number
+    ageClass?: string
+    originType?: string
+    breedingRelationship?: string
+    experienceStatus?: string
+    bandLevel?: string
+    bandOrganization?: string
+    bandYear?: number
+    bandSeason?: string
+  }>,
+  eligibilityContext: NonNullable<Awaited<ReturnType<typeof getEntryFormEligibilityContext>>>
+): string | null {
+  const policyContext = toPolicyValidationContext(eligibilityContext)
+  for (const rooster of roosters) {
+    const policyError = validateRoosterAgainstPolicy(rooster, policyContext)
+    if (policyError) return policyError
+  }
+  return null
 }
 
 export async function createEntryAction(
@@ -125,27 +123,11 @@ export async function createEntryAction(
   if (countError) return { error: countError }
 
   const eligibilityContext = await getEntryFormEligibilityContext(schemaResult.data.eventId)
-  if (eligibilityContext) {
-    const policyContext = toPolicyValidationContext(eligibilityContext)
-    for (const rooster of schemaResult.data.roosters) {
-      const policyError = validateRoosterAgainstPolicy(
-        {
-          weight: rooster.weight,
-          ageClass: rooster.ageClass,
-          category: rooster.category,
-          originType: rooster.originType,
-          breedingRelationship: rooster.breedingRelationship,
-          experienceStatus: rooster.experienceStatus,
-          bandLevel: rooster.bandLevel,
-          bandOrganization: rooster.bandOrganization,
-          bandYear: rooster.bandYear,
-          bandSeason: rooster.bandSeason,
-        },
-        policyContext
-      )
-      if (policyError) return { error: policyError }
-    }
-  }
+  const weightError = validateCreateWeightOnly(
+    schemaResult.data.roosters,
+    eligibilityContext
+  )
+  if (weightError) return { error: weightError }
 
   const result = await createEntryWithRoosters(profile.id, schemaResult.data)
   if (result.error) return { error: result.error }
@@ -184,36 +166,32 @@ export async function updateEntryAction(
   if (entryResult.error) return { error: entryResult.error }
 
   const pairedIds = await getPairedRosterIdsForEntry(parsed.data.eventId, parsed.data.entryId)
-  const rosterUpdates = parseRosterUpdates(formData, pairedIds)
+  const roosterIds =
+    formData
+      .get('roosterIds')
+      ?.toString()
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean) ?? []
+
+  const rosterUpdates = roosterIds
+    .filter((roosterId) => !pairedIds.has(roosterId))
+    .map((roosterId) => parseUpdateEntryRosterFromForm(formData, roosterId))
+    .filter((item): item is NonNullable<typeof item> => item != null)
 
   const newRosterSlots = parseNewRosterSlotsFromFormData(formData, event.cocks_per_entry)
   if (newRosterSlots.parseErrors.length > 0) {
     return { error: newRosterSlots.parseErrors[0] }
   }
 
-  const totalNewCount = rosterUpdates.length + newRosterSlots.roosters.length
-  if (totalNewCount > 0 || newRosterSlots.roosters.length > 0) {
+  if (rosterUpdates.length > 0 || newRosterSlots.roosters.length > 0) {
     const eligibilityContext = await getEntryFormEligibilityContext(parsed.data.eventId)
     if (eligibilityContext) {
-      const policyContext = toPolicyValidationContext(eligibilityContext)
-      for (const rooster of [...rosterUpdates, ...newRosterSlots.roosters]) {
-        const policyError = validateRoosterAgainstPolicy(
-          {
-            weight: rooster.weight,
-            ageClass: rooster.ageClass,
-            category: rooster.category,
-            originType: rooster.originType,
-            breedingRelationship: rooster.breedingRelationship,
-            experienceStatus: rooster.experienceStatus,
-            bandLevel: rooster.bandLevel,
-            bandOrganization: rooster.bandOrganization,
-            bandYear: rooster.bandYear,
-            bandSeason: rooster.bandSeason,
-          },
-          policyContext
-        )
-        if (policyError) return { error: policyError }
-      }
+      const policyError = validateEditRosterPolicy(
+        [...rosterUpdates, ...newRosterSlots.roosters],
+        eligibilityContext
+      )
+      if (policyError) return { error: policyError }
     }
   }
 

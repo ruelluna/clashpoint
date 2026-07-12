@@ -78,8 +78,8 @@ describe('createRoosterSchema', () => {
       eventId,
       entryId,
       bandNumber: 'B-101',
-      weight: 2.15,
-      category: 'Stag',
+      weight: 2150,
+      colorMarking: 'Red',
     })
 
     expect(result.success).toBe(true)

@@ -15,16 +15,10 @@ type RoosterPolicyFieldsProps = {
   fieldPrefix?: string
   disabled?: boolean
   defaults?: {
-    ageClass?: string
-    originType?: string
-    breedingRelationship?: string
-    experienceStatus?: string
     bandLevel?: string
     bandOrganization?: string
     bandYear?: number | null
     bandSeason?: string
-    colorMarking?: string
-    category?: string
   }
 }
 
@@ -52,31 +46,8 @@ export function RoosterPolicyFields({
   const policyWeightRange = formatPolicyWeightRange(eligibilityContext)
 
   if (!eligibilityContext) {
-    return (
-      <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-        <FormField label="Category" flex="1">
-          <Input
-            name={fieldName(fieldPrefix, 'category')}
-            maxLength={100}
-            defaultValue={defaults?.category ?? ''}
-            disabled={disabled}
-          />
-        </FormField>
-        <FormField label="Color / marking" flex="1">
-          <Input
-            name={fieldName(fieldPrefix, 'colorMarking')}
-            maxLength={200}
-            defaultValue={defaults?.colorMarking ?? ''}
-            disabled={disabled}
-          />
-        </FormField>
-      </Flex>
-    )
+    return null
   }
-
-  const ageRequired =
-    isEligibilityFieldEnabled(eligibilityContext.enabledFields, 'age_class') &&
-    eligibilityContext.unknownValueHandling === 'prohibit'
 
   return (
     <Stack gap={LAYOUT_GAP.form}>
@@ -84,86 +55,6 @@ export function RoosterPolicyFields({
         <Text fontSize="sm" color="fg.muted">
           {ELIGIBILITY_FIELD_LABELS.weight}: {policyWeightRange}
         </Text>
-      ) : null}
-
-      {isEligibilityFieldEnabled(eligibilityContext.enabledFields, 'age_class') ? (
-        <FormField label="Age class" required={ageRequired}>
-          <NativeSelect.Root disabled={disabled}>
-            <NativeSelect.Field
-              name={fieldName(fieldPrefix, 'ageClass')}
-              defaultValue={defaults?.ageClass ?? ''}
-            >
-              <option value="">Select age class</option>
-              {eligibilityContext.allowedAgeClasses.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </NativeSelect.Field>
-          </NativeSelect.Root>
-        </FormField>
-      ) : (
-        <FormField label="Category">
-          <Input
-            name={fieldName(fieldPrefix, 'category')}
-            maxLength={100}
-            defaultValue={defaults?.category ?? ''}
-            disabled={disabled}
-          />
-        </FormField>
-      )}
-
-      {isEligibilityFieldEnabled(eligibilityContext.enabledFields, 'experience') ? (
-        <FormField label="Experience">
-          <NativeSelect.Root disabled={disabled}>
-            <NativeSelect.Field
-              name={fieldName(fieldPrefix, 'experienceStatus')}
-              defaultValue={defaults?.experienceStatus ?? ''}
-            >
-              <option value="">Select experience</option>
-              {eligibilityContext.allowedExperienceStatuses.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </NativeSelect.Field>
-          </NativeSelect.Root>
-        </FormField>
-      ) : null}
-
-      {isEligibilityFieldEnabled(eligibilityContext.enabledFields, 'origin') ? (
-        <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-          <FormField label="Origin type" flex="1">
-            <NativeSelect.Root disabled={disabled}>
-              <NativeSelect.Field
-                name={fieldName(fieldPrefix, 'originType')}
-                defaultValue={defaults?.originType ?? ''}
-              >
-                <option value="">Select origin</option>
-                {eligibilityContext.allowedOriginTypes.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </NativeSelect.Field>
-            </NativeSelect.Root>
-          </FormField>
-          <FormField label="Breeding relationship" flex="1">
-            <NativeSelect.Root disabled={disabled}>
-              <NativeSelect.Field
-                name={fieldName(fieldPrefix, 'breedingRelationship')}
-                defaultValue={defaults?.breedingRelationship ?? ''}
-              >
-                <option value="">Select breeding</option>
-                {eligibilityContext.allowedBreedingRelationships.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </NativeSelect.Field>
-            </NativeSelect.Root>
-          </FormField>
-        </Flex>
       ) : null}
 
       {isEligibilityFieldEnabled(eligibilityContext.enabledFields, 'banding') ? (
@@ -272,15 +163,6 @@ export function RoosterPolicyFields({
           </Flex>
         </>
       ) : null}
-
-      <FormField label="Color / marking">
-        <Input
-          name={fieldName(fieldPrefix, 'colorMarking')}
-          maxLength={200}
-          defaultValue={defaults?.colorMarking ?? ''}
-          disabled={disabled}
-        />
-      </FormField>
 
       {eligibilityContext.associationMembersOnly ? (
         <Text fontSize="sm" color="fg.muted">
