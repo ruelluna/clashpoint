@@ -1,0 +1,61 @@
+﻿---
+description: TypeScript and build-time type-check priorities for ClashPoint
+alwaysApply: true
+---
+
+# Type Checking
+
+`npm run build` runs Next.js TypeScript checking - not just `tsc` in isolation. Code must pass that check before a change is complete.
+
+## Boundaries
+
+- **Next.js app only** - `tsconfig.json` excludes `docs/admins` and `docs/users` (nested Docusaurus repos). Never add those paths back to `include`; do not import Docusaurus types into app code.
+- **Supabase types** - `lib/supabase/database.types.ts` must match applied migrations. After any `supabase/migrations/*.sql` change that alters tables or enums, update this file in the same pass (or regenerate via Supabase CLI when local stack is available).
+
+## Source of truth
+
+| Layer | Types from |
+|-------|------------|
+| DB columns / enums | `lib/supabase/database.types.ts` |
+| API / action inputs | Zod schemas in `features/{module}/schema.ts` |
+| UI / domain helpers | `features/{module}/types.ts` or `lib/derby/enums.ts` |
+
+Prefer Zod `parse()` / `safeParse()` at service boundaries - do not hand-build partial objects against inferred Zod types.
+
+```ts
+// BAD: partial object missing defaulted Zod keys
+await createRooster(actorId, { ageClass, competitionClass: 'unclassified' })
+
+// GOOD: schema applies defaults and satisfies CreateRoosterInput
+await createRooster(actorId, registryRoosterSchema.parse({ ageClass, competitionClass: 'unclassified' }))
+```
+
+## Naming collisions
+
+Module-specific input types can share names across features (e.g. weighing `CreateRoosterInput` vs roosters `CreateRoosterInput`). When calling cross-feature services, import the **target module's** schema type - alias if needed:
+
+```ts
+import { createRoosterSchema as registryRoosterSchema } from '@/features/roosters/schema'
+```
+
+## Supabase client typing
+
+- `createClient()` - typed to `Database`; inserts/updates must match `TablesInsert` / `TablesUpdate`.
+- `createExtendedClient()` - escape hatch for tables not yet in `database.types.ts`; add missing tables to generated types instead of relying on the cast long-term.
+
+## UI components (Chakra v3)
+
+- Use native `<form action={...}>` for Server Actions - not `<Flex as="form" action={...}>`.
+- `NativeSelect.Field` does not accept HTML `required`; rely on Zod/server validation or `FormField` labeling.
+
+## Enum filters
+
+When filtering `z.enum().options`, only compare against values that exist in that enum. TypeScript strict mode will flag impossible comparisons.
+
+## Completion checklist
+
+After changes that touch schemas, services, or Supabase types:
+
+1. Update `database.types.ts` if migrations changed.
+2. Run `npm run build` (or note in breakdown why it was deferred).
+3. Fix type errors at the source - avoid `as any` and blanket `@ts-expect-error`.
