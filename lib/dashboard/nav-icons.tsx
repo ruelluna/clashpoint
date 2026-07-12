@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Building2,
   Calendar,
   FileBarChart,
   LayoutDashboard,
@@ -15,6 +16,7 @@ import {
 export const dashboardNavIconsByHref: Record<string, LucideIcon> = {
   '/dashboard': LayoutDashboard,
   '/dashboard/promoters': UserCircle,
+  '/dashboard/owners': Building2,
   '/dashboard/events': Calendar,
   '/dashboard/fights': Swords,
   '/dashboard/users': Users,

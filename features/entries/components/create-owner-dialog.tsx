@@ -4,19 +4,16 @@ import {
   Button,
   Dialog,
   Flex,
-  Input,
   Portal,
   Stack,
   Text,
 } from '@chakra-ui/react'
 import { useState } from 'react'
 
-import { FormField, LAYOUT_GAP } from '@/components/dashboard'
+import { ButtonGroup, LAYOUT_GAP } from '@/components/dashboard'
 import { createCompetitorAction } from '@/features/competitors/actions'
+import { OwnerProfileFields } from '@/features/competitors/components/owner-profile-fields'
 import type { CompetitorSearchResult } from '@/features/competitors/types'
-import {
-  ContactNumberField,
-} from '@/features/entries/components/contact-number-field'
 import type { OwnerProfileValues } from '@/features/entries/components/owner-picker-field'
 
 type CreateOwnerDialogProps = {
@@ -30,16 +27,22 @@ export function CreateOwnerDialog({
   onOpenChange,
   onCreated,
 }: CreateOwnerDialogProps) {
-  const [displayName, setDisplayName] = useState('')
-  const [contactNumber, setContactNumber] = useState('')
-  const [email, setEmail] = useState('')
+  const [profile, setProfile] = useState({
+    displayName: '',
+    contactNumber: '',
+    email: '',
+    address: '',
+  })
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
   function resetForm() {
-    setDisplayName('')
-    setContactNumber('')
-    setEmail('')
+    setProfile({
+      displayName: '',
+      contactNumber: '',
+      email: '',
+      address: '',
+    })
     setError(null)
   }
 
@@ -49,9 +52,10 @@ export function CreateOwnerDialog({
     setError(null)
 
     const result = await createCompetitorAction({
-      displayName: displayName.trim(),
-      contactNumber: contactNumber || undefined,
-      email: email.trim() || undefined,
+      displayName: profile.displayName.trim(),
+      contactNumber: profile.contactNumber || undefined,
+      email: profile.email.trim() || undefined,
+      address: profile.address.trim() || undefined,
     })
 
     setPending(false)
@@ -64,7 +68,7 @@ export function CreateOwnerDialog({
     onCreated(result.competitor, {
       contactNumber: result.competitor.contactNumber ?? '',
       email: result.competitor.email ?? '',
-      address: '',
+      address: result.competitor.address ?? '',
     })
     resetForm()
     onOpenChange(false)
@@ -88,26 +92,7 @@ export function CreateOwnerDialog({
               </Dialog.Header>
               <Dialog.Body>
                 <Stack gap={LAYOUT_GAP.form}>
-                  <FormField label="Owner Name/Game Farm" required>
-                    <Input
-                      value={displayName}
-                      maxLength={200}
-                      required
-                      onChange={(event) => setDisplayName(event.target.value)}
-                    />
-                  </FormField>
-                  <ContactNumberField
-                    value={contactNumber}
-                    onChange={setContactNumber}
-                  />
-                  <FormField label="Email">
-                    <Input
-                      type="email"
-                      maxLength={200}
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                    />
-                  </FormField>
+                  <OwnerProfileFields values={profile} onChange={setProfile} />
                   {error ? (
                     <Text fontSize="sm" color="red.500">
                       {error}

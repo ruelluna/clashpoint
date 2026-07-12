@@ -383,11 +383,71 @@ export type Database = {
         }
         Relationships: []
       }
+        ]
+      }
+      competitors: {
+        Row: {
+          id: string
+          display_name: string
+          contact_number: string | null
+          email: string | null
+          address: string | null
+          competitor_level: Database['public']['Enums']['competitor_level']
+          suggested_competitor_level: Database['public']['Enums']['competitor_level'] | null
+          competitor_level_assigned_by: string | null
+          competitor_level_assigned_at: string | null
+          competitor_level_notes: string | null
+          notes: string | null
+          created_by: string | null
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          display_name: string
+          contact_number?: string | null
+          email?: string | null
+          address?: string | null
+          competitor_level?: Database['public']['Enums']['competitor_level']
+          suggested_competitor_level?: Database['public']['Enums']['competitor_level'] | null
+          competitor_level_assigned_by?: string | null
+          competitor_level_assigned_at?: string | null
+          competitor_level_notes?: string | null
+          notes?: string | null
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          display_name?: string
+          contact_number?: string | null
+          email?: string | null
+          address?: string | null
+          competitor_level?: Database['public']['Enums']['competitor_level']
+          suggested_competitor_level?: Database['public']['Enums']['competitor_level'] | null
+          competitor_level_assigned_by?: string | null
+          competitor_level_assigned_at?: string | null
+          competitor_level_notes?: string | null
+          notes?: string | null
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
       entries: {
         Row: {
           id: string
           event_id: string
           referred_by_promoter_id: string | null
+          competitor_id: string | null
           entry_number: string
           entry_name: string
           owner_name: string
@@ -408,6 +468,7 @@ export type Database = {
           id?: string
           event_id: string
           referred_by_promoter_id?: string | null
+          competitor_id?: string | null
           entry_number: string
           entry_name: string
           owner_name: string
@@ -428,6 +489,7 @@ export type Database = {
           id?: string
           event_id?: string
           referred_by_promoter_id?: string | null
+          competitor_id?: string | null
           entry_number?: string
           entry_name?: string
           owner_name?: string
@@ -457,6 +519,13 @@ export type Database = {
             columns: ['referred_by_promoter_id']
             isOneToOne: false
             referencedRelation: 'promoters'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'entries_competitor_id_fkey'
+            columns: ['competitor_id']
+            isOneToOne: false
+            referencedRelation: 'competitors'
             referencedColumns: ['id']
           },
         ]
@@ -1208,6 +1277,7 @@ export type Database = {
         | 'confirmed'
       payment_status: 'unpaid' | 'partial' | 'paid' | 'refunded'
       entry_source: 'walk_in' | 'online' | 'promoter_invite' | 'staff_encoded'
+      competitor_level: 'novice' | 'intermediate' | 'advanced' | 'veteran' | 'unrated'
       payment_method: 'cash' | 'bank_transfer' | 'gcash' | 'other'
       lineup_status: 'draft' | 'submitted' | 'verified' | 'rejected'
       weight_status: 'pending' | 'passed' | 'failed' | 'for_review'

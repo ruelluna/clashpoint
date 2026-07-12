@@ -24,4 +24,17 @@ export type CompetitorOwnerProfile = {
   contactNumber?: string
   email?: string
   address?: string
+  notes?: string
 }
+
+export type CompetitorListItem = {
+  id: string
+  displayName: string
+  contactNumber: string | null
+  email: string | null
+  address: string | null
+  notes: string | null
+  createdAt: string
+}
+
+export type CompetitorDetail = CompetitorListItem

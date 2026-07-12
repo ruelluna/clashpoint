@@ -12,6 +12,7 @@ import {
   useListCollection,
 } from '@chakra-ui/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 
 import { CreateOwnerDialog } from '@/features/entries/components/create-owner-dialog'
 import { searchCompetitorsAction } from '@/features/competitors/actions'
@@ -188,8 +189,11 @@ export function OwnerPickerField({
           </Button>
         </Flex>
         <Field.HelperText>
-          Search saved owners or use Add new to register a game farm. Handler is
-          recorded per entry only.
+          Search saved owners or use Add new to register a game farm.{' '}
+          <Link href="/dashboard/owners" style={{ textDecoration: 'underline' }}>
+            Manage owners
+          </Link>
+          . Handler is recorded per entry only.
         </Field.HelperText>
       </Field.Root>
 

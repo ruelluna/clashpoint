@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { filterNavItemsByPermissions } from '@/lib/dashboard/nav'
+import {
+  dashboardNavItemConfigs,
+  filterNavItemsByPermissions,
+} from '@/lib/dashboard/nav'
 
 describe('filterNavItemsByPermissions', () => {
   const items = [
@@ -33,5 +36,25 @@ describe('filterNavItemsByPermissions', () => {
   it('shows all items for owners', () => {
     const filtered = filterNavItemsByPermissions(items, ['*'])
     expect(filtered).toHaveLength(3)
+  })
+
+  it('shows Owners when staff can view roosters or manage entries', () => {
+    const ownersItem = dashboardNavItemConfigs.find(
+      (item) => item.href === '/dashboard/owners'
+    )
+
+    expect(ownersItem?.label).toBe('Owners')
+
+    expect(
+      filterNavItemsByPermissions(dashboardNavItemConfigs, ['rooster.view']).map(
+        (item) => item.href
+      )
+    ).toContain('/dashboard/owners')
+
+    expect(
+      filterNavItemsByPermissions(dashboardNavItemConfigs, ['entries.manage']).map(
+        (item) => item.href
+      )
+    ).toContain('/dashboard/owners')
   })
 })

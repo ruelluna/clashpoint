@@ -22,12 +22,33 @@ export const searchCompetitorsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(25).default(10),
 })
 
-export const createCompetitorSchema = z.object({
+const competitorProfileFields = {
   displayName: z.string().min(1, 'Display name is required').max(200),
   contactNumber: contactNumberSchema,
   email: optionalEmail,
   address: optionalText(500),
+  notes: optionalText(2000),
+}
+
+export const createCompetitorSchema = z.object(competitorProfileFields)
+
+export const updateCompetitorSchema = z.object({
+  id: z.string().uuid(),
+  ...competitorProfileFields,
+})
+
+export const deleteCompetitorSchema = z.object({
+  id: z.string().uuid(),
+})
+
+export const listCompetitorsSchema = z.object({
+  search: z.string().max(200).default(''),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
 })
 
 export type SearchCompetitorsInput = z.infer<typeof searchCompetitorsSchema>
 export type CreateCompetitorInput = z.infer<typeof createCompetitorSchema>
+export type UpdateCompetitorInput = z.infer<typeof updateCompetitorSchema>
+export type DeleteCompetitorInput = z.infer<typeof deleteCompetitorSchema>
+export type ListCompetitorsInput = z.infer<typeof listCompetitorsSchema>

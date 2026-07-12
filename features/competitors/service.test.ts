@@ -14,13 +14,19 @@ vi.mock('@/features/audit/service', () => ({
 
 vi.mock('@/features/competitors/queries', () => ({
   findCompetitorByDisplayName,
+  countEntriesForCompetitor: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase/extended', () => ({
   createExtendedClient,
 }))
 
-import { findOrCreateCompetitor } from '@/features/competitors/service'
+import {
+  findOrCreateCompetitor,
+  softDeleteCompetitor,
+  updateCompetitor,
+} from '@/features/competitors/service'
+import { countEntriesForCompetitor } from '@/features/competitors/queries'
 
 const existingCompetitorId = '00000000-0000-4000-8000-000000000010'
 
@@ -79,6 +85,102 @@ describe('findOrCreateCompetitor', () => {
     expect(writeAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'competitor.created',
+        entityType: 'competitor',
+      })
+    )
+  })
+})
+
+describe('updateCompetitor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('updates an owner and writes an audit log', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: { id: existingCompetitorId, display_name: 'Updated Farm' },
+      error: null,
+    })
+
+    createExtendedClient.mockResolvedValue({
+      from: vi.fn(() => ({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                maybeSingle,
+              }),
+            }),
+          }),
+        }),
+      })),
+    })
+
+    const result = await updateCompetitor('actor-1', {
+      id: existingCompetitorId,
+      displayName: 'Updated Farm',
+      contactNumber: '+639171234567',
+      email: 'farm@example.com',
+      address: 'Cebu',
+      notes: undefined,
+    })
+
+    expect(result).toEqual({})
+    expect(writeAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'competitor.updated',
+        entityType: 'competitor',
+      })
+    )
+  })
+})
+
+describe('softDeleteCompetitor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('blocks delete when entries are linked', async () => {
+    vi.mocked(countEntriesForCompetitor).mockResolvedValue(2)
+
+    const result = await softDeleteCompetitor('actor-1', {
+      id: existingCompetitorId,
+    })
+
+    expect(result.error).toContain('2 event entries')
+    expect(createExtendedClient).not.toHaveBeenCalled()
+  })
+
+  it('soft deletes an owner when no entries are linked', async () => {
+    vi.mocked(countEntriesForCompetitor).mockResolvedValue(0)
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: { id: existingCompetitorId, display_name: 'Farm To Delete' },
+      error: null,
+    })
+
+    createExtendedClient.mockResolvedValue({
+      from: vi.fn(() => ({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                maybeSingle,
+              }),
+            }),
+          }),
+        }),
+      })),
+    })
+
+    const result = await softDeleteCompetitor('actor-1', {
+      id: existingCompetitorId,
+    })
+
+    expect(result).toEqual({})
+    expect(writeAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'competitor.deleted',
         entityType: 'competitor',
       })
     )
