@@ -84,3 +84,26 @@ Apply migration 202607121710_rooster_registration_notes.sql. Test: unknown color
 Documentation:
 N/A
 ```
+
+---
+
+## Changelog (2026-07-12) — Fix 42501 public registration
+
+- Added migration `202607121711_service_role_public_grants.sql` so `service_role` has table grants on `public` schema (required by `createAdminClient()`)
+- Fixes runtime 42501 on `GET /events/{id}/register` (`permission denied for table events`)
+- Apply with `npx supabase migration up --local` (no reset); hosted: `supabase db push` after link
+
+### Manual verify
+
+1. Open `/events/{derbyEventId}/register` — page loads (HTTP 200), no runtime error overlay
+2. Submit a test entry while event is Open
+
+### E2E
+
+`npx playwright test e2e/public-registration.spec.ts` (requires admin credentials; use existing dev server on port 3000 if another instance is running)
+
+### Suggested commit
+
+**Summary:** Grant service_role public schema table access
+
+**Body:** createAdminClient bypasses RLS but needs Postgres grants. Public registration and other server-side admin flows were failing with 42501 on events.
