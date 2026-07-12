@@ -114,6 +114,7 @@ function mapMatchRow(row: MatchQueryRow): PublicMatch {
       cock_number: Number(row.meron_rooster?.cock_number ?? 0),
       band_number: row.meron_rooster?.band_number ?? '—',
       weight: row.meron_weight != null ? Number(row.meron_weight) : null,
+      bet_amount: 0,
     },
     wala: {
       entry_id: row.wala_entry?.id ?? '',
@@ -123,6 +124,7 @@ function mapMatchRow(row: MatchQueryRow): PublicMatch {
       cock_number: Number(row.wala_rooster?.cock_number ?? 0),
       band_number: row.wala_rooster?.band_number ?? '—',
       weight: row.wala_weight != null ? Number(row.wala_weight) : null,
+      bet_amount: 0,
     },
   }
 }

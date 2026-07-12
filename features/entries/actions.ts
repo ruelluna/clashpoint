@@ -135,7 +135,7 @@ export async function updateEntryAction(
     parsed.data.entryId,
     rosterUpdates
   )
-  if (roosterResult.error) return { error: rosterResult.error }
+  if (rosterResult.error) return { error: rosterResult.error }
 
   revalidateEntryPaths(parsed.data.eventId)
   revalidatePath(
