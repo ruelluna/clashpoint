@@ -52,19 +52,20 @@ test.describe('Rooster entry eligibility @auth', () => {
 
     await page.goto(`/dashboard/events/${eventId}/rooster-entries/new`)
 
-    await page.locator('input[name="entryName"]').fill(`Entry ${suffix}`)
     await page.locator('input[name="ownerName"]').fill(`Owner ${suffix}`)
-    await page.locator('input[name="bandNumber"]').fill(`B-${suffix}`)
-    await page.locator('input[name="weight"]').fill('1.50')
-    await page.locator('select[name="ageClass"]').selectOption('stag')
+    await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
+    await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
+    await page.locator('input[name="rooster_1_weight"]').fill('1500')
+    await page.locator('select[name="ageClass_rooster_1"]').selectOption('stag')
     await page.getByRole('button', { name: 'Save entry' }).click()
 
     await expect(page.getByText('Weight is below the event minimum', { exact: false })).toBeVisible()
 
-    await page.locator('input[name="weight"]').fill('2.00')
+    await page.locator('input[name="rooster_1_weight"]').fill('2000')
     await page.getByRole('button', { name: 'Save entry' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
-    await expect(page.getByText(`Entry ${suffix}`)).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText(`Owner ${suffix}`)).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('1/')).toBeVisible()
   })
 })

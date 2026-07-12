@@ -74,7 +74,10 @@ export async function getEventSummaryReport(
 export async function getRegistrationReport(
   eventId: string
 ): Promise<RegistrationReportRow[]> {
-  const entries = await listEntriesByEvent(eventId)
+  const event = await getEvent(eventId)
+  if (!event) return []
+
+  const entries = await listEntriesByEvent(eventId, event.cocks_per_entry)
 
   return entries.map((entry) => ({
     entry_number: entry.entry_number,

@@ -1,81 +1,169 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  CONTACT_NUMBER_PATTERN,
+  CONTACT_NUMBER_PREFIX,
   createEntrySchema,
   deleteEntrySchema,
+  entryMetadataSchema,
   formatEntryNumber,
   getNextEntryNumber,
+  parseCreateEntryFromFormData,
   parseEntryNumber,
+  roosterEntryItemSchema,
   updateEntrySchema,
+  validateEntryRosterCount,
 } from '@/features/entries/schema'
 
 const eventId = '00000000-0000-4000-8000-000000000001'
 const entryId = '00000000-0000-4000-8000-000000000002'
 
+describe('contactNumberSchema', () => {
+  it('accepts numbers with +63 prefix', () => {
+    const result = entryMetadataSchema.safeParse({
+      eventId,
+      ownerName: 'Farm A',
+      contactNumber: '+639171234567',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid contact numbers', () => {
+    const result = entryMetadataSchema.safeParse({
+      eventId,
+      ownerName: 'Farm A',
+      contactNumber: '6912345678',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('allows empty contact number', () => {
+    const result = entryMetadataSchema.safeParse({
+      eventId,
+      ownerName: 'Farm A',
+      contactNumber: '',
+    })
+    expect(result.success).toBe(true)
+  })
+})
+
 describe('createEntrySchema', () => {
-  it('accepts entry with required rooster fields', () => {
+  const baseRooster = {
+    entryName: 'Thunder',
+    bandNumber: 'B-101',
+    weight: 2150,
+  }
+
+  it('accepts entry with one rooster in grams', () => {
     const result = createEntrySchema.safeParse({
       eventId,
-      entryName: 'Team Alpha',
       ownerName: 'Juan Dela Cruz',
-      bandNumber: 'B-101',
-      weight: 2.15,
+      roosters: [baseRooster],
     })
 
     expect(result.success).toBe(true)
   })
 
-  it('rejects missing band number', () => {
+  it('accepts derby entry with multiple roosters', () => {
     const result = createEntrySchema.safeParse({
       eventId,
-      entryName: 'Team Alpha',
+      ownerName: 'Game Farm X',
+      roosters: [
+        baseRooster,
+        { entryName: 'Lightning', bandNumber: 'B-102', weight: 2050 },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects missing roosters', () => {
+    const result = createEntrySchema.safeParse({
+      eventId,
       ownerName: 'Juan Dela Cruz',
-      bandNumber: '',
+      roosters: [],
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects fractional grams', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
       weight: 2.15,
     })
 
     expect(result.success).toBe(false)
   })
 
-  it('accepts optional competitor link and save owner flag', () => {
+  it('accepts optional competitor link', () => {
     const competitorId = '00000000-0000-4000-8000-000000000003'
     const result = createEntrySchema.safeParse({
       eventId,
-      entryName: 'Team Alpha',
       ownerName: 'Juan Dela Cruz',
       competitorId,
-      saveOwner: true,
-      bandNumber: 'B-101',
-      weight: 2.15,
+      roosters: [baseRooster],
     })
 
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.competitorId).toBe(competitorId)
-      expect(result.data.saveOwner).toBe(true)
     }
   })
+})
 
-  it('rejects invalid competitor id', () => {
-    const result = createEntrySchema.safeParse({
-      eventId,
-      entryName: 'Team Alpha',
-      ownerName: 'Juan Dela Cruz',
-      competitorId: 'not-uuid',
-      bandNumber: 'B-101',
-      weight: 2.15,
-    })
+describe('validateEntryRosterCount', () => {
+  it('requires exactly one rooster for classic events', () => {
+    expect(validateEntryRosterCount(1, 'classic', 1)).toBeNull()
+    expect(validateEntryRosterCount(2, 'classic', 1)).toMatch(/exactly one/)
+  })
 
-    expect(result.success).toBe(false)
+  it('allows partial derby rosters up to format limit', () => {
+    expect(validateEntryRosterCount(1, 'derby', 3)).toBeNull()
+    expect(validateEntryRosterCount(3, 'derby', 3)).toBeNull()
+    expect(validateEntryRosterCount(4, 'derby', 3)).toMatch(/at most/)
+  })
+})
+
+describe('parseCreateEntryFromFormData', () => {
+  it('parses filled rooster slots from indexed form fields', () => {
+    const formData = new FormData()
+    formData.set('eventId', eventId)
+    formData.set('ownerName', 'Farm A')
+    formData.set('roosterSlotCount', '2')
+    formData.set('rooster_1_entryName', 'Thunder')
+    formData.set('rooster_1_bandNumber', 'B-1')
+    formData.set('rooster_1_weight', '2100')
+    formData.set('rooster_2_entryName', 'Lightning')
+    formData.set('rooster_2_bandNumber', 'B-2')
+    formData.set('rooster_2_weight', '2000')
+
+    const parsed = parseCreateEntryFromFormData(formData)
+    expect(parsed.parseErrors).toHaveLength(0)
+    expect(parsed.roosters).toHaveLength(2)
+    expect(parsed.roosters[0]?.entryName).toBe('Thunder')
+  })
+
+  it('skips empty derby slots', () => {
+    const formData = new FormData()
+    formData.set('eventId', eventId)
+    formData.set('ownerName', 'Farm A')
+    formData.set('roosterSlotCount', '3')
+    formData.set('rooster_1_entryName', 'Thunder')
+    formData.set('rooster_1_bandNumber', 'B-1')
+    formData.set('rooster_1_weight', '2100')
+
+    const parsed = parseCreateEntryFromFormData(formData)
+    expect(parsed.roosters).toHaveLength(1)
   })
 })
 
 describe('updateEntrySchema', () => {
-  it('accepts valid entry update input', () => {
+  it('accepts valid entry update input without entry name', () => {
     const result = updateEntrySchema.safeParse({
       eventId,
       entryId,
-      entryName: 'Team Alpha',
       ownerName: 'Juan Dela Cruz',
     })
 
@@ -86,7 +174,6 @@ describe('updateEntrySchema', () => {
     const result = updateEntrySchema.safeParse({
       eventId,
       entryId,
-      entryName: 'Team Alpha',
       ownerName: '',
     })
 
@@ -130,7 +217,8 @@ describe('entry number helpers', () => {
     expect(getNextEntryNumber(['003', '001', '002'])).toBe('004')
   })
 
-  it('ignores non-numeric values when calculating the next number', () => {
-    expect(getNextEntryNumber(['001', 'VIP-A', '002'])).toBe('003')
+  it('matches contact number pattern', () => {
+    expect(CONTACT_NUMBER_PATTERN.test('+639171234567')).toBe(true)
+    expect(CONTACT_NUMBER_PREFIX).toBe('+63')
   })
 })

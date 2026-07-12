@@ -10,9 +10,10 @@ import type { LineupStatus } from '@/features/lineups/types'
 import { createClient } from '@/lib/supabase/server'
 
 export async function listLineupSummariesByEvent(
-  eventId: string
+  eventId: string,
+  cocksPerEntry: number
 ): Promise<LineupEntrySummary[]> {
-  const entries = await listEntriesByEvent(eventId)
+  const entries = await listEntriesByEvent(eventId, cocksPerEntry)
   const supabase = await createClient()
 
   const { data: roosters, error } = await supabase

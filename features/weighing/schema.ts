@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { entryRoosterPolicyFieldsSchema } from '@/features/entries/policy-validation'
+import { weightGramsSchema } from '@/features/entries/schema'
 import type { WeightStatus } from '@/features/weighing/types'
 
 export const weightStatusSchema = z.enum([
@@ -36,8 +37,14 @@ export const verifyWeightSchema = z.object({
 export const createRoosterSchema = z.object({
   eventId: z.string().uuid(),
   entryId: z.string().uuid(),
+  entryName: z
+    .string()
+    .max(200)
+    .optional()
+    .or(z.literal(''))
+    .transform((value) => value || undefined),
   bandNumber: z.string().min(1, 'Band number is required').max(50),
-  weight: z.coerce.number().positive('Weight must be greater than zero'),
+  weight: weightGramsSchema,
   category: z
     .string()
     .max(100)
@@ -64,6 +71,17 @@ export const WEIGHT_STATUS_LABELS: Record<WeightStatus, string> = {
   for_review: 'For review',
 }
 
+export function evaluateWeightStatusGrams(
+  weightGrams: number,
+  minWeightGrams: number | null,
+  maxWeightGrams: number | null
+): 'passed' | 'failed' {
+  if (minWeightGrams != null && weightGrams < minWeightGrams) return 'failed'
+  if (maxWeightGrams != null && weightGrams > maxWeightGrams) return 'failed'
+  return 'passed'
+}
+
+/** @deprecated Use evaluateWeightStatusGrams — weight values are stored in grams */
 export function evaluateWeightStatus(
   weight: number,
   minWeight: number | null,

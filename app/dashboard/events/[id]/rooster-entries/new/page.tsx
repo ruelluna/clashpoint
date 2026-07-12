@@ -5,6 +5,7 @@ import { getEntryFormEligibilityContext } from '@/features/eligibility/registrat
 import { getEvent } from '@/features/events/queries'
 import { listPromoters } from '@/features/promoters/queries'
 import { EventPageLayout } from '@/components/dashboard'
+import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
 import { requirePermission } from '@/lib/auth/permissions'
 
 type NewRoosterEntryPageProps = {
@@ -22,15 +23,18 @@ export default async function NewRoosterEntryPage({ params }: NewRoosterEntryPag
 
   if (!event) notFound()
 
+  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>
       <EntryFormClient
         eventId={event.id}
         eventName={event.name}
+        eventType={event.event_type}
         promoters={promoters}
         cocksPerEntry={event.cocks_per_entry}
-        minWeight={event.min_weight}
-        maxWeight={event.max_weight}
+        minWeightGrams={minWeightGrams}
+        maxWeightGrams={maxWeightGrams}
         eligibilityContext={eligibilityContext}
       />
     </EventPageLayout>

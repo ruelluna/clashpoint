@@ -11,6 +11,7 @@ type EntryListRow = EntryListItem & {
 export type EntryRoosterEditItem = {
   rooster_id: string
   cock_number: number
+  rooster_name: string | null
   band_number: string
   weight: number | null
   category: string | null
@@ -32,7 +33,10 @@ export type EntryRoosterEditItem = {
   }>
 }
 
-export async function listEntriesByEvent(eventId: string): Promise<EntryListItem[]> {
+export async function listEntriesByEvent(
+  eventId: string,
+  cocksPerEntry: number
+): Promise<EntryListItem[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('entries')
@@ -57,6 +61,24 @@ export async function listEntriesByEvent(eventId: string): Promise<EntryListItem
 
   if (error) throw error
 
+  const entryIds = ((data ?? []) as Array<{ id: string }>).map((row) => row.id)
+  const countByEntry = new Map<string, number>()
+
+  if (entryIds.length > 0) {
+    const { data: roosters, error: roosterError } = await supabase
+      .from('rooster_event_registrations')
+      .select('entry_id')
+      .eq('event_id', eventId)
+      .in('entry_id', entryIds)
+
+    if (roosterError) throw roosterError
+
+    for (const row of roosters ?? []) {
+      const entryId = row.entry_id as string
+      countByEntry.set(entryId, (countByEntry.get(entryId) ?? 0) + 1)
+    }
+  }
+
   return ((data ?? []) as unknown as EntryListRow[]).map((row) => ({
     id: row.id,
     entry_number: row.entry_number,
@@ -69,6 +91,8 @@ export async function listEntriesByEvent(eventId: string): Promise<EntryListItem
     payment_status: row.payment_status,
     created_at: row.created_at,
     promoter_name: row.promoters?.name ?? null,
+    rooster_count: countByEntry.get(row.id) ?? 0,
+    cocks_per_entry: cocksPerEntry,
   }))
 }
 
@@ -212,7 +236,7 @@ export async function listEntryRoostersForEdit(
       eligibility_status,
       eligibility_snapshot,
       registry_rooster_id,
-      weighings ( official_weight )
+      weighings ( official_weight_grams )
     `
     )
     .eq('entry_id', entryId)
@@ -228,6 +252,7 @@ export async function listEntryRoostersForEdit(
   const registryMap = new Map<
     string,
     {
+      name: string | null
       age_class: string | null
       origin_type: string | null
       breeding_relationship: string | null
@@ -250,7 +275,7 @@ export async function listEntryRoostersForEdit(
       extended
         .from('roosters')
         .select(
-          'id, age_class, origin_type, breeding_relationship, declared_external_experience_status, calculated_experience_status'
+          'id, name, age_class, origin_type, breeding_relationship, declared_external_experience_status, calculated_experience_status'
         )
         .in('id', registryIds),
       extended
@@ -262,6 +287,7 @@ export async function listEntryRoostersForEdit(
 
     for (const rooster of roosters ?? []) {
       registryMap.set(rooster.id as string, {
+        name: rooster.name as string | null,
         age_class: rooster.age_class as string | null,
         origin_type: rooster.origin_type as string | null,
         breeding_relationship: rooster.breeding_relationship as string | null,
@@ -301,9 +327,12 @@ export async function listEntryRoostersForEdit(
     return {
       rooster_id: roosterId,
       cock_number: Number(row.cock_number),
+      rooster_name: registry?.name ?? null,
       band_number: row.band_number as string,
       weight:
-        weighing?.official_weight != null ? Number(weighing.official_weight) : null,
+        weighing?.official_weight_grams != null
+          ? Number(weighing.official_weight_grams)
+          : null,
       category: (row.category as string | null) ?? null,
       color_marking: (row.color_marking as string | null) ?? null,
       is_paired: pairedIds.has(roosterId),

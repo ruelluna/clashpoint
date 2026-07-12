@@ -44,59 +44,70 @@ const competitorIdField = z
   .or(z.literal(''))
   .transform((value) => value || undefined)
 
-const entryFieldsSchema = {
+export const CONTACT_NUMBER_PREFIX = '+63'
+export const CONTACT_NUMBER_PATTERN = /^\+63\d{10}$/
+
+export const contactNumberSchema = z
+  .string()
+  .optional()
+  .or(z.literal(''))
+  .transform((value) => value || undefined)
+  .refine(
+    (value) => value == null || CONTACT_NUMBER_PATTERN.test(value),
+    'Contact number must be 10 digits after +63 (e.g. +639171234567)'
+  )
+
+export const entryMetadataSchema = z.object({
   eventId: z.string().uuid(),
   referredByPromoterId: z.string().uuid().nullable().optional(),
   competitorId: competitorIdField,
-  saveOwner: z.coerce.boolean().optional().default(false),
-  entryName: z.string().min(1, 'Entry name is required').max(200),
-  ownerName: z.string().min(1, 'Owner name is required').max(200),
+  ownerName: z.string().min(1, 'Owner Name/Game Farm is required').max(200),
   handlerName: optionalText(200),
-  contactNumber: optionalText(50),
+  contactNumber: contactNumberSchema,
   email: optionalEmail,
-  address: optionalText(500),
   entrySource: entrySourceSchema.default('staff_encoded'),
   notes: optionalText(2000),
-}
+})
 
-const roosterFieldsSchema = {
+export const weightGramsSchema = z.coerce
+  .number()
+  .int('Weight must be a whole number of grams')
+  .positive('Weight must be greater than zero')
+
+export const roosterEntryItemSchema = z.object({
+  cockIndex: z.number().int().positive().optional(),
+  entryName: z.string().min(1, 'Entry name is required').max(200),
   bandNumber: z.string().min(1, 'Band number is required').max(50),
-  weight: z.coerce.number().positive('Weight must be greater than zero'),
+  weight: weightGramsSchema,
   category: optionalText(100),
   colorMarking: optionalText(200),
   ...entryRoosterPolicyFieldsSchema,
-}
+})
 
-export const createEntrySchema = z.object({
-  ...entryFieldsSchema,
-  ...roosterFieldsSchema,
+export const createEntrySchema = entryMetadataSchema.extend({
+  roosters: z.array(roosterEntryItemSchema).min(1, 'At least one rooster is required'),
 })
 
 export type CreateEntryInput = z.infer<typeof createEntrySchema>
+export type RoosterEntryItemInput = z.infer<typeof roosterEntryItemSchema>
+export type EntryMetadataInput = z.infer<typeof entryMetadataSchema>
 
-export const updateEntrySchema = z.object({
-  eventId: z.string().uuid(),
+export const updateEntrySchema = entryMetadataSchema.extend({
   entryId: z.string().uuid(),
-  referredByPromoterId: z.string().uuid().nullable().optional(),
-  competitorId: competitorIdField,
-  saveOwner: z.coerce.boolean().optional().default(false),
-  entryName: z.string().min(1, 'Entry name is required').max(200),
-  ownerName: z.string().min(1, 'Owner name is required').max(200),
-  handlerName: optionalText(200),
-  contactNumber: optionalText(50),
-  email: optionalEmail,
-  address: optionalText(500),
-  entrySource: entrySourceSchema.default('staff_encoded'),
-  notes: optionalText(2000),
 })
 
 export const updateEntryRosterItemSchema = z.object({
   roosterId: z.string().uuid(),
+  entryName: z.string().min(1, 'Entry name is required').max(200),
   bandNumber: z.string().min(1, 'Band number is required').max(50),
-  weight: z.coerce.number().positive('Weight must be greater than zero'),
+  weight: weightGramsSchema,
   category: optionalText(100),
   colorMarking: optionalText(200),
   ...entryRoosterPolicyFieldsSchema,
+})
+
+export const newEntryRosterItemSchema = roosterEntryItemSchema.extend({
+  cockIndex: z.number().int().positive(),
 })
 
 export const deleteEntrySchema = z.object({
@@ -106,7 +117,171 @@ export const deleteEntrySchema = z.object({
 
 export type UpdateEntryInput = z.infer<typeof updateEntrySchema>
 export type UpdateEntryRosterItemInput = z.infer<typeof updateEntryRosterItemSchema>
+export type NewEntryRosterItemInput = z.infer<typeof newEntryRosterItemSchema>
 export type DeleteEntryInput = z.infer<typeof deleteEntrySchema>
+
+export function validateEntryRosterCount(
+  roosterCount: number,
+  eventType: 'classic' | 'derby',
+  cocksPerEntry: number
+): string | null {
+  if (roosterCount < 1) {
+    return 'At least one rooster is required'
+  }
+  if (eventType === 'classic' && roosterCount !== 1) {
+    return 'Classic events allow exactly one rooster per entry'
+  }
+  if (roosterCount > cocksPerEntry) {
+    return `This event allows at most ${cocksPerEntry} cock(s) per entry`
+  }
+  return null
+}
+
+function parseOptionalNumber(value: FormDataEntryValue | null): number | undefined {
+  if (value == null || value.toString().trim() === '') return undefined
+  const parsed = Number(value)
+  return Number.isNaN(parsed) ? undefined : parsed
+}
+
+function parseRoosterPolicyFieldsFromForm(
+  formData: FormData,
+  fieldPrefix: string
+): Record<string, unknown> {
+  const field = (name: string) =>
+    formData.get(fieldPrefix ? `${name}_${fieldPrefix}` : name)
+  return {
+    ageClass: field('ageClass')?.toString().trim() || undefined,
+    originType: field('originType')?.toString().trim() || undefined,
+    breedingRelationship: field('breedingRelationship')?.toString().trim() || undefined,
+    experienceStatus: field('experienceStatus')?.toString().trim() || undefined,
+    bandLevel: field('bandLevel')?.toString().trim() || undefined,
+    bandOrganization: field('bandOrganization')?.toString().trim() || undefined,
+    bandYear: parseOptionalNumber(field('bandYear')),
+    bandSeason: field('bandSeason')?.toString().trim() || undefined,
+    category: field('category')?.toString().trim() || undefined,
+    colorMarking: field('colorMarking')?.toString().trim() || undefined,
+  }
+}
+
+function slotHasContent(formData: FormData, slotKey: string, mode: 'create' | 'new'): boolean {
+  const prefix = mode === 'create' ? `rooster_${slotKey}_` : `new_rooster_${slotKey}_`
+  const entryName = formData.get(`${prefix}entryName`)?.toString().trim()
+  const bandNumber = formData.get(`${prefix}bandNumber`)?.toString().trim()
+  const weight = formData.get(`${prefix}weight`)?.toString().trim()
+  return Boolean(entryName || bandNumber || weight)
+}
+
+function parseRoosterSlotFromForm(
+  formData: FormData,
+  slotKey: string,
+  cockIndex: number,
+  mode: 'create' | 'new'
+): RoosterEntryItemInput | null {
+  const prefix = mode === 'create' ? `rooster_${slotKey}_` : `new_rooster_${slotKey}_`
+  if (!slotHasContent(formData, slotKey, mode)) return null
+
+  const policyPrefix = mode === 'create' ? `rooster_${slotKey}` : `new_rooster_${slotKey}`
+
+  const parsed = roosterEntryItemSchema.safeParse({
+    cockIndex,
+    entryName: formData.get(`${prefix}entryName`),
+    bandNumber: formData.get(`${prefix}bandNumber`),
+    weight: formData.get(`${prefix}weight`),
+    ...parseRoosterPolicyFieldsFromForm(formData, policyPrefix),
+  })
+
+  return parsed.success ? parsed.data : null
+}
+
+export type ParsedCreateEntryForm = {
+  metadata: EntryMetadataInput
+  roosters: RoosterEntryItemInput[]
+  parseErrors: string[]
+}
+
+export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEntryForm {
+  const parseErrors: string[] = []
+  const roosterCount = Number.parseInt(
+    formData.get('roosterSlotCount')?.toString() ?? '1',
+    10
+  )
+  const slots = Number.isNaN(roosterCount) ? 1 : roosterCount
+
+  const roosters: RoosterEntryItemInput[] = []
+  for (let index = 1; index <= slots; index += 1) {
+    const prefix = `rooster_${index}_`
+    if (!slotHasContent(formData, String(index), 'create')) continue
+
+    const entryName = formData.get(`${prefix}entryName`)?.toString().trim()
+    const bandNumber = formData.get(`${prefix}bandNumber`)?.toString().trim()
+    const weight = formData.get(`${prefix}weight`)
+    const policyPrefix = `rooster_${index}`
+
+    const parsed = roosterEntryItemSchema.safeParse({
+      cockIndex: index,
+      entryName,
+      bandNumber,
+      weight,
+      ...parseRoosterPolicyFieldsFromForm(formData, policyPrefix),
+    })
+
+    if (parsed.success) {
+      roosters.push(parsed.data)
+    } else {
+      parseErrors.push(parsed.error.issues[0]?.message ?? `Invalid rooster slot ${index}`)
+    }
+  }
+
+  const metadataResult = entryMetadataSchema.safeParse({
+    eventId: formData.get('eventId'),
+    referredByPromoterId: formData.get('referredByPromoterId')?.toString().trim() || undefined,
+    competitorId: formData.get('competitorId')?.toString().trim() || undefined,
+    ownerName: formData.get('ownerName'),
+    handlerName: formData.get('handlerName')?.toString().trim() || undefined,
+    contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,
+    email: formData.get('email')?.toString().trim() || undefined,
+    entrySource: formData.get('entrySource')?.toString() ?? 'staff_encoded',
+    notes: formData.get('notes')?.toString().trim() || undefined,
+  })
+
+  if (!metadataResult.success) {
+    parseErrors.unshift(
+      metadataResult.error.issues[0]?.message ?? 'Invalid entry details'
+    )
+  }
+
+  return {
+    metadata: metadataResult.success ? metadataResult.data : ({} as EntryMetadataInput),
+    roosters,
+    parseErrors,
+  }
+}
+
+export function parseNewRosterSlotsFromFormData(
+  formData: FormData,
+  cocksPerEntry: number
+): { roosters: NewEntryRosterItemInput[]; parseErrors: string[] } {
+  const parseErrors: string[] = []
+  const roosters: NewEntryRosterItemInput[] = []
+
+  for (let index = 1; index <= cocksPerEntry; index += 1) {
+    const slot = parseRoosterSlotFromForm(formData, String(index), index, 'new')
+    if (!slot) continue
+
+    const parsed = newEntryRosterItemSchema.safeParse({
+      ...slot,
+      cockIndex: index,
+    })
+
+    if (parsed.success) {
+      roosters.push(parsed.data)
+    } else {
+      parseErrors.push(parsed.error.issues[0]?.message ?? `Invalid new rooster slot ${index}`)
+    }
+  }
+
+  return { roosters, parseErrors }
+}
 
 export const REGISTRATION_STATUS_LABELS: Record<RegistrationStatus, string> = {
   submitted: 'Submitted',

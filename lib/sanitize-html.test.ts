@@ -43,7 +43,18 @@ describe('sanitizeHtml', () => {
     expect(result).toContain('Hello')
   })
 
-  it('strips disallowed tags such as headings and images', () => {
+  it('preserves allowed headings, blockquote, and strike tags', () => {
+    const input =
+      '<h2>Section</h2><h3>Subsection</h3><blockquote>Quote</blockquote><p><s>Struck</s></p>'
+    const result = sanitizeHtml(input)
+
+    expect(result).toContain('<h2>Section</h2>')
+    expect(result).toContain('<h3>Subsection</h3>')
+    expect(result).toContain('<blockquote>Quote</blockquote>')
+    expect(result).toContain('<s>Struck</s>')
+  })
+
+  it('strips disallowed tags such as h1 and images', () => {
     const input = '<h1>Title</h1><p>Text</p><img src="x" alt="y">'
     const result = sanitizeHtml(input)
 

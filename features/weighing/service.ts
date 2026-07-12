@@ -7,14 +7,15 @@ import { createRooster } from '@/features/roosters/service'
 import { createRoosterSchema as registryRoosterSchema } from '@/features/roosters/schema'
 import {
   evaluateWeightStatus,
+  evaluateWeightStatusGrams,
   type CreateRoosterInput,
   type RecordWeightInput,
   type VerifyWeightInput,
   validateCockCount,
 } from '@/features/weighing/schema'
 import type { WeightStatus } from '@/features/weighing/types'
+import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
 import {
-  kgToGrams,
   parseCategoryToAgeClass,
   type AgeClass,
   type BandLevel,
@@ -124,11 +125,12 @@ export async function createRoosterForEntry(
     return { error: `Band number ${band} is already registered for this event` }
   }
 
-  const weightGrams = kgToGrams(input.weight)
-  const weightStatus = evaluateWeightStatus(
-    input.weight,
-    event.min_weight,
-    event.max_weight
+  const weightGrams = Math.round(input.weight)
+  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+  const weightStatus = evaluateWeightStatusGrams(
+    weightGrams,
+    minWeightGrams,
+    maxWeightGrams
   )
   const verifiedAt = new Date().toISOString()
   const ageClass = resolveAgeClass(input)
@@ -136,6 +138,7 @@ export async function createRoosterForEntry(
   const registryResult = await createRooster(
     actorId,
     registryRoosterSchema.parse({
+      name: input.entryName,
       ageClass,
       competitionClass: 'unclassified',
       originType: input.originType ?? 'unknown',
@@ -180,7 +183,7 @@ export async function createRoosterForEntry(
       registry_rooster_id: registryResult.roosterId,
       cock_number: nextCockNumber,
       band_number: band,
-      declared_weight: input.weight,
+      declared_weight: weightGrams / 1000,
       declared_weight_grams: weightGrams,
       official_weight_grams: weightGrams,
       category: input.category ?? null,
@@ -214,7 +217,7 @@ export async function createRoosterForEntry(
       rooster_event_registration_id: rooster.id,
       entry_id: input.entryId,
       event_id: input.eventId,
-      official_weight: input.weight,
+      official_weight: weightGrams / 1000,
       official_weight_grams: weightGrams,
       weight_status: weightStatus,
       verified_by: actorId,

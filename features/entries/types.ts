@@ -50,6 +50,8 @@ export type EntryListItem = Pick<
   | 'created_at'
 > & {
   promoter_name: string | null
+  rooster_count: number
+  cocks_per_entry: number
 }
 
 export type EntryWithEvent = EntryRow & {

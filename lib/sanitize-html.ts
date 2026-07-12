@@ -1,4 +1,20 @@
-const ALLOWED_TAGS = new Set(['p', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'a', 'br'])
+const ALLOWED_TAGS = new Set([
+  'p',
+  'strong',
+  'b',
+  'em',
+  'i',
+  'ul',
+  'ol',
+  'li',
+  'a',
+  'br',
+  'h2',
+  'h3',
+  'blockquote',
+  's',
+  'del',
+])
 
 export function sanitizeHtml(html: string | null | undefined): string {
   if (!html?.trim()) return ''

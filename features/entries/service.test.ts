@@ -85,8 +85,11 @@ describe('updateEntryRoosters', () => {
     vi.mocked(getPairedRosterIdsForEntry).mockResolvedValue(new Set([roosterId]))
     vi.mocked(getEvent).mockResolvedValue({
       id: eventId,
-      min_weight: 2,
-      max_weight: 2.5,
+      min_weight_grams: 2000,
+      max_weight_grams: 2500,
+      min_weight: null,
+      max_weight: null,
+      event_type: 'classic',
     } as Awaited<ReturnType<typeof getEvent>>)
 
     const update = vi.fn()
@@ -100,8 +103,9 @@ describe('updateEntryRoosters', () => {
     const result = await updateEntryRoosters('actor-1', eventId, entryId, [
       {
         roosterId,
+        entryName: 'Rooster',
         bandNumber: 'B-200',
-        weight: 2.1,
+        weight: 2100,
         category: undefined,
         colorMarking: undefined,
         bandOrganization: undefined,

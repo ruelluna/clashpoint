@@ -1,8 +1,11 @@
 'use client'
 
 import {
-  Checkbox,
+  Box,
+  Button,
   Combobox,
+  Field,
+  Flex,
   Portal,
   Stack,
   Text,
@@ -10,7 +13,7 @@ import {
 } from '@chakra-ui/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { FormField } from '@/components/dashboard'
+import { CreateOwnerDialog } from '@/features/entries/components/create-owner-dialog'
 import { searchCompetitorsAction } from '@/features/competitors/actions'
 import type { CompetitorSearchResult } from '@/features/competitors/types'
 
@@ -38,8 +41,8 @@ export function OwnerPickerField({
   )
   const [inputValue, setInputValue] = useState(initialOwnerName)
   const [competitorId, setCompetitorId] = useState(initialCompetitor?.id ?? '')
-  const [saveOwner, setSaveOwner] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   const { collection, set } = useListCollection<CompetitorSearchResult>({
     initialItems: initialCompetitor ? [initialCompetitor] : [],
@@ -90,92 +93,116 @@ export function OwnerPickerField({
     [competitorId, initialCompetitor, searchResults]
   )
 
-  const showSaveOwnerOption = !competitorId
+  function handleOwnerCreated(
+    owner: CompetitorSearchResult,
+    profile: OwnerProfileValues
+  ) {
+    setSearchResults((current) => {
+      if (current.some((item) => item.id === owner.id)) return current
+      return [owner, ...current]
+    })
+    setCompetitorId(owner.id)
+    setInputValue(owner.displayName)
+    onOwnerProfileChange(profile)
+  }
 
   return (
     <Stack gap={3}>
       <input type="hidden" name="competitorId" value={competitorId} />
-      <input type="hidden" name="saveOwner" value={saveOwner ? 'on' : 'off'} />
 
-      <FormField
-        label="Owner name"
-        required
-        helpText="Search saved owners or type a new name. Handler is recorded per entry only."
-      >
-        <Combobox.Root
-          collection={collection}
-          allowCustomValue
-          inputValue={inputValue}
-          value={competitorId ? [competitorId] : []}
-          onInputValueChange={(details) => {
-            setInputValue(details.inputValue)
-            if (competitorId && details.inputValue.trim() !== selectedCompetitor?.displayName) {
-              setCompetitorId('')
-            }
-          }}
-          onValueChange={(details) => {
-            const nextId = details.value[0] ?? ''
-            setCompetitorId(nextId)
-
-            const owner = searchResults.find((item) => item.id === nextId)
-            if (owner) {
-              setInputValue(owner.displayName)
-              applyOwnerProfile(owner)
-              setSaveOwner(false)
-            }
-          }}
-          openOnClick
-          data-testid="owner-picker"
+      <Field.Root required flex="1">
+        <Field.Label>Owner Name/Game Farm</Field.Label>
+        <Flex
+          gap={3}
+          align="center"
+          direction={{ base: 'column', sm: 'row' }}
         >
-          <Combobox.Control>
-            <Combobox.Input
-              name="ownerName"
-              required
-              maxLength={200}
-              placeholder="Search or enter owner name"
-            />
-            <Combobox.IndicatorGroup>
-              <Combobox.ClearTrigger
-                onClick={() => {
+          <Box flex="1" width={{ base: '100%', sm: 'auto' }}>
+            <Combobox.Root
+              collection={collection}
+              allowCustomValue
+              inputValue={inputValue}
+              value={competitorId ? [competitorId] : []}
+              onInputValueChange={(details) => {
+                setInputValue(details.inputValue)
+                if (
+                  competitorId &&
+                  details.inputValue.trim() !== selectedCompetitor?.displayName
+                ) {
                   setCompetitorId('')
-                  setSaveOwner(false)
-                }}
-              />
-              <Combobox.Trigger />
-            </Combobox.IndicatorGroup>
-          </Combobox.Control>
+                }
+              }}
+              onValueChange={(details) => {
+                const nextId = details.value[0] ?? ''
+                setCompetitorId(nextId)
 
-          <Portal>
-            <Combobox.Positioner>
-              <Combobox.Content>
-                <Combobox.Empty>No saved owners found</Combobox.Empty>
-                {collection.items.map((item) => (
-                  <Combobox.Item key={item.id} item={item}>
-                    <Combobox.ItemText>{item.displayName}</Combobox.ItemText>
-                    <Combobox.ItemIndicator />
-                  </Combobox.Item>
-                ))}
-              </Combobox.Content>
-            </Combobox.Positioner>
-          </Portal>
-        </Combobox.Root>
-      </FormField>
+                const owner = searchResults.find((item) => item.id === nextId)
+                if (owner) {
+                  setInputValue(owner.displayName)
+                  applyOwnerProfile(owner)
+                }
+              }}
+              openOnClick
+              data-testid="owner-picker"
+            >
+              <Combobox.Control>
+                <Combobox.Input
+                  name="ownerName"
+                  required
+                  maxLength={200}
+                  placeholder="Search or enter owner / game farm"
+                />
+                <Combobox.IndicatorGroup>
+                  <Combobox.ClearTrigger
+                    onClick={() => {
+                      setCompetitorId('')
+                    }}
+                  />
+                  <Combobox.Trigger />
+                </Combobox.IndicatorGroup>
+              </Combobox.Control>
+
+              <Portal>
+                <Combobox.Positioner>
+                  <Combobox.Content>
+                    <Combobox.Empty>No saved owners found</Combobox.Empty>
+                    {collection.items.map((item) => (
+                      <Combobox.Item key={item.id} item={item}>
+                        <Combobox.ItemText>{item.displayName}</Combobox.ItemText>
+                        <Combobox.ItemIndicator />
+                      </Combobox.Item>
+                    ))}
+                  </Combobox.Content>
+                </Combobox.Positioner>
+              </Portal>
+            </Combobox.Root>
+          </Box>
+          <Button
+            type="button"
+            variant="outline"
+            flexShrink={0}
+            alignSelf={{ base: 'stretch', sm: 'auto' }}
+            onClick={() => setDialogOpen(true)}
+          >
+            Add new
+          </Button>
+        </Flex>
+        <Field.HelperText>
+          Search saved owners or use Add new to register a game farm. Handler is
+          recorded per entry only.
+        </Field.HelperText>
+      </Field.Root>
+
+      <CreateOwnerDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onCreated={handleOwnerCreated}
+      />
 
       {searchError ? (
         <Text fontSize="sm" color="red.500">
           {searchError}
         </Text>
-      ) : null}
-
-      {showSaveOwnerOption ? (
-        <Checkbox.Root
-          checked={saveOwner}
-          onCheckedChange={(event) => setSaveOwner(Boolean(event.checked))}
-        >
-          <Checkbox.HiddenInput />
-          <Checkbox.Control />
-          <Checkbox.Label>Save owner for future entries</Checkbox.Label>
-        </Checkbox.Root>
       ) : null}
     </Stack>
   )

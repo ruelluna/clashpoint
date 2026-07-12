@@ -18,21 +18,18 @@ import {
   LAYOUT_GAP,
   PageHeader,
   PageStack,
-  PanelCard,
 } from '@/components/dashboard'
 import type { CompetitorSearchResult } from '@/features/competitors/types'
 import {
   updateEntryAction,
   type EntryActionState,
 } from '@/features/entries/actions'
+import { ContactNumberField } from '@/features/entries/components/contact-number-field'
 import {
   OwnerPickerField,
   type OwnerProfileValues,
 } from '@/features/entries/components/owner-picker-field'
-import {
-  EligibilityStatusSummary,
-  RoosterPolicyFields,
-} from '@/features/entries/components/rooster-policy-fields'
+import { RoosterEntrySlots } from '@/features/entries/components/rooster-entry-slots'
 import type { EntryRoosterEditItem } from '@/features/entries/queries'
 import { ENTRY_SOURCE_LABELS } from '@/features/entries/schema'
 import type { EntryRow } from '@/features/entries/types'
@@ -42,38 +39,42 @@ import type { PromoterListItem } from '@/features/promoters/types'
 type EntryEditClientProps = {
   eventId: string
   eventName: string
+  eventType: 'classic' | 'derby'
+  cocksPerEntry: number
   entry: EntryRow
   roosters: EntryRoosterEditItem[]
   promoters: PromoterListItem[]
   linkedCompetitor: CompetitorSearchResult | null
-  minWeight: number | null
-  maxWeight: number | null
+  minWeightGrams: number | null
+  maxWeightGrams: number | null
   eligibilityContext?: EntryFormEligibilityContext | null
 }
 
 const initialState: EntryActionState = {}
 
-function formatWeightRange(minWeight: number | null, maxWeight: number | null) {
-  if (minWeight == null && maxWeight == null) return 'No weight limits configured'
-  return `${minWeight ?? '—'} – ${maxWeight ?? '—'} kg`
+function formatWeightRange(minWeightGrams: number | null, maxWeightGrams: number | null) {
+  if (minWeightGrams == null && maxWeightGrams == null) return 'No weight limits configured'
+  return `${minWeightGrams ?? '—'} – ${maxWeightGrams ?? '—'} g`
 }
 
 export function EntryEditClient({
   eventId,
   eventName,
+  eventType,
+  cocksPerEntry,
   entry,
   roosters,
   promoters,
   linkedCompetitor,
-  minWeight,
-  maxWeight,
+  minWeightGrams,
+  maxWeightGrams,
   eligibilityContext = null,
 }: EntryEditClientProps) {
   const [formState, formAction, pending] = useActionState(updateEntryAction, initialState)
   const [ownerProfile, setOwnerProfile] = useState<OwnerProfileValues>({
     contactNumber: entry.contact_number ?? '',
     email: entry.email ?? '',
-    address: entry.address ?? '',
+    address: '',
   })
 
   const activePromoters = promoters.filter((promoter) => promoter.status === 'active')
@@ -82,7 +83,7 @@ export function EntryEditClient({
     <PageStack maxW="2xl">
       <PageHeader
         title="Edit rooster entry"
-        description={`${eventName} · Entry #${entry.entry_number} · Weight limits: ${formatWeightRange(minWeight, maxWeight)}`}
+        description={`${eventName} · Entry #${entry.entry_number} · ${roosters.length}/${cocksPerEntry} cocks · Weight limits: ${formatWeightRange(minWeightGrams, maxWeightGrams)}`}
       />
 
       <form action={formAction}>
@@ -104,15 +105,6 @@ export function EntryEditClient({
             Owner / handler
           </Text>
 
-          <FormField label="Entry name" required>
-            <Input
-              name="entryName"
-              required
-              maxLength={200}
-              defaultValue={entry.entry_name}
-            />
-          </FormField>
-
           <OwnerPickerField
             initialOwnerName={entry.owner_name}
             initialCompetitor={linkedCompetitor}
@@ -128,19 +120,13 @@ export function EntryEditClient({
           </FormField>
 
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <FormField label="Contact number" flex="1">
-              <Input
-                name="contactNumber"
-                maxLength={50}
-                value={ownerProfile.contactNumber}
-                onChange={(event) =>
-                  setOwnerProfile((current) => ({
-                    ...current,
-                    contactNumber: event.target.value,
-                  }))
-                }
-              />
-            </FormField>
+            <ContactNumberField
+              flex="1"
+              value={ownerProfile.contactNumber}
+              onChange={(contactNumber) =>
+                setOwnerProfile((current) => ({ ...current, contactNumber }))
+              }
+            />
             <FormField label="Email" flex="1">
               <Input
                 name="email"
@@ -156,21 +142,6 @@ export function EntryEditClient({
               />
             </FormField>
           </Flex>
-
-          <FormField label="Address">
-            <Textarea
-              name="address"
-              rows={2}
-              maxLength={500}
-              value={ownerProfile.address}
-              onChange={(event) =>
-                setOwnerProfile((current) => ({
-                  ...current,
-                  address: event.target.value,
-                }))
-              }
-            />
-          </FormField>
 
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
             <FormField label="Entry source" flex="1">
@@ -210,82 +181,23 @@ export function EntryEditClient({
             />
           </FormField>
 
-          {roosters.length > 0 ? (
-            <>
-              <Text
-                fontSize="sm"
-                fontWeight="semibold"
-                color="fg.muted"
-                textTransform="uppercase"
-                pt={2}
-              >
-                Roosters &amp; weights
-              </Text>
-              {roosters.map((rooster) => (
-                <PanelCard key={rooster.rooster_id}>
-                  <Text fontSize="sm" fontWeight="medium" mb={3}>
-                    Cock #{rooster.cock_number}
-                    {rooster.is_paired ? (
-                      <Text
-                        as="span"
-                        fontSize="xs"
-                        color="fg.muted"
-                        fontWeight="normal"
-                        ml={2}
-                      >
-                        (in a match — rooster details locked)
-                      </Text>
-                    ) : null}
-                  </Text>
-                  <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-                    <FormField label="Band number" required flex="1">
-                      <Input
-                        name={`bandNumber_${rooster.rooster_id}`}
-                        required
-                        maxLength={50}
-                        defaultValue={rooster.band_number}
-                        disabled={rooster.is_paired}
-                      />
-                    </FormField>
-                    <FormField label="Weight (kg)" required flex="1">
-                      <Input
-                        name={`weight_${rooster.rooster_id}`}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        defaultValue={
-                          rooster.weight != null ? String(rooster.weight) : ''
-                        }
-                        disabled={rooster.is_paired}
-                      />
-                    </FormField>
-                  </Flex>
-                  <RoosterPolicyFields
-                    eligibilityContext={eligibilityContext}
-                    fieldPrefix={rooster.rooster_id}
-                    disabled={rooster.is_paired}
-                    defaults={{
-                      ageClass: rooster.age_class ?? undefined,
-                      category: rooster.category ?? undefined,
-                      colorMarking: rooster.color_marking ?? undefined,
-                      originType: rooster.origin_type ?? undefined,
-                      breedingRelationship: rooster.breeding_relationship ?? undefined,
-                      experienceStatus: rooster.experience_status ?? undefined,
-                      bandLevel: rooster.band_level ?? undefined,
-                      bandOrganization: rooster.band_organization ?? undefined,
-                      bandYear: rooster.band_year,
-                      bandSeason: rooster.band_season ?? undefined,
-                    }}
-                  />
-                  <EligibilityStatusSummary
-                    status={rooster.eligibility_status}
-                    checks={rooster.eligibility_checks}
-                  />
-                </PanelCard>
-              ))}
-            </>
-          ) : null}
+          <Text
+            fontSize="sm"
+            fontWeight="semibold"
+            color="fg.muted"
+            textTransform="uppercase"
+            pt={2}
+          >
+            Roosters
+          </Text>
+
+          <RoosterEntrySlots
+            mode="edit"
+            eventType={eventType}
+            cocksPerEntry={cocksPerEntry}
+            eligibilityContext={eligibilityContext}
+            existingRoosters={roosters}
+          />
 
           {formState.error ? (
             <Text fontSize="sm" color="red.500" whiteSpace="pre-line">

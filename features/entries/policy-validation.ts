@@ -7,7 +7,6 @@ import {
   bandLevelSchema,
   breedingRelationshipSchema,
   experienceStatusSchema,
-  kgToGrams,
   originTypeSchema,
   type UnknownValueHandling,
 } from '@/lib/derby/enums'
@@ -71,7 +70,7 @@ export function validateRoosterAgainstPolicy(
   if (!context || context.enabledFields.length === 0) return null
 
   if (isFieldEnabled(context, 'weight')) {
-    const weightGrams = kgToGrams(input.weight)
+    const weightGrams = Math.round(input.weight)
     const outcome = evaluateWeightEligibility(
       weightGrams,
       context.minimumWeightGrams,
