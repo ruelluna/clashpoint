@@ -9,6 +9,7 @@ import {
   updateEventSchema,
   updatePrizeStructureSchema,
 } from '@/features/events/schema'
+import { parseRegistrationRules } from '@/features/events/registration-rules'
 import {
   createEvent,
   transitionStatus,
@@ -17,7 +18,13 @@ import {
 } from '@/features/events/service'
 import type { DerbyType, EventType } from '@/features/events/types'
 import { resolveCocksPerEntry } from '@/features/events/utils'
-import { requirePermission } from '@/lib/auth/permissions'
+import {
+  hasEligibilityPolicyFormData,
+  parseEligibilityPolicyFormData,
+} from '@/features/eligibility/policy-form'
+import { saveEligibilityPolicy } from '@/features/eligibility/policy-service'
+import type { DerbyAgeType } from '@/features/events/types'
+import { hasPermission, requirePermission } from '@/lib/auth/permissions'
 
 export type ActionState = { error?: string; success?: string }
 
@@ -92,11 +99,13 @@ function parseEventFields(formData: FormData) {
       : null,
     eventType,
     derbyType,
+    derbyAgeType: isDerby
+      ? ((formData.get('derbyAgeType')?.toString() ?? 'open_derby') as DerbyAgeType)
+      : null,
+    entryFee: formData.get('entryFee')?.toString() ?? '0',
     taxPerFight: formData.get('taxPerFight')?.toString() ?? '0',
     cocksPerEntry: String(cocksPerEntry),
-    registrationRules: isDerby
-      ? formData.get('registrationRules')?.toString().trim() || null
-      : null,
+    registrationRules: parseRegistrationRules(formData, isDerby),
     legalAuthorized: parseCheckbox(formData.get('legalAuthorized')),
     isPublic: parseCheckbox(formData.get('isPublic')),
     publishMatches: parseCheckbox(formData.get('publishMatches')),
@@ -124,6 +133,27 @@ export async function createEventAction(
 
   const result = await createEvent(profile.id, parsed.data)
   if (result.error) return { error: result.error }
+  if (!result.eventId) return { error: 'Event was created but no id was returned' }
+
+  if (parsed.data.eventType === 'derby' && hasEligibilityPolicyFormData(formData)) {
+    const canManageEligibility = await hasPermission(
+      profile.id,
+      'derby_eligibility.manage'
+    )
+    if (!canManageEligibility) {
+      return {
+        error:
+          'You do not have permission to configure eligibility rules for this event.',
+      }
+    }
+
+    const policyParsed = parseEligibilityPolicyFormData(formData, result.eventId)
+    if (policyParsed.error) return { error: policyParsed.error }
+    if (policyParsed.data) {
+      const policyResult = await saveEligibilityPolicy(profile.id, policyParsed.data)
+      if (policyResult.error) return { error: policyResult.error }
+    }
+  }
 
   revalidatePath('/dashboard/events')
   redirect(`/dashboard/events/${result.eventId}`)

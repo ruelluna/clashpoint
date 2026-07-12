@@ -129,8 +129,8 @@ const MATCH_SELECT = `
   wala_weight,
   meron_entry:entries!matches_meron_entry_id_fkey ( id, entry_number, entry_name ),
   wala_entry:entries!matches_wala_entry_id_fkey ( id, entry_number, entry_name ),
-  meron_rooster:rooster_records!matches_meron_rooster_id_fkey ( id, cock_number, band_number ),
-  wala_rooster:rooster_records!matches_wala_rooster_id_fkey ( id, cock_number, band_number )
+  meron_rooster:rooster_event_registrations!matches_meron_rooster_id_fkey ( id, cock_number, band_number ),
+  wala_rooster:rooster_event_registrations!matches_wala_rooster_id_fkey ( id, cock_number, band_number )
 `
 
 export async function listMatchesByEvent(eventId: string): Promise<MatchListItem[]> {
@@ -170,7 +170,7 @@ export async function getEligibleRoostersForMatching(
   const [{ data: roosters, error: roosterError }, { data: matches, error: matchError }] =
     await Promise.all([
       supabase
-        .from('rooster_records')
+        .from('rooster_event_registrations')
         .select(
           `
           id,

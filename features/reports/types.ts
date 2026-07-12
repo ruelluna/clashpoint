@@ -5,6 +5,10 @@ export type EventReportType =
   | 'match'
   | 'result'
   | 'audit'
+  | 'entry_approval'
+  | 'eligibility_summary'
+  | 'classification_exceptions'
+  | 'band_verification'
 
 export type GlobalReportType = 'promoter' | 'audit'
 
@@ -106,6 +110,44 @@ export type PromoterReportRow = {
   events_hosted: number
   entries_referred: number
   total_collected: number
+}
+
+export type EntryApprovalReportRow = {
+  event_name: string
+  entry_name: string
+  rooster_code: string
+  band_number: string
+  registration_status: string
+  eligibility_status: string
+  approval_status: string
+  submitted_at: string | null
+  approved_at: string | null
+  rejection_reason: string | null
+}
+
+export type EligibilitySummaryReportRow = {
+  metric: string
+  count: number
+}
+
+export type ClassificationExceptionReportRow = {
+  event_name: string
+  first_entry: string
+  second_entry: string
+  original_result: string
+  override_reason: string
+  requested_by: string | null
+  approved_by: string | null
+  created_at: string
+}
+
+export type BandVerificationReportRow = {
+  rooster_code: string
+  entry_name: string
+  band_organization: string | null
+  band_number: string
+  verification_status: string
+  duplicate_warning: string
 }
 
 export type AuditReportRow = {

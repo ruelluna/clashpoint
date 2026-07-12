@@ -3,6 +3,10 @@
 import { exportToCsv, reportFilename } from '@/features/reports/export'
 import {
   getAuditReport,
+  getBandVerificationReport,
+  getClassificationExceptionsReport,
+  getEligibilitySummaryReport,
+  getEntryApprovalReport,
   getEventSummaryReport,
   getMatchReport,
   getPromoterReport,
@@ -39,6 +43,18 @@ async function fetchReportRows(
     case 'result':
       if (!eventId) throw new Error('Event ID required')
       return getResultReport(eventId)
+    case 'entry_approval':
+      if (!eventId) throw new Error('Event ID required')
+      return getEntryApprovalReport(eventId)
+    case 'eligibility_summary':
+      if (!eventId) throw new Error('Event ID required')
+      return getEligibilitySummaryReport(eventId)
+    case 'classification_exceptions':
+      if (!eventId) throw new Error('Event ID required')
+      return getClassificationExceptionsReport(eventId)
+    case 'band_verification':
+      if (!eventId) throw new Error('Event ID required')
+      return getBandVerificationReport(eventId)
     case 'audit':
       return getAuditReport(eventId ? { eventId, limit: 500 } : { limit: 500 })
     case 'promoter':

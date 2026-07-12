@@ -89,6 +89,51 @@ export async function createProfileLessTestUser() {
   }
 }
 
+export async function createEventOrganizerTestUser() {
+  const supabase = getAdminClient()
+
+  if (!supabase) {
+    throw new Error(
+      'Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for organizer auth tests'
+    )
+  }
+
+  const email = `e2e-organizer-${Date.now()}@clashpoint.test`
+  const password = `Test-${crypto.randomUUID()}`
+
+  const { data: created, error: createError } =
+    await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { display_name: 'E2E Organizer' },
+    })
+
+  if (createError || !created.user) {
+    throw createError ?? new Error('Failed to create organizer test user')
+  }
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({
+      role: 'event_organizer',
+      display_name: 'E2E Organizer',
+      is_active: true,
+    })
+    .eq('id', created.user.id)
+
+  if (updateError) {
+    await supabase.auth.admin.deleteUser(created.user.id)
+    throw updateError
+  }
+
+  return {
+    id: created.user.id,
+    email,
+    password,
+  }
+}
+
 export async function createStaffTestUser() {
   const supabase = getAdminClient()
 

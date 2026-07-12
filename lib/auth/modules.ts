@@ -10,6 +10,41 @@ export const ACCESS_MODULES = [
     permissions: ['events.manage', 'events.view'],
   },
   {
+    id: 'rooster-registry',
+    label: 'Rooster Registry',
+    permissions: ['rooster.view', 'rooster.create', 'rooster.update'],
+  },
+  {
+    id: 'registration-review',
+    label: 'Registration review',
+    permissions: [
+      'rooster_event_registration.view',
+      'rooster_event_registration.review',
+      'rooster_event_registration.approve',
+      'events.view',
+    ],
+  },
+  {
+    id: 'derby-eligibility',
+    label: 'Derby eligibility',
+    permissions: ['derby_eligibility.view', 'derby_eligibility.manage', 'events.view'],
+  },
+  {
+    id: 'classification',
+    label: 'Classification',
+    permissions: ['classification.view', 'classification.manage_pairing_rules', 'events.view'],
+  },
+  {
+    id: 'banding',
+    label: 'Banding',
+    permissions: ['banding.view', 'banding.verify', 'entries.manage'],
+  },
+  {
+    id: 'inspection',
+    label: 'Inspection',
+    permissions: ['inspection.record', 'inspection.approve', 'events.view'],
+  },
+  {
     id: 'rooster-entries',
     label: 'Rooster Entries',
     permissions: ['entries.manage', 'weighing.manage', 'events.view'],

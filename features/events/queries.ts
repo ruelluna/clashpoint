@@ -16,7 +16,8 @@ type EventListRow = {
   venue: string
   event_date: string
   event_type: EventListItem['event_type']
-  derby_type: EventListItem['derby_type']
+  derby_format: EventListItem['derby_type']
+  derby_type: EventListItem['derby_age_type']
   status: EventListItem['status']
   entry_fee: number
   tax_per_fight: number
@@ -34,7 +35,7 @@ export async function listEvents(): Promise<EventListItem[]> {
   const { data, error } = await supabase
     .from('events')
     .select(
-      'id, name, venue, event_date, event_type, derby_type, status, entry_fee, tax_per_fight, is_public, promoters ( name )'
+      'id, name, venue, event_date, event_type, derby_format, derby_type, status, entry_fee, tax_per_fight, is_public, promoters ( name )'
     )
     .is('deleted_at', null)
     .order('event_date', { ascending: false })
@@ -47,7 +48,8 @@ export async function listEvents(): Promise<EventListItem[]> {
     venue: row.venue,
     event_date: row.event_date,
     event_type: row.event_type,
-    derby_type: row.derby_type,
+    derby_type: row.derby_format,
+    derby_age_type: row.derby_type,
     status: row.status,
     entry_fee: Number(row.entry_fee),
     tax_per_fight: Number(row.tax_per_fight),
@@ -120,7 +122,19 @@ function mapEventRow(data: Record<string, unknown>): EventRow {
     event_date: data.event_date as string,
     registration_deadline: (data.registration_deadline as string | null) ?? null,
     event_type: data.event_type as EventRow['event_type'],
-    derby_type: (data.derby_type as EventRow['derby_type']) ?? null,
+    derby_type: (data.derby_format as EventRow['derby_type']) ?? null,
+    derby_age_type: (data.derby_type as EventRow['derby_age_type']) ?? null,
+    require_rooster_entry_approval: Boolean(data.require_rooster_entry_approval),
+    eligibility_enforcement_enabled: Boolean(data.eligibility_enforcement_enabled),
+    classification_matching_enabled: Boolean(data.classification_matching_enabled),
+    min_weight_grams:
+      data.min_weight_grams != null ? Number(data.min_weight_grams) : null,
+    max_weight_grams:
+      data.max_weight_grams != null ? Number(data.max_weight_grams) : null,
+    match_weight_tolerance_grams:
+      data.match_weight_tolerance_grams != null
+        ? Number(data.match_weight_tolerance_grams)
+        : null,
     entry_fee: Number(data.entry_fee),
     tax_per_fight: data.tax_per_fight != null ? Number(data.tax_per_fight) : 0,
     min_entries: data.min_entries != null ? Number(data.min_entries) : null,

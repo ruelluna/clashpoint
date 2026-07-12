@@ -102,6 +102,10 @@ describe('updateEntryRoosters', () => {
         roosterId,
         bandNumber: 'B-200',
         weight: 2.1,
+        category: undefined,
+        colorMarking: undefined,
+        bandOrganization: undefined,
+        bandSeason: undefined,
       },
     ])
 

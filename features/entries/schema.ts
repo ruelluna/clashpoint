@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { entryRoosterPolicyFieldsSchema } from '@/features/entries/policy-validation'
 import type { EntrySource, RegistrationStatus } from '@/features/entries/types'
 
 export const registrationStatusSchema = z.enum([
@@ -35,9 +36,19 @@ const optionalEmail = z
   .or(z.literal(''))
   .transform((value) => value || undefined)
 
+const competitorIdField = z
+  .string()
+  .uuid()
+  .nullable()
+  .optional()
+  .or(z.literal(''))
+  .transform((value) => value || undefined)
+
 const entryFieldsSchema = {
   eventId: z.string().uuid(),
   referredByPromoterId: z.string().uuid().nullable().optional(),
+  competitorId: competitorIdField,
+  saveOwner: z.coerce.boolean().optional().default(false),
   entryName: z.string().min(1, 'Entry name is required').max(200),
   ownerName: z.string().min(1, 'Owner name is required').max(200),
   handlerName: optionalText(200),
@@ -53,6 +64,7 @@ const roosterFieldsSchema = {
   weight: z.coerce.number().positive('Weight must be greater than zero'),
   category: optionalText(100),
   colorMarking: optionalText(200),
+  ...entryRoosterPolicyFieldsSchema,
 }
 
 export const createEntrySchema = z.object({
@@ -66,6 +78,8 @@ export const updateEntrySchema = z.object({
   eventId: z.string().uuid(),
   entryId: z.string().uuid(),
   referredByPromoterId: z.string().uuid().nullable().optional(),
+  competitorId: competitorIdField,
+  saveOwner: z.coerce.boolean().optional().default(false),
   entryName: z.string().min(1, 'Entry name is required').max(200),
   ownerName: z.string().min(1, 'Owner name is required').max(200),
   handlerName: optionalText(200),
@@ -82,6 +96,7 @@ export const updateEntryRosterItemSchema = z.object({
   weight: z.coerce.number().positive('Weight must be greater than zero'),
   category: optionalText(100),
   colorMarking: optionalText(200),
+  ...entryRoosterPolicyFieldsSchema,
 })
 
 export const deleteEntrySchema = z.object({

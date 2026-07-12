@@ -1,9 +1,9 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Input, Stack, Text } from '@chakra-ui/react'
+import { Badge, Box, Button, Flex, Input, NativeSelect, Stack, Text } from '@chakra-ui/react'
 import { useActionState, useMemo, useState } from 'react'
 
-import { LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { LAYOUT_GAP, FormField, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   createRoosterAction,
   recordWeightAction,
@@ -54,54 +54,40 @@ function CreateRoosterForm({
       <form action={action}>
         <input type="hidden" name="eventId" value={eventId} />
         <Stack gap={LAYOUT_GAP.form} maxW="2xl">
-          <Box>
-            <Text fontSize="sm" fontWeight="medium" mb={1}>
-              Entry
-            </Text>
-            <select
-              name="entryId"
-              value={entryId}
-              onChange={(event) => setEntryId(event.currentTarget.value)}
-              required
-              className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm"
-            >
-              <option value="">Select entry</option>
-              {addableEntries.map((entry) => (
-                <option key={entry.entry_id} value={entry.entry_id}>
-                  #{entry.entry_number} {entry.entry_name} · {entry.owner_name} (
-                  {entry.rooster_count} cock
-                  {entry.rooster_count === 1 ? '' : 's'})
-                </option>
-              ))}
-            </select>
-          </Box>
+          <FormField label="Entry" required>
+            <NativeSelect.Root>
+              <NativeSelect.Field
+                name="entryId"
+                value={entryId}
+                onChange={(event) => setEntryId(event.currentTarget.value)}
+                required
+              >
+                <option value="">Select entry</option>
+                {addableEntries.map((entry) => (
+                  <option key={entry.entry_id} value={entry.entry_id}>
+                    #{entry.entry_number} {entry.entry_name} · {entry.owner_name} (
+                    {entry.rooster_count} cock
+                    {entry.rooster_count === 1 ? '' : 's'})
+                  </option>
+                ))}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+          </FormField>
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <Box flex="1">
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Band number
-              </Text>
+            <FormField label="Band number" required flex="1">
               <Input name="bandNumber" required maxLength={50} />
-            </Box>
-            <Box flex="1">
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Weight (kg)
-              </Text>
+            </FormField>
+            <FormField label="Weight (kg)" required flex="1">
               <Input name="weight" type="number" step="0.01" min="0" required />
-            </Box>
+            </FormField>
           </Flex>
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <Box flex="1">
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Category
-              </Text>
+            <FormField label="Category" flex="1">
               <Input name="category" maxLength={100} />
-            </Box>
-            <Box flex="1">
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Color / marking
-              </Text>
+            </FormField>
+            <FormField label="Color / marking" flex="1">
               <Input name="colorMarking" maxLength={200} />
-            </Box>
+            </FormField>
           </Flex>
           <Button type="submit" size="sm" loading={pending} alignSelf="flex-start">
             Add rooster
@@ -142,7 +128,7 @@ function RecordWeightForm({
   return (
     <form action={action}>
       <input type="hidden" name="eventId" value={eventId} />
-      <input type="hidden" name="roosterRecordId" value={item.rooster_record_id} />
+      <input type="hidden" name="roosterRecordId" value={item.rooster_event_registration_id} />
       <Flex gap={2} align="center" wrap="wrap">
         <Input
           name="officialWeight"
@@ -301,7 +287,7 @@ export function WeighingStationClient({
                 sortedItems.map((item) => (
                   <Box
                     as="tr"
-                    key={item.rooster_record_id}
+                    key={item.rooster_event_registration_id}
                     borderTopWidth="1px"
                     borderColor="border"
                   >

@@ -13,7 +13,7 @@ import {
 } from '@chakra-ui/react'
 import { useActionState } from 'react'
 
-import { LAYOUT_GAP, PageStack, PanelCard } from '@/components/dashboard'
+import { LAYOUT_GAP, FormField, PageStack, PanelCard } from '@/components/dashboard'
 import {
   recordResultAction,
   verifyResultAction,
@@ -92,10 +92,7 @@ export function ResultsEntryClient({
             <form action={recordFormAction}>
               <Stack gap={LAYOUT_GAP.form}>
               <input type="hidden" name="eventId" value={eventId} />
-              <Box>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
-                  Match
-                </Text>
+              <FormField label="Match" required>
                 <NativeSelect.Root size="sm">
                   <NativeSelect.Field name="matchId" defaultValue="">
                     <option value="" disabled>
@@ -108,11 +105,8 @@ export function ResultsEntryClient({
                     ))}
                   </NativeSelect.Field>
                 </NativeSelect.Root>
-              </Box>
-              <Box>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
-                  Result
-                </Text>
+              </FormField>
+              <FormField label="Result" required>
                 <NativeSelect.Root size="sm">
                   <NativeSelect.Field name="resultType" defaultValue="meron_win">
                     {Object.entries(FIGHT_RESULT_TYPE_LABELS).map(([value, label]) => (
@@ -122,13 +116,10 @@ export function ResultsEntryClient({
                     ))}
                   </NativeSelect.Field>
                 </NativeSelect.Root>
-              </Box>
-              <Box>
-                <Text fontSize="sm" fontWeight="medium" mb={2}>
-                  Notes
-                </Text>
+              </FormField>
+              <FormField label="Notes">
                 <Textarea name="notes" rows={2} placeholder="Optional notes" />
-              </Box>
+              </FormField>
               <Checkbox.Root name="underProtest">
                 <Checkbox.HiddenInput />
                 <Checkbox.Control />

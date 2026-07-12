@@ -1,3 +1,4 @@
+import { Stack } from '@chakra-ui/react'
 import { notFound } from 'next/navigation'
 
 import { PublicEventNav } from '@/features/public/components/public-event-nav'
@@ -19,9 +20,9 @@ export default async function PublicWinnersPage({ params }: PublicWinnersPagePro
   if (winners === null) notFound()
 
   return (
-    <div className="space-y-6">
+    <Stack gap={6}>
       <PublicEventNav event={event} />
       <PublicWinnersList winners={winners} showAmounts={event.publish_prize_amounts} />
-    </div>
+    </Stack>
   )
 }

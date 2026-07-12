@@ -16,7 +16,7 @@ export async function listLineupSummariesByEvent(
   const supabase = await createClient()
 
   const { data: roosters, error } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select('entry_id, status')
     .eq('event_id', eventId)
 
@@ -51,7 +51,7 @@ export async function listRoostersByEntry(
 ): Promise<RoosterRecordRow[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select('*')
     .eq('entry_id', entryId)
     .order('cock_number', { ascending: true })
@@ -65,7 +65,7 @@ export async function listLineupsByEvent(
 ): Promise<LineupWithEntry[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select(
       `
       *,
@@ -106,7 +106,7 @@ export async function getExistingBandNumbers(
 ): Promise<string[]> {
   const supabase = await createClient()
   let query = supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select('band_number, entry_id')
     .eq('event_id', eventId)
 
