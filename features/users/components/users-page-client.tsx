@@ -33,6 +33,8 @@ const manageableRoles = (
   Object.entries(ROLE_LABELS) as [AppRole, string][]
 ).filter(([role]) => role !== 'admin' && role !== 'promoter')
 
+const invitableRoles = manageableRoles
+
 function defaultRoleForUpdate(user: UserRow): UsersManageableRole {
   if (user.role === 'staff' || user.role === 'event_organizer' || user.role === 'system_owner') {
     return user.role
@@ -108,7 +110,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                   name="role"
                   value={inviteRole}
                   onChange={(event) =>
-                    setInviteRole(event.currentTarget.value as AppRole)
+                    setInviteRole(event.currentTarget.value as UsersManageableRole)
                   }
                 >
                   {invitableRoles.map(([value, label]) => (
@@ -204,7 +206,8 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
             <Box flex="2">
               {user.is_active ? (
                 <Stack gap={LAYOUT_GAP.form}>
-                  <Flex as="form" action={roleAction} gap={2} align="center" wrap="wrap">
+                  <form action={roleAction}>
+                    <Flex gap={2} align="center" wrap="wrap">
                     <input type="hidden" name="userId" value={user.id} />
                     <NativeSelect.Root size="sm">
                       <NativeSelect.Field
@@ -221,7 +224,8 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                     <Button type="submit" size="sm" loading={rolePending}>
                       Update role
                     </Button>
-                  </Flex>
+                    </Flex>
+                  </form>
                   {user.role === 'staff' ? (
                     <form action={modulesAction}>
                       <input type="hidden" name="userId" value={user.id} />

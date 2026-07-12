@@ -204,7 +204,21 @@ export type Database = {
           event_date: string
           registration_deadline: string | null
           event_type: Database['public']['Enums']['event_type']
-          derby_type: Database['public']['Enums']['derby_type'] | null
+          derby_format: Database['public']['Enums']['derby_format'] | null
+          derby_type: Database['public']['Enums']['derby_age_type'] | null
+          allowed_age_classes: string[] | null
+          min_weight_grams: number | null
+          max_weight_grams: number | null
+          match_weight_tolerance_grams: number | null
+          weight_verification_required: boolean
+          require_rooster_entry_approval: boolean
+          require_separate_entry_approver: boolean
+          allow_conditional_approval: boolean
+          conditionally_approved_match_handling: Database['public']['Enums']['conditionally_approved_match_handling']
+          eligibility_enforcement_enabled: boolean
+          classification_matching_enabled: boolean
+          unknown_value_handling: Database['public']['Enums']['unknown_value_handling']
+          approval_config: Json
           entry_fee: number
           tax_per_fight: number
           min_entries: number | null
@@ -240,7 +254,21 @@ export type Database = {
           event_date: string
           registration_deadline?: string | null
           event_type?: Database['public']['Enums']['event_type']
-          derby_type?: Database['public']['Enums']['derby_type'] | null
+          derby_format?: Database['public']['Enums']['derby_format'] | null
+          derby_type?: Database['public']['Enums']['derby_age_type'] | null
+          allowed_age_classes?: string[] | null
+          min_weight_grams?: number | null
+          max_weight_grams?: number | null
+          match_weight_tolerance_grams?: number | null
+          weight_verification_required?: boolean
+          require_rooster_entry_approval?: boolean
+          require_separate_entry_approver?: boolean
+          allow_conditional_approval?: boolean
+          conditionally_approved_match_handling?: Database['public']['Enums']['conditionally_approved_match_handling']
+          eligibility_enforcement_enabled?: boolean
+          classification_matching_enabled?: boolean
+          unknown_value_handling?: Database['public']['Enums']['unknown_value_handling']
+          approval_config?: Json
           entry_fee?: number
           tax_per_fight?: number
           min_entries?: number | null
@@ -276,7 +304,21 @@ export type Database = {
           event_date?: string
           registration_deadline?: string | null
           event_type?: Database['public']['Enums']['event_type']
-          derby_type?: Database['public']['Enums']['derby_type'] | null
+          derby_format?: Database['public']['Enums']['derby_format'] | null
+          derby_type?: Database['public']['Enums']['derby_age_type'] | null
+          allowed_age_classes?: string[] | null
+          min_weight_grams?: number | null
+          max_weight_grams?: number | null
+          match_weight_tolerance_grams?: number | null
+          weight_verification_required?: boolean
+          require_rooster_entry_approval?: boolean
+          require_separate_entry_approver?: boolean
+          allow_conditional_approval?: boolean
+          conditionally_approved_match_handling?: Database['public']['Enums']['conditionally_approved_match_handling']
+          eligibility_enforcement_enabled?: boolean
+          classification_matching_enabled?: boolean
+          unknown_value_handling?: Database['public']['Enums']['unknown_value_handling']
+          approval_config?: Json
           entry_fee?: number
           tax_per_fight?: number
           min_entries?: number | null
@@ -496,12 +538,51 @@ export type Database = {
           id: string
           entry_id: string
           event_id: string
+          registry_rooster_id: string | null
           cock_number: number
           band_number: string
           declared_weight: number | null
           category: string | null
           color_marking: string | null
           status: Database['public']['Enums']['lineup_status']
+          entry_rooster_role: Database['public']['Enums']['entry_rooster_role']
+          registration_status: Database['public']['Enums']['registration_workflow_status']
+          approval_status: Database['public']['Enums']['rooster_approval_status']
+          eligibility_status: Database['public']['Enums']['eligibility_status']
+          inspection_status: Database['public']['Enums']['inspection_status']
+          reg_payment_status: Database['public']['Enums']['registration_payment_status']
+          eligibility_snapshot: Json | null
+          eligibility_checked_at: string | null
+          eligibility_checked_by: string | null
+          submitted_by: string | null
+          submitted_at: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          approved_by: string | null
+          approved_at: string | null
+          approval_notes: string | null
+          rejected_by: string | null
+          rejected_at: string | null
+          rejection_category: Database['public']['Enums']['rejection_category'] | null
+          rejection_reason: string | null
+          eligibility_override_reason: string | null
+          eligibility_override_approved_by: string | null
+          eligibility_override_approved_at: string | null
+          withdrawn_by: string | null
+          withdrawn_at: string | null
+          withdrawal_reason: string | null
+          disqualified_by: string | null
+          disqualified_at: string | null
+          disqualification_reason: string | null
+          conditional_approval_condition: string | null
+          conditional_approval_deadline: string | null
+          declared_weight_grams: number | null
+          official_weight_grams: number | null
+          weighed_at: string | null
+          weighed_by: string | null
+          weight_verified: boolean
+          weight_verification_status: Database['public']['Enums']['weight_status'] | null
+          weight_notes: string | null
           created_at: string
           updated_at: string
         }
@@ -509,12 +590,51 @@ export type Database = {
           id?: string
           entry_id: string
           event_id: string
+          registry_rooster_id?: string | null
           cock_number: number
           band_number: string
           declared_weight?: number | null
           category?: string | null
           color_marking?: string | null
           status?: Database['public']['Enums']['lineup_status']
+          entry_rooster_role?: Database['public']['Enums']['entry_rooster_role']
+          registration_status?: Database['public']['Enums']['registration_workflow_status']
+          approval_status?: Database['public']['Enums']['rooster_approval_status']
+          eligibility_status?: Database['public']['Enums']['eligibility_status']
+          inspection_status?: Database['public']['Enums']['inspection_status']
+          reg_payment_status?: Database['public']['Enums']['registration_payment_status']
+          eligibility_snapshot?: Json | null
+          eligibility_checked_at?: string | null
+          eligibility_checked_by?: string | null
+          submitted_by?: string | null
+          submitted_at?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          approval_notes?: string | null
+          rejected_by?: string | null
+          rejected_at?: string | null
+          rejection_category?: Database['public']['Enums']['rejection_category'] | null
+          rejection_reason?: string | null
+          eligibility_override_reason?: string | null
+          eligibility_override_approved_by?: string | null
+          eligibility_override_approved_at?: string | null
+          withdrawn_by?: string | null
+          withdrawn_at?: string | null
+          withdrawal_reason?: string | null
+          disqualified_by?: string | null
+          disqualified_at?: string | null
+          disqualification_reason?: string | null
+          conditional_approval_condition?: string | null
+          conditional_approval_deadline?: string | null
+          declared_weight_grams?: number | null
+          official_weight_grams?: number | null
+          weighed_at?: string | null
+          weighed_by?: string | null
+          weight_verified?: boolean
+          weight_verification_status?: Database['public']['Enums']['weight_status'] | null
+          weight_notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -522,12 +642,51 @@ export type Database = {
           id?: string
           entry_id?: string
           event_id?: string
+          registry_rooster_id?: string | null
           cock_number?: number
           band_number?: string
           declared_weight?: number | null
           category?: string | null
           color_marking?: string | null
           status?: Database['public']['Enums']['lineup_status']
+          entry_rooster_role?: Database['public']['Enums']['entry_rooster_role']
+          registration_status?: Database['public']['Enums']['registration_workflow_status']
+          approval_status?: Database['public']['Enums']['rooster_approval_status']
+          eligibility_status?: Database['public']['Enums']['eligibility_status']
+          inspection_status?: Database['public']['Enums']['inspection_status']
+          reg_payment_status?: Database['public']['Enums']['registration_payment_status']
+          eligibility_snapshot?: Json | null
+          eligibility_checked_at?: string | null
+          eligibility_checked_by?: string | null
+          submitted_by?: string | null
+          submitted_at?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          approval_notes?: string | null
+          rejected_by?: string | null
+          rejected_at?: string | null
+          rejection_category?: Database['public']['Enums']['rejection_category'] | null
+          rejection_reason?: string | null
+          eligibility_override_reason?: string | null
+          eligibility_override_approved_by?: string | null
+          eligibility_override_approved_at?: string | null
+          withdrawn_by?: string | null
+          withdrawn_at?: string | null
+          withdrawal_reason?: string | null
+          disqualified_by?: string | null
+          disqualified_at?: string | null
+          disqualification_reason?: string | null
+          conditional_approval_condition?: string | null
+          conditional_approval_deadline?: string | null
+          declared_weight_grams?: number | null
+          official_weight_grams?: number | null
+          weighed_at?: string | null
+          weighed_by?: string | null
+          weight_verified?: boolean
+          weight_verification_status?: Database['public']['Enums']['weight_status'] | null
+          weight_notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -555,6 +714,7 @@ export type Database = {
           entry_id: string
           event_id: string
           official_weight: number | null
+          official_weight_grams: number | null
           weight_status: Database['public']['Enums']['weight_status']
           verified_by: string | null
           verified_at: string | null
@@ -568,6 +728,7 @@ export type Database = {
           entry_id: string
           event_id: string
           official_weight?: number | null
+          official_weight_grams?: number | null
           weight_status?: Database['public']['Enums']['weight_status']
           verified_by?: string | null
           verified_at?: string | null
@@ -581,6 +742,7 @@ export type Database = {
           entry_id?: string
           event_id?: string
           official_weight?: number | null
+          official_weight_grams?: number | null
           weight_status?: Database['public']['Enums']['weight_status']
           verified_by?: string | null
           verified_at?: string | null
@@ -1020,7 +1182,21 @@ export type Database = {
         | 'completed'
         | 'cancelled'
         | 'archived'
-      derby_type: '2_cock' | '3_cock' | '4_cock' | '5_cock' | 'custom'
+      derby_format: '2_cock' | '3_cock' | '4_cock' | '5_cock' | 'custom'
+      derby_age_type:
+        | 'stag_derby'
+        | 'bullstag_derby'
+        | 'cock_derby'
+        | 'stag_cock_derby'
+        | 'cock_bullstag_derby'
+        | 'stag_bullstag_cock_combo'
+        | 'open_derby'
+        | 'custom'
+      conditionally_approved_match_handling:
+        | 'exclude'
+        | 'include_with_warning'
+        | 'include_with_approval_required'
+      unknown_value_handling: 'allow' | 'approval_required' | 'prohibit'
       scoring_system: 'win_loss' | 'points'
       prize_type: 'percentage' | 'fixed' | 'manual'
       registration_status:
@@ -1035,6 +1211,63 @@ export type Database = {
       payment_method: 'cash' | 'bank_transfer' | 'gcash' | 'other'
       lineup_status: 'draft' | 'submitted' | 'verified' | 'rejected'
       weight_status: 'pending' | 'passed' | 'failed' | 'for_review'
+      entry_rooster_role: 'primary' | 'reserve' | 'substitute' | 'joker' | 'replacement'
+      registration_workflow_status:
+        | 'draft'
+        | 'submitted'
+        | 'pending_review'
+        | 'pending_weighing'
+        | 'pending_inspection'
+        | 'pending_documents'
+        | 'pending_band_verification'
+        | 'conditionally_approved'
+        | 'approved'
+        | 'rejected'
+        | 'withdrawn'
+        | 'disqualified'
+        | 'matched'
+        | 'completed'
+      rooster_approval_status:
+        | 'not_submitted'
+        | 'pending'
+        | 'conditionally_approved'
+        | 'approved'
+        | 'rejected'
+        | 'revoked'
+      eligibility_status:
+        | 'eligible'
+        | 'conditionally_eligible'
+        | 'pending_review'
+        | 'ineligible'
+      inspection_status:
+        | 'not_required'
+        | 'pending'
+        | 'passed'
+        | 'failed'
+        | 'for_review'
+      registration_payment_status:
+        | 'not_required'
+        | 'unpaid'
+        | 'partial'
+        | 'paid'
+        | 'refunded'
+      rejection_category:
+        | 'age_ineligible'
+        | 'weight_below_minimum'
+        | 'weight_above_maximum'
+        | 'band_invalid'
+        | 'band_unverified'
+        | 'duplicate_band'
+        | 'experience_ineligible'
+        | 'origin_ineligible'
+        | 'association_requirement_failed'
+        | 'inspection_failed'
+        | 'missing_documents'
+        | 'payment_incomplete'
+        | 'duplicate_registration'
+        | 'classification_incomplete'
+        | 'promoter_rejection'
+        | 'other'
       match_status:
         | 'draft'
         | 'for_review'

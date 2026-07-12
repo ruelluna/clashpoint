@@ -70,7 +70,7 @@ export const AGE_CLASS_PRESETS: EligibilityOptionPreset[] = ageClassSchema.optio
   }))
 
 export const BAND_LEVEL_PRESETS: EligibilityOptionPreset[] = bandLevelSchema.options
-  .filter((value) => value !== 'unbanded' && value !== 'unknown')
+  .filter((value) => value !== 'unbanded')
   .map((value) => ({
     value,
     label: value

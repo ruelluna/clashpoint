@@ -4,6 +4,7 @@ import { writeAuditLog } from '@/features/audit/service'
 import { applyRegistrationEligibility } from '@/features/eligibility/registration-bridge'
 import { getEvent } from '@/features/events/queries'
 import { createRooster } from '@/features/roosters/service'
+import { createRoosterSchema as registryRoosterSchema } from '@/features/roosters/schema'
 import {
   evaluateWeightStatus,
   type CreateRoosterInput,
@@ -17,9 +18,6 @@ import {
   parseCategoryToAgeClass,
   type AgeClass,
   type BandLevel,
-  type BreedingRelationship,
-  type ExperienceStatus,
-  type OriginType,
 } from '@/lib/derby/enums'
 import { createExtendedClient } from '@/lib/supabase/extended'
 import { createClient } from '@/lib/supabase/server'
@@ -135,14 +133,16 @@ export async function createRoosterForEntry(
   const verifiedAt = new Date().toISOString()
   const ageClass = resolveAgeClass(input)
 
-  const registryResult = await createRooster(actorId, {
-    ageClass,
-    competitionClass: 'unclassified',
-    originType: (input.originType ?? 'unknown') as OriginType,
-    breedingRelationship: (input.breedingRelationship ?? 'unknown') as BreedingRelationship,
-    declaredExternalExperienceStatus: (input.experienceStatus ?? null) as ExperienceStatus | null,
-    hatchDateIsEstimated: false,
-  })
+  const registryResult = await createRooster(
+    actorId,
+    registryRoosterSchema.parse({
+      ageClass,
+      competitionClass: 'unclassified',
+      originType: input.originType ?? 'unknown',
+      breedingRelationship: input.breedingRelationship ?? 'unknown',
+      declaredExternalExperienceStatus: input.experienceStatus ?? null,
+    })
+  )
 
   if (registryResult.error || !registryResult.roosterId) {
     return { error: registryResult.error ?? 'Failed to create registry rooster' }

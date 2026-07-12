@@ -60,7 +60,6 @@ function CreateRoosterForm({
                 name="entryId"
                 value={entryId}
                 onChange={(event) => setEntryId(event.currentTarget.value)}
-                required
               >
                 <option value="">Select entry</option>
                 {addableEntries.map((entry) => (
