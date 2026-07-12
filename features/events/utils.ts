@@ -52,3 +52,29 @@ export function isTerminalStatus(status: EventStatus): boolean {
 export function canEditEventDetails(status: EventStatus): boolean {
   return status === 'draft' || status === 'open'
 }
+
+export type RegistrationOpenEvent = {
+  status: EventStatus
+  registration_deadline: string | null
+}
+
+export function isRegistrationOpen(event: RegistrationOpenEvent): boolean {
+  if (event.status !== 'open') return false
+  if (event.registration_deadline == null) return true
+  return new Date(event.registration_deadline).getTime() > Date.now()
+}
+
+export function getRegistrationClosedReason(
+  event: RegistrationOpenEvent
+): string {
+  if (event.status !== 'open') {
+    return 'Registration is not open for this event yet.'
+  }
+  if (
+    event.registration_deadline != null &&
+    new Date(event.registration_deadline).getTime() <= Date.now()
+  ) {
+    return 'The registration deadline for this event has passed.'
+  }
+  return 'Registration is closed for this event.'
+}

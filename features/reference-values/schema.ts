@@ -19,3 +19,23 @@ export type FindOrCreateReferenceValueInput = z.infer<typeof findOrCreateReferen
 export function normalizeReferenceValueName(name: string): string {
   return name.trim().toLowerCase()
 }
+
+export function hasExactReferenceMatch(
+  results: Array<{ name: string }>,
+  query: string
+): boolean {
+  const normalized = normalizeReferenceValueName(query)
+  if (!normalized) return false
+  return results.some((result) => normalizeReferenceValueName(result.name) === normalized)
+}
+
+export function filterExactReferenceMatches<T extends { name: string }>(
+  results: T[],
+  query: string
+): T[] {
+  const normalized = normalizeReferenceValueName(query)
+  if (!normalized) return []
+  return results.filter((result) => normalizeReferenceValueName(result.name) === normalized)
+}
+
+export const ADD_NEW_REFERENCE_VALUE_ID = '__add_new__'

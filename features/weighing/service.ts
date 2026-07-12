@@ -18,7 +18,27 @@ import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
 import { catalogReferenceValues } from '@/features/reference-values/service'
 import type { AgeClass, BandLevel } from '@/lib/derby/enums'
 import { createExtendedClient } from '@/lib/supabase/extended'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+
+type WriteClientOptions = {
+  useAdminClient?: boolean
+}
+
+async function resolveWriteClient(options?: WriteClientOptions) {
+  if (options?.useAdminClient) {
+    const admin = createAdminClient()
+    return {
+      supabase: admin,
+      extended: admin as Awaited<ReturnType<typeof createExtendedClient>>,
+    }
+  }
+
+  return {
+    supabase: await createClient(),
+    extended: await createExtendedClient(),
+  }
+}
 
 async function rollbackRoosterCreation(input: {
   supabase: Awaited<ReturnType<typeof createClient>>
@@ -71,11 +91,11 @@ async function createRegistryBand(
 }
 
 export async function createRoosterForEntry(
-  actorId: string,
-  input: CreateRoosterInput
+  actorId: string | null,
+  input: CreateRoosterInput,
+  options?: WriteClientOptions
 ): Promise<{ error?: string; roosterId?: string }> {
-  const supabase = await createClient()
-  const extended = await createExtendedClient()
+  const { supabase, extended } = await resolveWriteClient(options)
 
   const event = await getEvent(input.eventId)
   if (!event) return { error: 'Event not found' }
@@ -155,7 +175,8 @@ export async function createRoosterForEntry(
       breedingRelationship: input.breedingRelationship ?? 'unknown',
       originNotes: input.originNotes,
       declaredExternalExperienceStatus: input.experienceStatus ?? null,
-    })
+    }),
+    options
   )
 
   if (registryResult.error || !registryResult.roosterId) {
@@ -199,6 +220,7 @@ export async function createRoosterForEntry(
       official_weight_grams: weightGrams,
       category: null,
       color_marking: cataloged.colorMarking,
+      notes: input.notes ?? null,
       status: requiresApproval ? 'submitted' : 'submitted',
       registration_status: 'submitted',
       approval_status: 'pending',

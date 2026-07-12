@@ -87,6 +87,7 @@ export const roosterEntryItemSchema = z.object({
   bandNumber: z.string().min(1, 'Band number is required').max(50),
   weight: weightGramsSchema,
   colorMarking: optionalText(200),
+  notes: optionalText(2000),
 })
 
 export const entryRoosterRegistryFieldsSchema = {
@@ -201,6 +202,21 @@ function parseRoosterRegistryFieldsFromForm(
   }
 }
 
+function notesFieldName(mode: 'create' | 'edit', slotKey: string) {
+  if (mode === 'create') {
+    return `notes_rooster_${slotKey}`
+  }
+  return `notes_${slotKey}`
+}
+
+function parseRoosterNotesFromForm(
+  formData: FormData,
+  mode: 'create' | 'edit',
+  slotKey: string
+): string | undefined {
+  return formData.get(notesFieldName(mode, slotKey))?.toString().trim() || undefined
+}
+
 function parseRoosterPolicyFieldsFromForm(
   formData: FormData,
   fieldPrefix: string
@@ -234,6 +250,7 @@ function parseRoosterSlotFromForm(
     weight: formData.get(`${prefix}weight`),
     colorMarking:
       formData.get(`colorMarking_${policyPrefix}`)?.toString().trim() || undefined,
+    notes: parseRoosterNotesFromForm(formData, mode === 'create' ? 'create' : 'edit', policyPrefix),
     ...parseRoosterRegistryFieldsFromForm(formData, policyPrefix),
   })
 
@@ -250,6 +267,7 @@ export function parseUpdateEntryRosterFromForm(
     bandNumber: formData.get(`bandNumber_${roosterId}`),
     weight: formData.get(`weight_${roosterId}`),
     colorMarking: formData.get(`colorMarking_${roosterId}`)?.toString().trim() || undefined,
+    notes: parseRoosterNotesFromForm(formData, 'edit', roosterId),
     ...parseRoosterRegistryFieldsFromForm(formData, roosterId),
   })
 
@@ -286,6 +304,7 @@ export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEn
       weight,
       colorMarking:
         formData.get(`colorMarking_rooster_${index}`)?.toString().trim() || undefined,
+      notes: parseRoosterNotesFromForm(formData, 'create', String(index)),
     })
 
     if (parsed.success) {

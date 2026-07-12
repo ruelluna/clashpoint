@@ -26,6 +26,18 @@ import {
 import type { UnknownValueHandling } from '@/lib/derby/enums'
 import { gramsToKg } from '@/lib/derby/enums'
 import { createExtendedClient } from '@/lib/supabase/extended'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+type EligibilityQueryOptions = {
+  useAdminClient?: boolean
+}
+
+async function resolveEligibilityClient(options?: EligibilityQueryOptions) {
+  if (options?.useAdminClient) {
+    return createAdminClient() as Awaited<ReturnType<typeof createExtendedClient>>
+  }
+  return createExtendedClient()
+}
 
 export type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
 
@@ -57,9 +69,10 @@ function filterPresets(
 }
 
 export async function getEntryFormEligibilityContext(
-  eventId: string
+  eventId: string,
+  options?: EligibilityQueryOptions
 ): Promise<EntryFormEligibilityContext | null> {
-  const supabase = await createExtendedClient()
+  const supabase = await resolveEligibilityClient(options)
   const { data: event } = await supabase
     .from('events')
     .select(
@@ -71,7 +84,7 @@ export async function getEntryFormEligibilityContext(
 
   if (!event || event.event_type !== 'derby') return null
 
-  const policy = await getDerbyEligibilityPolicy(eventId)
+  const policy = await getDerbyEligibilityPolicy(eventId, options)
   const enabledFields = parseEligibilityFieldKeys(policy?.enabled_eligibility_fields ?? [])
   const allowedAgeClasses = filterPresets(
     AGE_CLASS_PRESETS,

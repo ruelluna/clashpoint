@@ -25,6 +25,7 @@ import {
 } from '@/features/events/schema'
 import { getUser } from '@/lib/auth/session'
 import { hasPermission, requirePermission } from '@/lib/auth/permissions'
+import { RegistrationShareLink } from '@/features/events/components/registration-share-link'
 import { sanitizeHtml } from '@/lib/sanitize-html'
 
 type EventDetailPageProps = {
@@ -169,6 +170,12 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             requireRoosterEntryApproval={event.require_rooster_entry_approval}
             classificationMatchingEnabled={event.classification_matching_enabled}
           />
+        ) : null}
+
+        {isDerby ? (
+          <PanelCard title="Registration link">
+            <RegistrationShareLink eventId={event.id} />
+          </PanelCard>
         ) : null}
 
         {event.prize_structure ? (

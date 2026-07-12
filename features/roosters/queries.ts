@@ -9,6 +9,11 @@ import type {
   RoosterWithBands,
 } from '@/features/roosters/types'
 import { createExtendedClient } from '@/lib/supabase/extended'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+type RoosterQueryOptions = {
+  useAdminClient?: boolean
+}
 
 export async function getRooster(roosterId: string): Promise<RoosterRow | null> {
   const supabase = await createExtendedClient()
@@ -116,8 +121,12 @@ export async function listRoosterParticipations(
   }))
 }
 
-export async function listRoosterCodes(): Promise<string[]> {
-  const supabase = await createExtendedClient()
+export async function listRoosterCodes(
+  options?: RoosterQueryOptions
+): Promise<string[]> {
+  const supabase = options?.useAdminClient
+    ? (createAdminClient() as Awaited<ReturnType<typeof createExtendedClient>>)
+    : await createExtendedClient()
   const { data, error } = await supabase
     .from('roosters')
     .select('rooster_code')

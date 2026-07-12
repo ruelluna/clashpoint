@@ -2,6 +2,7 @@ import 'server-only'
 
 import type { DerbyEligibilityPolicy } from '@/features/eligibility/types'
 import { createExtendedClient } from '@/lib/supabase/extended'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export type DerbyEligibilityPolicyRow = DerbyEligibilityPolicy & {
   id: string
@@ -10,10 +11,17 @@ export type DerbyEligibilityPolicyRow = DerbyEligibilityPolicy & {
   eligibility_notes: string | null
 }
 
+type EligibilityQueryOptions = {
+  useAdminClient?: boolean
+}
+
 export async function getDerbyEligibilityPolicy(
-  eventId: string
+  eventId: string,
+  options?: EligibilityQueryOptions
 ): Promise<DerbyEligibilityPolicyRow | null> {
-  const supabase = await createExtendedClient()
+  const supabase = options?.useAdminClient
+    ? (createAdminClient() as Awaited<ReturnType<typeof createExtendedClient>>)
+    : await createExtendedClient()
   const { data } = await supabase
     .from('derby_eligibility_policies')
     .select('*')

@@ -1,6 +1,6 @@
 'use client'
 
-import { Flex, Input, Text } from '@chakra-ui/react'
+import { Flex, Input, Text, Textarea } from '@chakra-ui/react'
 
 import { FormField, LAYOUT_GAP, PanelCard } from '@/components/dashboard'
 import {
@@ -37,6 +37,13 @@ function colorMarkingFieldName(mode: 'create' | 'edit', slotKey: string) {
     return `colorMarking_rooster_${slotKey}`
   }
   return `colorMarking_${slotKey}`
+}
+
+function notesFieldName(mode: 'create' | 'edit', slotKey: string) {
+  if (mode === 'create') {
+    return `notes_rooster_${slotKey}`
+  }
+  return `notes_${slotKey}`
 }
 
 type RoosterSlotFieldsProps = {
@@ -124,6 +131,15 @@ function RoosterSlotFields({
         maxLength={200}
         disabled={disabled}
       />
+      <FormField label="Notes">
+        <Textarea
+          name={notesFieldName(mode, slotKey)}
+          rows={2}
+          maxLength={2000}
+          defaultValue={defaults?.notes ?? ''}
+          disabled={disabled}
+        />
+      </FormField>
       {mode === 'edit' ? (
         <>
           <RoosterProfileFields

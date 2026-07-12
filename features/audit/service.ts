@@ -1,10 +1,11 @@
 import 'server-only'
 
 import type { Json } from '@/lib/supabase/database.types'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export type AuditLogInput = {
-  actorId: string
+  actorId: string | null
   action: string
   entityType: string
   entityId: string
@@ -16,7 +17,8 @@ export type AuditLogInput = {
 export async function writeAuditLog(
   input: AuditLogInput
 ): Promise<{ error?: string }> {
-  const supabase = await createClient()
+  const supabase =
+    input.actorId == null ? createAdminClient() : await createClient()
 
   const newValues =
     input.reason && input.newValues

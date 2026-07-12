@@ -50,6 +50,7 @@ export const createRoosterSchema = z
     bandNumber: z.string().min(1, 'Band number is required').max(50),
     weight: weightGramsSchema,
     colorMarking: optionalText(200),
+    notes: optionalText(2000),
   })
   .extend(entryRoosterRegistryFieldsSchema)
 

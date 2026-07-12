@@ -61,12 +61,14 @@ test.describe('Rooster entry eligibility @auth', () => {
     await expect(page.getByText('Weight is below the event minimum', { exact: false })).toBeVisible()
 
     await page.locator('input[name="rooster_1_weight"]').fill('2000')
+    await page.locator('textarea[name="notes_rooster_1"]').fill(`Cock note ${suffix}`)
     await page.getByRole('button', { name: 'Save entry' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
     await expect(page.getByText(`Owner ${suffix}`)).toBeVisible({ timeout: 15_000 })
 
     await page.getByRole('link', { name: 'Edit' }).first().click()
+    await expect(page.locator('textarea[name^="notes_"]').first()).toHaveValue(`Cock note ${suffix}`)
     await page.locator('select[name^="ageClass_"]').first().selectOption('stag')
     await page.locator('input[name="rooster_1_weight"], input[name^="weight_"]').first().fill('1500')
     await page.getByRole('button', { name: 'Save entry' }).click()
@@ -78,5 +80,34 @@ test.describe('Rooster entry eligibility @auth', () => {
 
     await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
     await expect(page.getByText(`Owner ${suffix}`)).toBeVisible({ timeout: 15_000 })
+  })
+
+  test('adds new color marking through dialog', async ({ page }) => {
+    test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
+
+    const suffix = uniqueSuffix()
+    const eventName = `E2E Add New Color ${suffix}`
+    const newColor = `E2E Color ${suffix}`
+
+    await signInAsAdmin(page)
+    const eventId = await createDerbyEventWithEligibility(page, eventName)
+
+    await page.goto(`/dashboard/events/${eventId}/rooster-entries/new`)
+
+    await page.locator('input[name="ownerName"]').fill(`Owner ${suffix}`)
+    await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
+    await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
+    await page.locator('input[name="rooster_1_weight"]').fill('2000')
+
+    const colorCombobox = page.getByTestId('reference-value-color_marking').getByRole('combobox')
+    await colorCombobox.fill(newColor)
+    await expect(page.getByRole('option', { name: 'Add New' })).toBeVisible({ timeout: 5000 })
+    await page.getByRole('option', { name: 'Add New' }).click()
+    await expect(page.getByRole('dialog', { name: 'Add Color / marking' })).toBeVisible()
+    await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
+    await expect(colorCombobox).toHaveValue(newColor)
+
+    await page.getByRole('button', { name: 'Save entry' }).click()
+    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
   })
 })

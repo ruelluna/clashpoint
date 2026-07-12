@@ -28,6 +28,28 @@ export type PublicEvent = {
   publish_standings: boolean
   publish_winners: boolean
   publish_prize_amounts: boolean
+  registration_open?: boolean
+}
+
+export type PublicRegistrationEvent = {
+  id: string
+  name: string
+  venue: string
+  event_date: string
+  event_type: EventType
+  derby_type: DerbyType | null
+  status: EventStatus
+  cocks_per_entry: number
+  tax_per_fight: number
+  entry_fee: number
+  registration_deadline: string | null
+  registration_rules: string | null
+  promoter_name: string | null
+  require_rooster_entry_approval: boolean
+  max_entries: number | null
+  min_weight_grams: number | null
+  max_weight_grams: number | null
+  registration_open: boolean
 }
 
 export type PublicMatch = MatchListItem

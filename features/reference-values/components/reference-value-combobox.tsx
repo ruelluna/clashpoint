@@ -7,9 +7,15 @@ import {
   Text,
   useListCollection,
 } from '@chakra-ui/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { searchReferenceValuesAction } from '@/features/reference-values/actions'
+import { CreateReferenceValueDialog } from '@/features/reference-values/components/create-reference-value-dialog'
+import {
+  ADD_NEW_REFERENCE_VALUE_ID,
+  filterExactReferenceMatches,
+  hasExactReferenceMatch,
+} from '@/features/reference-values/schema'
 import type { ReferenceValueKind } from '@/features/reference-values/types'
 
 type ReferenceValueComboboxProps = {
@@ -31,6 +37,8 @@ const KIND_LABELS: Record<ReferenceValueKind, string> = {
   color_marking: 'color / marking',
 }
 
+type CatalogItem = { id: string; name: string }
+
 export function ReferenceValueCombobox({
   kind,
   name,
@@ -42,21 +50,32 @@ export function ReferenceValueCombobox({
   flex,
 }: ReferenceValueComboboxProps) {
   const [inputValue, setInputValue] = useState(defaultValue)
-  const [searchResults, setSearchResults] = useState<
-    Array<{ id: string; name: string }>
-  >(defaultValue ? [{ id: defaultValue, name: defaultValue }] : [])
+  const [selectedName, setSelectedName] = useState(defaultValue)
+  const [searchResults, setSearchResults] = useState<CatalogItem[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
-  const { collection, set } = useListCollection<{ id: string; name: string }>({
+  const displayItems = useMemo((): CatalogItem[] => {
+    const trimmed = inputValue.trim()
+    if (!trimmed) return []
+
+    if (hasExactReferenceMatch(searchResults, trimmed)) {
+      return filterExactReferenceMatches(searchResults, trimmed)
+    }
+
+    return [{ id: ADD_NEW_REFERENCE_VALUE_ID, name: 'Add New' }]
+  }, [inputValue, searchResults])
+
+  const { collection, set } = useListCollection<CatalogItem>({
     initialItems: defaultValue ? [{ id: defaultValue, name: defaultValue }] : [],
     itemToString: (item) => item.name,
     itemToValue: (item) => item.id,
   })
 
   useEffect(() => {
-    set(searchResults)
-  }, [searchResults, set])
+    set(displayItems)
+  }, [displayItems, set])
 
   useEffect(() => {
     const trimmed = inputValue.trim()
@@ -81,46 +100,63 @@ export function ReferenceValueCombobox({
     return () => window.clearTimeout(timeout)
   }, [inputValue, kind])
 
+  function handleValueCreated(value: { id: string; name: string }) {
+    setSearchResults((current) => {
+      if (current.some((item) => item.id === value.id)) return current
+      return [value, ...current]
+    })
+    setSelectedId(value.id)
+    setSelectedName(value.name)
+    setInputValue(value.name)
+  }
+
+  function handleValueChange(nextId: string) {
+    if (nextId === ADD_NEW_REFERENCE_VALUE_ID) {
+      setDialogOpen(true)
+      return
+    }
+
+    setSelectedId(nextId)
+    const item = searchResults.find((entry) => entry.id === nextId)
+    if (item) {
+      setSelectedName(item.name)
+      setInputValue(item.name)
+    }
+  }
+
   return (
     <Field.Root required={required} flex={flex}>
       <Field.Label>{label}</Field.Label>
+      <input type="hidden" name={name} value={selectedName} />
       <Combobox.Root
         collection={collection}
-        allowCustomValue
         disabled={disabled}
         inputValue={inputValue}
         value={selectedId ? [selectedId] : []}
         onInputValueChange={(details) => {
           setInputValue(details.inputValue)
-          if (selectedId) {
-            const selected = searchResults.find((item) => item.id === selectedId)
-            if (details.inputValue.trim() !== selected?.name) {
-              setSelectedId('')
-            }
+          if (selectedId && details.inputValue.trim() !== selectedName) {
+            setSelectedId('')
+            setSelectedName('')
           }
         }}
         onValueChange={(details) => {
-          const nextId = details.value[0] ?? ''
-          setSelectedId(nextId)
-          const item = searchResults.find((entry) => entry.id === nextId)
-          if (item) {
-            setInputValue(item.name)
-          }
+          handleValueChange(details.value[0] ?? '')
         }}
         openOnClick
         data-testid={`reference-value-${kind}`}
       >
         <Combobox.Control>
           <Combobox.Input
-            name={name}
             required={required}
             maxLength={maxLength}
-            placeholder={`Search or add ${KIND_LABELS[kind]}`}
+            placeholder={`Search ${KIND_LABELS[kind]}`}
           />
           <Combobox.IndicatorGroup>
             <Combobox.ClearTrigger
               onClick={() => {
                 setSelectedId('')
+                setSelectedName('')
                 setInputValue('')
               }}
             />
@@ -131,7 +167,7 @@ export function ReferenceValueCombobox({
         <Portal>
           <Combobox.Positioner>
             <Combobox.Content>
-              <Combobox.Empty>Type to search or add new</Combobox.Empty>
+              <Combobox.Empty>Type to search</Combobox.Empty>
               {collection.items.map((item) => (
                 <Combobox.Item key={item.id} item={item}>
                   <Combobox.ItemText>{item.name}</Combobox.ItemText>
@@ -142,12 +178,22 @@ export function ReferenceValueCombobox({
           </Combobox.Positioner>
         </Portal>
       </Combobox.Root>
-      <Field.HelperText>Type to search existing values or enter a new one.</Field.HelperText>
+      <Field.HelperText>
+        Search existing values or choose Add New to register one.
+      </Field.HelperText>
       {searchError ? (
         <Text fontSize="sm" color="red.500">
           {searchError}
         </Text>
       ) : null}
+
+      <CreateReferenceValueDialog
+        kind={kind}
+        open={dialogOpen}
+        initialName={inputValue.trim()}
+        onOpenChange={setDialogOpen}
+        onCreated={handleValueCreated}
+      />
     </Field.Root>
   )
 }

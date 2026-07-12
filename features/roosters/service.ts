@@ -11,9 +11,23 @@ import {
 } from '@/features/roosters/schema'
 import { catalogReferenceValues } from '@/features/reference-values/service'
 import { createExtendedClient } from '@/lib/supabase/extended'
+import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function generateRoosterCode(): Promise<string> {
-  const codes = await listRoosterCodes()
+type WriteClientOptions = {
+  useAdminClient?: boolean
+}
+
+async function resolveExtendedClient(options?: WriteClientOptions) {
+  if (options?.useAdminClient) {
+    return createAdminClient() as Awaited<ReturnType<typeof createExtendedClient>>
+  }
+  return createExtendedClient()
+}
+
+export async function generateRoosterCode(
+  options?: WriteClientOptions
+): Promise<string> {
+  const codes = await listRoosterCodes(options)
   let max = 0
 
   for (const code of codes) {
@@ -27,11 +41,12 @@ export async function generateRoosterCode(): Promise<string> {
 }
 
 export async function createRooster(
-  actorId: string,
-  input: CreateRoosterInput
+  actorId: string | null,
+  input: CreateRoosterInput,
+  options?: WriteClientOptions
 ): Promise<{ error?: string; roosterId?: string; roosterCode?: string }> {
-  const supabase = await createExtendedClient()
-  const roosterCode = await generateRoosterCode()
+  const supabase = await resolveExtendedClient(options)
+  const roosterCode = await generateRoosterCode(options)
 
   const cataloged = await catalogReferenceValues({
     breed: input.breed,

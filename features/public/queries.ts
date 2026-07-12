@@ -5,10 +5,12 @@ import type {
   PublicEvent,
   PublicEventListItem,
   PublicMatch,
+  PublicRegistrationEvent,
   PublicStanding,
   PublicWinnersSummary,
 } from '@/features/public/types'
 import type { MatchStatus } from '@/features/matches/types'
+import { isRegistrationOpen } from '@/features/events/utils'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -23,6 +25,7 @@ type EventPublishRow = {
   cocks_per_entry: number
   tax_per_fight: number
   registration_rules: string | null
+  registration_deadline: string | null
   is_public: boolean
   publish_matches: boolean
   publish_standings: boolean
@@ -95,6 +98,13 @@ function mapPublicEvent(row: EventPublishRow): PublicEvent {
     publish_standings: row.publish_standings,
     publish_winners: row.publish_winners,
     publish_prize_amounts: row.publish_prize_amounts,
+    registration_open:
+      row.event_type === 'derby'
+        ? isRegistrationOpen({
+            status: row.status,
+            registration_deadline: row.registration_deadline,
+          })
+        : false,
   }
 }
 
@@ -147,6 +157,7 @@ async function getPublicEventRow(
       cocks_per_entry,
       tax_per_fight,
       registration_rules,
+      registration_deadline,
       is_public,
       publish_matches,
       publish_standings,
@@ -214,6 +225,90 @@ export async function getPublicEvent(
   const row = await getPublicEventRow(eventId)
   if (!row) return null
   return mapPublicEvent(row)
+}
+
+type RegistrationEventRow = {
+  id: string
+  name: string
+  venue: string
+  event_date: string
+  event_type: PublicRegistrationEvent['event_type']
+  derby_type: PublicRegistrationEvent['derby_type']
+  status: PublicRegistrationEvent['status']
+  cocks_per_entry: number
+  tax_per_fight: number
+  entry_fee: number
+  registration_deadline: string | null
+  registration_rules: string | null
+  require_rooster_entry_approval: boolean
+  max_entries: number | null
+  min_weight_grams: number | null
+  max_weight_grams: number | null
+  deleted_at: string | null
+  promoters: { name: string } | null
+}
+
+export async function getPublicRegistrationEvent(
+  eventId: string
+): Promise<PublicRegistrationEvent | null> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('events')
+    .select(
+      `
+      id,
+      name,
+      venue,
+      event_date,
+      event_type,
+      derby_type,
+      status,
+      cocks_per_entry,
+      tax_per_fight,
+      entry_fee,
+      registration_deadline,
+      registration_rules,
+      require_rooster_entry_approval,
+      max_entries,
+      min_weight_grams,
+      max_weight_grams,
+      deleted_at,
+      promoters ( name )
+    `
+    )
+    .eq('id', eventId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error) throw error
+  const row = data as unknown as RegistrationEventRow | null
+  if (!row || row.event_type !== 'derby') return null
+
+  return {
+    id: row.id,
+    name: row.name,
+    venue: row.venue,
+    event_date: row.event_date,
+    event_type: row.event_type,
+    derby_type: row.derby_type,
+    status: row.status,
+    cocks_per_entry: Number(row.cocks_per_entry),
+    tax_per_fight: Number(row.tax_per_fight),
+    entry_fee: Number(row.entry_fee),
+    registration_deadline: row.registration_deadline,
+    registration_rules: row.registration_rules,
+    promoter_name: row.promoters?.name ?? null,
+    require_rooster_entry_approval: row.require_rooster_entry_approval,
+    max_entries: row.max_entries != null ? Number(row.max_entries) : null,
+    min_weight_grams:
+      row.min_weight_grams != null ? Number(row.min_weight_grams) : null,
+    max_weight_grams:
+      row.max_weight_grams != null ? Number(row.max_weight_grams) : null,
+    registration_open: isRegistrationOpen({
+      status: row.status,
+      registration_deadline: row.registration_deadline,
+    }),
+  }
 }
 
 export async function getPublicMatches(

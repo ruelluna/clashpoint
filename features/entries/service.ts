@@ -17,13 +17,70 @@ import type {
   UpdateEntryInput,
   UpdateEntryRosterItemInput,
 } from '@/features/entries/schema'
+import {
+  DUPLICATE_ENTRY_ERROR,
+  isSameEntryIdentity,
+} from '@/features/entries/utils'
 import { getEvent } from '@/features/events/queries'
+import { isRegistrationOpen } from '@/features/events/utils'
 import { createRoosterForEntry } from '@/features/weighing/service'
 import { evaluateWeightStatusGrams } from '@/features/weighing/schema'
 import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
 import { catalogReferenceValues } from '@/features/reference-values/service'
 import { createExtendedClient } from '@/lib/supabase/extended'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+
+type EntryWriteOptions = {
+  useAdminClient?: boolean
+}
+
+async function resolveWriteClient(options?: EntryWriteOptions) {
+  if (options?.useAdminClient) {
+    const admin = createAdminClient()
+    return {
+      supabase: admin,
+      extended: admin as Awaited<ReturnType<typeof createExtendedClient>>,
+    }
+  }
+
+  return {
+    supabase: await createClient(),
+    extended: await createExtendedClient(),
+  }
+}
+
+export async function assertOwnerHandlerNotAlreadyRegistered(
+  eventId: string,
+  ownerName: string,
+  handlerName: string | null | undefined,
+  options?: EntryWriteOptions
+): Promise<{ error?: string }> {
+  const { supabase } = await resolveWriteClient(options)
+
+  const { data, error } = await supabase
+    .from('entries')
+    .select('owner_name, handler_name')
+    .eq('event_id', eventId)
+    .is('deleted_at', null)
+
+  if (error) return { error: error.message }
+
+  const duplicate = (data ?? []).some((row) =>
+    isSameEntryIdentity(
+      ownerName,
+      handlerName,
+      row.owner_name as string,
+      row.handler_name as string | null
+    )
+  )
+
+  if (duplicate) {
+    return { error: DUPLICATE_ENTRY_ERROR }
+  }
+
+  return {}
+}
 
 type EntryOwnerFields = Pick<
   CreateEntryInput,
@@ -47,22 +104,33 @@ export async function resolveEntryCompetitor(
 }
 
 export async function createEntry(
-  actorId: string,
-  input: CreateEntryInput
+  actorId: string | null,
+  input: CreateEntryInput,
+  options?: EntryWriteOptions
 ): Promise<{ error?: string; entryId?: string }> {
-  const supabase = await createClient()
+  const { supabase, extended: extendedSupabase } = await resolveWriteClient(options)
 
   const { data: event, error: eventError } = await supabase
     .from('events')
-    .select('id, name, status, max_entries')
+    .select('id, name, status, max_entries, registration_deadline')
     .eq('id', input.eventId)
     .is('deleted_at', null)
     .maybeSingle()
 
   if (eventError) return { error: eventError.message }
   if (!event) return { error: 'Event not found' }
-  if (event.status !== 'open') {
+  if (!isRegistrationOpen(event)) {
     return { error: 'Registrations are only accepted while the event is open' }
+  }
+
+  const duplicateResult = await assertOwnerHandlerNotAlreadyRegistered(
+    input.eventId,
+    input.ownerName,
+    input.handlerName,
+    options
+  )
+  if (duplicateResult.error) {
+    return { error: duplicateResult.error }
   }
 
   if (event.max_entries != null) {
@@ -79,15 +147,16 @@ export async function createEntry(
     }
   }
 
-  const existingNumbers = await listEntryNumbersForEvent(input.eventId)
+  const existingNumbers = await listEntryNumbersForEvent(input.eventId, options)
   const entryNumber = getNextEntryNumber(existingNumbers)
 
-  const competitorResult = await resolveEntryCompetitor(actorId, input)
+  const competitorResult = actorId
+    ? await resolveEntryCompetitor(actorId, input)
+    : { competitorId: null as string | null }
   if (competitorResult.error) {
     return { error: competitorResult.error }
   }
 
-  const extendedSupabase = await createExtendedClient()
   const { data, error } = await extendedSupabase
     .from('entries')
     .insert({
@@ -126,6 +195,7 @@ export async function createEntry(
       entry_name: input.ownerName,
       owner_name: input.ownerName,
       competitor_id: competitorResult.competitorId ?? null,
+      ...(input.entrySource === 'online' ? { source: 'online' } : {}),
     },
   })
 
@@ -144,6 +214,7 @@ function toCreateRoosterInput(
     bandNumber: rooster.bandNumber,
     weight: rooster.weight,
     colorMarking: rooster.colorMarking,
+    notes: rooster.notes,
     ageClass: 'ageClass' in rooster ? rooster.ageClass : undefined,
     originType: 'originType' in rooster ? rooster.originType : undefined,
     breedingRelationship:
@@ -169,9 +240,12 @@ function toCreateRoosterInput(
   }
 }
 
-async function rollbackCreatedEntry(entryId: string, roosterIds: string[]) {
-  const supabase = await createClient()
-  const extended = await createExtendedClient()
+async function rollbackCreatedEntry(
+  entryId: string,
+  roosterIds: string[],
+  options?: EntryWriteOptions
+) {
+  const { supabase, extended } = await resolveWriteClient(options)
 
   for (const roosterId of roosterIds) {
     const { data: record } = await extended
@@ -196,10 +270,11 @@ async function rollbackCreatedEntry(entryId: string, roosterIds: string[]) {
 }
 
 export async function createEntryWithRoosters(
-  actorId: string,
-  input: CreateEntryInput
+  actorId: string | null,
+  input: CreateEntryInput,
+  options?: EntryWriteOptions
 ): Promise<{ error?: string; entryId?: string; roosterIds?: string[] }> {
-  const entryResult = await createEntry(actorId, input)
+  const entryResult = await createEntry(actorId, input, options)
   if (entryResult.error || !entryResult.entryId) {
     return { error: entryResult.error ?? 'Failed to create entry' }
   }
@@ -209,11 +284,12 @@ export async function createEntryWithRoosters(
   for (const rooster of input.roosters) {
     const roosterResult = await createRoosterForEntry(
       actorId,
-      toCreateRoosterInput(input.eventId, entryResult.entryId, rooster)
+      toCreateRoosterInput(input.eventId, entryResult.entryId, rooster),
+      options
     )
 
     if (roosterResult.error || !roosterResult.roosterId) {
-      await rollbackCreatedEntry(entryResult.entryId, createdRoosterIds)
+      await rollbackCreatedEntry(entryResult.entryId, createdRoosterIds, options)
       return { error: roosterResult.error ?? 'Failed to create rooster' }
     }
 
@@ -391,6 +467,7 @@ export async function updateEntryRoosters(
         declared_weight_grams: weightGrams,
         official_weight_grams: weightGrams,
         color_marking: cataloged.colorMarking,
+        notes: rooster.notes ?? null,
         weight_verification_status: weightStatus,
         updated_at: new Date().toISOString(),
       })

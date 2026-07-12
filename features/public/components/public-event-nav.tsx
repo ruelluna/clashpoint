@@ -12,6 +12,7 @@ type PublicEventNavProps = {
 
 const tabs = [
   { slug: '', label: 'Overview', suffix: '' },
+  { slug: 'register', label: 'Register', requiresRegistrationOpen: true as const },
   { slug: 'matches', label: 'Matches', flag: 'publish_matches' as const },
   { slug: 'standings', label: 'Standings', flag: 'publish_standings' as const },
   { slug: 'winners', label: 'Winners', flag: 'publish_winners' as const },
@@ -35,7 +36,14 @@ export function PublicEventNav({ event }: PublicEventNavProps) {
 
       <Flex gap={2} flexWrap="wrap" borderBottomWidth="1px" borderColor="border" pb={2}>
         {tabs.map((tab) => {
-          if (tab.flag && !event[tab.flag]) return null
+          if ('flag' in tab && tab.flag && !event[tab.flag]) return null
+          if (
+            'requiresRegistrationOpen' in tab &&
+            tab.requiresRegistrationOpen &&
+            !event.registration_open
+          ) {
+            return null
+          }
           const href = tab.slug ? `${base}/${tab.slug}` : base
           const active =
             tab.slug === ''

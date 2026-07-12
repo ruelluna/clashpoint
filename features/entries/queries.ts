@@ -2,10 +2,15 @@ import 'server-only'
 
 import type { EntryListItem, EntryRow, EntryWithEvent } from '@/features/entries/types'
 import { createExtendedClient } from '@/lib/supabase/extended'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 type EntryListRow = EntryListItem & {
   promoters: { name: string } | null
+}
+
+type EntryQueryOptions = {
+  useAdminClient?: boolean
 }
 
 export type EntryRoosterEditItem = {
@@ -15,6 +20,7 @@ export type EntryRoosterEditItem = {
   band_number: string
   weight: number | null
   color_marking: string | null
+  notes: string | null
   is_paired: boolean
   age_class: string | null
   competition_class: string | null
@@ -148,8 +154,13 @@ export async function getEntryWithEvent(entryId: string): Promise<EntryWithEvent
   }
 }
 
-export async function listEntryNumbersForEvent(eventId: string): Promise<string[]> {
-  const supabase = await createClient()
+export async function listEntryNumbersForEvent(
+  eventId: string,
+  options?: EntryQueryOptions
+): Promise<string[]> {
+  const supabase = options?.useAdminClient
+    ? createAdminClient()
+    : await createClient()
   const { data, error } = await supabase
     .from('entries')
     .select('entry_number')
@@ -241,6 +252,7 @@ export async function listEntryRoostersForEdit(
       cock_number,
       band_number,
       color_marking,
+      notes,
       eligibility_status,
       eligibility_snapshot,
       registry_rooster_id,
@@ -362,6 +374,7 @@ export async function listEntryRoostersForEdit(
           ? Number(weighing.official_weight_grams)
           : null,
       color_marking: (row.color_marking as string | null) ?? null,
+      notes: (row.notes as string | null) ?? null,
       is_paired: pairedIds.has(roosterId),
       age_class: registry?.age_class ?? null,
       competition_class: registry?.competition_class ?? null,

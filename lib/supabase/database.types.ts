@@ -679,6 +679,7 @@ export type Database = {
           weight_verified: boolean
           weight_verification_status: Database['public']['Enums']['weight_status'] | null
           weight_notes: string | null
+          notes: string | null
           created_at: string
           updated_at: string
         }
@@ -692,6 +693,7 @@ export type Database = {
           declared_weight?: number | null
           category?: string | null
           color_marking?: string | null
+          notes?: string | null
           status?: Database['public']['Enums']['lineup_status']
           entry_rooster_role?: Database['public']['Enums']['entry_rooster_role']
           registration_status?: Database['public']['Enums']['registration_workflow_status']
@@ -731,6 +733,7 @@ export type Database = {
           weight_verified?: boolean
           weight_verification_status?: Database['public']['Enums']['weight_status'] | null
           weight_notes?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -744,6 +747,7 @@ export type Database = {
           declared_weight?: number | null
           category?: string | null
           color_marking?: string | null
+          notes?: string | null
           status?: Database['public']['Enums']['lineup_status']
           entry_rooster_role?: Database['public']['Enums']['entry_rooster_role']
           registration_status?: Database['public']['Enums']['registration_workflow_status']

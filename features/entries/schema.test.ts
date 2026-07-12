@@ -135,6 +135,7 @@ describe('parseCreateEntryFromFormData', () => {
     formData.set('rooster_1_entryName', 'Thunder')
     formData.set('rooster_1_bandNumber', 'B-1')
     formData.set('rooster_1_weight', '2100')
+    formData.set('notes_rooster_1', 'Handler prefers morning weigh-in')
     formData.set('rooster_2_entryName', 'Lightning')
     formData.set('rooster_2_bandNumber', 'B-2')
     formData.set('rooster_2_weight', '2000')
@@ -143,6 +144,7 @@ describe('parseCreateEntryFromFormData', () => {
     expect(parsed.parseErrors).toHaveLength(0)
     expect(parsed.roosters).toHaveLength(2)
     expect(parsed.roosters[0]?.entryName).toBe('Thunder')
+    expect(parsed.roosters[0]?.notes).toBe('Handler prefers morning weigh-in')
   })
 
   it('skips empty derby slots', () => {
