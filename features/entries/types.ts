@@ -18,6 +18,7 @@ export type EntryRow = {
   id: string
   event_id: string
   referred_by_promoter_id: string | null
+  competitor_id: string | null
   entry_number: string
   entry_name: string
   owner_name: string

@@ -37,13 +37,33 @@ describe('createEntrySchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects non-positive weight', () => {
+  it('accepts optional competitor link and save owner flag', () => {
+    const competitorId = '00000000-0000-4000-8000-000000000003'
     const result = createEntrySchema.safeParse({
       eventId,
       entryName: 'Team Alpha',
       ownerName: 'Juan Dela Cruz',
+      competitorId,
+      saveOwner: true,
       bandNumber: 'B-101',
-      weight: 0,
+      weight: 2.15,
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.competitorId).toBe(competitorId)
+      expect(result.data.saveOwner).toBe(true)
+    }
+  })
+
+  it('rejects invalid competitor id', () => {
+    const result = createEntrySchema.safeParse({
+      eventId,
+      entryName: 'Team Alpha',
+      ownerName: 'Juan Dela Cruz',
+      competitorId: 'not-uuid',
+      bandNumber: 'B-101',
+      weight: 2.15,
     })
 
     expect(result.success).toBe(false)

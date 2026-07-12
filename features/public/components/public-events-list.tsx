@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge, Box, Flex, Text } from '@chakra-ui/react'
+import { Badge, Box, Flex, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
 import {
@@ -34,7 +34,7 @@ function statusColor(status: PublicEventListItem['status']) {
 
 export function PublicEventsList({ events }: { events: PublicEventListItem[] }) {
   return (
-    <Box className="space-y-6">
+    <Stack gap={6}>
       <Box>
         <Text fontSize="2xl" fontWeight="semibold">
           Public events
@@ -92,6 +92,6 @@ export function PublicEventsList({ events }: { events: PublicEventListItem[] }) 
           ))
         )}
       </Box>
-    </Box>
+    </Stack>
   )
 }

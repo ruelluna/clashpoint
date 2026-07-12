@@ -1,3 +1,13 @@
+import {
+  Box,
+  Container,
+  Flex,
+  Grid,
+  Heading,
+  Link as ChakraLink,
+  Stack,
+  Text,
+} from '@chakra-ui/react'
 import Link from 'next/link'
 
 function getSupabaseEnvStatus() {
@@ -15,58 +25,103 @@ export default function Home() {
   const envStatus = getSupabaseEnvStatus()
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-24">
-      <main className="w-full max-w-lg space-y-8 text-center">
-        <div className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            ClashPoint
-          </p>
-          <h1 className="text-4xl font-semibold tracking-tight">
-            Event fights, scoring, and leaderboards
-          </h1>
-          <p className="text-muted-foreground">
-            Next.js App Router with Supabase SSR is ready for local development.
-          </p>
-        </div>
+    <Flex flex="1" direction="column" align="center" justify="center" px={6} py={24}>
+      <Container as="main" maxW="lg">
+        <Stack gap={8} textAlign="center">
+          <Stack gap={3}>
+            <Text
+              fontSize="sm"
+              fontWeight="medium"
+              textTransform="uppercase"
+              letterSpacing="wide"
+              color="fg.muted"
+            >
+              ClashPoint
+            </Text>
+            <Heading size="2xl" fontWeight="semibold">
+              Event fights, scoring, and leaderboards
+            </Heading>
+            <Text color="fg.muted">
+              Next.js App Router with Supabase SSR is ready for local development.
+            </Text>
+          </Stack>
 
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/events"
-            className="inline-flex items-center rounded-lg border bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
-            Browse public events
-          </Link>
-          <Link
-            href="/portal"
-            className="inline-flex items-center rounded-lg border bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
-            Promoter portal
-          </Link>
-        </div>
+          <Flex wrap="wrap" align="center" justify="center" gap={3}>
+            <ChakraLink
+              asChild
+              display="inline-flex"
+              alignItems="center"
+              rounded="lg"
+              borderWidth="1px"
+              borderColor="border"
+              bg="bg"
+              px={4}
+              py={2}
+              fontSize="sm"
+              fontWeight="medium"
+              _hover={{ bg: 'bg.subtle' }}
+            >
+              <Link href="/events">Browse public events</Link>
+            </ChakraLink>
+            <ChakraLink
+              asChild
+              display="inline-flex"
+              alignItems="center"
+              rounded="lg"
+              borderWidth="1px"
+              borderColor="border"
+              bg="bg"
+              px={4}
+              py={2}
+              fontSize="sm"
+              fontWeight="medium"
+              _hover={{ bg: 'bg.subtle' }}
+            >
+              <Link href="/portal">Promoter portal</Link>
+            </ChakraLink>
+          </Flex>
 
-        <dl className="rounded-xl border bg-card p-6 text-left text-sm">
-          <div className="grid gap-4">
-            <div className="flex items-center justify-between gap-4">
-              <dt className="text-muted-foreground">Supabase env</dt>
-              <dd className="font-medium">
-                {envStatus.configured ? 'Configured' : 'Missing'}
-              </dd>
-            </div>
-            {envStatus.configured ? (
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-muted-foreground">Supabase URL</dt>
-                <dd className="truncate font-mono text-xs">{envStatus.url}</dd>
-              </div>
-            ) : null}
-            <div className="flex items-center justify-between gap-4">
-              <dt className="text-muted-foreground">Supabase API</dt>
-              <dd className="font-medium">
-                {envStatus.configured ? 'Ready' : 'Not configured'}
-              </dd>
-            </div>
-          </div>
-        </dl>
-      </main>
-    </div>
+          <Box
+            as="dl"
+            rounded="xl"
+            borderWidth="1px"
+            borderColor="border"
+            bg="bg"
+            p={6}
+            textAlign="left"
+            fontSize="sm"
+          >
+            <Grid gap={4}>
+              <Flex align="center" justify="space-between" gap={4}>
+                <Box as="dt" color="fg.muted">
+                  Supabase env
+                </Box>
+                <Box as="dd" fontWeight="medium">
+                  {envStatus.configured ? 'Configured' : 'Missing'}
+                </Box>
+              </Flex>
+              {envStatus.configured ? (
+                <Flex align="center" justify="space-between" gap={4}>
+                  <Box as="dt" color="fg.muted">
+                    Supabase URL
+                  </Box>
+                  <Box as="dd" truncate fontFamily="mono" fontSize="xs">
+                    {envStatus.url}
+                  </Box>
+                </Flex>
+              ) : null}
+              <Flex align="center" justify="space-between" gap={4}>
+                <Box as="dt" color="fg.muted">
+                  Supabase API
+                </Box>
+                <Box as="dd" fontWeight="medium">
+                  {envStatus.configured ? 'Ready' : 'Not configured'}
+                </Box>
+              </Flex>
+            </Grid>
+          </Box>
+        </Stack>
+      </Container>
+    </Flex>
   )
 }

@@ -1,6 +1,7 @@
 import 'server-only'
 
 import type { EntryListItem, EntryRow, EntryWithEvent } from '@/features/entries/types'
+import { createExtendedClient } from '@/lib/supabase/extended'
 import { createClient } from '@/lib/supabase/server'
 
 type EntryListRow = EntryListItem & {
@@ -15,6 +16,20 @@ export type EntryRoosterEditItem = {
   category: string | null
   color_marking: string | null
   is_paired: boolean
+  age_class: string | null
+  origin_type: string | null
+  breeding_relationship: string | null
+  experience_status: string | null
+  band_level: string | null
+  band_organization: string | null
+  band_year: number | null
+  band_season: string | null
+  eligibility_status: string | null
+  eligibility_checks: Array<{
+    message: string
+    outcome: string
+    passed: boolean
+  }>
 }
 
 export async function listEntriesByEvent(eventId: string): Promise<EntryListItem[]> {
@@ -119,7 +134,7 @@ export async function getPairedRosterIdsForEntry(
   const supabase = await createClient()
 
   const { data: roosters, error: roosterError } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select('id')
     .eq('entry_id', entryId)
     .eq('event_id', eventId)
@@ -184,8 +199,9 @@ export async function listEntryRoostersForEdit(
   const supabase = await createClient()
   const pairedIds = await getPairedRosterIdsForEntry(eventId, entryId)
 
-  const { data, error } = await supabase
-    .from('rooster_records')
+  const extended = await createExtendedClient()
+  const { data, error } = await extended
+    .from('rooster_event_registrations')
     .select(
       `
       id,
@@ -193,6 +209,9 @@ export async function listEntryRoostersForEdit(
       band_number,
       category,
       color_marking,
+      eligibility_status,
+      eligibility_snapshot,
+      registry_rooster_id,
       weighings ( official_weight )
     `
     )
@@ -202,13 +221,82 @@ export async function listEntryRoostersForEdit(
 
   if (error) throw error
 
-  return (data ?? []).map((row) => {
+  const registryIds = (data ?? [])
+    .map((row: { registry_rooster_id: string | null }) => row.registry_rooster_id)
+    .filter((id: string | null): id is string => Boolean(id))
+
+  const registryMap = new Map<
+    string,
+    {
+      age_class: string | null
+      origin_type: string | null
+      breeding_relationship: string | null
+      declared_external_experience_status: string | null
+      calculated_experience_status: string | null
+    }
+  >()
+  const bandMap = new Map<
+    string,
+    {
+      band_level: string | null
+      band_organization: string | null
+      band_year: number | null
+      band_season: string | null
+    }
+  >()
+
+  if (registryIds.length > 0) {
+    const [{ data: roosters }, { data: bands }] = await Promise.all([
+      extended
+        .from('roosters')
+        .select(
+          'id, age_class, origin_type, breeding_relationship, declared_external_experience_status, calculated_experience_status'
+        )
+        .in('id', registryIds),
+      extended
+        .from('rooster_bands')
+        .select('rooster_id, band_level, band_organization, band_year, band_season')
+        .in('rooster_id', registryIds)
+        .order('created_at', { ascending: true }),
+    ])
+
+    for (const rooster of roosters ?? []) {
+      registryMap.set(rooster.id as string, {
+        age_class: rooster.age_class as string | null,
+        origin_type: rooster.origin_type as string | null,
+        breeding_relationship: rooster.breeding_relationship as string | null,
+        declared_external_experience_status:
+          rooster.declared_external_experience_status as string | null,
+        calculated_experience_status: rooster.calculated_experience_status as string | null,
+      })
+    }
+
+    for (const band of bands ?? []) {
+      const roosterId = band.rooster_id as string
+      if (!bandMap.has(roosterId)) {
+        bandMap.set(roosterId, {
+          band_level: band.band_level as string | null,
+          band_organization: band.band_organization as string | null,
+          band_year: band.band_year as number | null,
+          band_season: band.band_season as string | null,
+        })
+      }
+    }
+  }
+
+  return (data ?? []).map((row: Record<string, unknown>) => {
     const weighingRaw = row.weighings
     const weighing = Array.isArray(weighingRaw)
       ? weighingRaw[0] ?? null
       : weighingRaw
 
     const roosterId = row.id as string
+    const registryId = row.registry_rooster_id as string | null
+    const registry = registryId ? registryMap.get(registryId) : undefined
+    const band = registryId ? bandMap.get(registryId) : undefined
+    const snapshot = row.eligibility_snapshot as
+      | { checks?: Array<{ message: string; outcome: string; passed: boolean }> }
+      | null
 
     return {
       rooster_id: roosterId,
@@ -219,6 +307,19 @@ export async function listEntryRoostersForEdit(
       category: (row.category as string | null) ?? null,
       color_marking: (row.color_marking as string | null) ?? null,
       is_paired: pairedIds.has(roosterId),
+      age_class: registry?.age_class ?? null,
+      origin_type: registry?.origin_type ?? null,
+      breeding_relationship: registry?.breeding_relationship ?? null,
+      experience_status:
+        registry?.declared_external_experience_status ??
+        registry?.calculated_experience_status ??
+        null,
+      band_level: band?.band_level ?? null,
+      band_organization: band?.band_organization ?? null,
+      band_year: band?.band_year ?? null,
+      band_season: band?.band_season ?? null,
+      eligibility_status: (row.eligibility_status as string | null) ?? null,
+      eligibility_checks: snapshot?.checks ?? [],
     }
   })
 }

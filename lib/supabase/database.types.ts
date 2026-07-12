@@ -491,7 +491,7 @@ export type Database = {
           },
         ]
       }
-      rooster_records: {
+      rooster_event_registrations: {
         Row: {
           id: string
           entry_id: string
@@ -533,14 +533,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'rooster_records_entry_id_fkey'
+            foreignKeyName: 'rooster_event_registrations_entry_id_fkey'
             columns: ['entry_id']
             isOneToOne: false
             referencedRelation: 'entries'
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'rooster_records_event_id_fkey'
+            foreignKeyName: 'rooster_event_registrations_event_id_fkey'
             columns: ['event_id']
             isOneToOne: false
             referencedRelation: 'events'
@@ -551,7 +551,7 @@ export type Database = {
       weighings: {
         Row: {
           id: string
-          rooster_record_id: string
+          rooster_event_registration_id: string
           entry_id: string
           event_id: string
           official_weight: number | null
@@ -564,7 +564,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          rooster_record_id: string
+          rooster_event_registration_id: string
           entry_id: string
           event_id: string
           official_weight?: number | null
@@ -577,7 +577,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          rooster_record_id?: string
+          rooster_event_registration_id?: string
           entry_id?: string
           event_id?: string
           official_weight?: number | null
@@ -590,10 +590,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'weighings_rooster_record_id_fkey'
-            columns: ['rooster_record_id']
+            foreignKeyName: 'weighings_rooster_event_registration_id_fkey'
+            columns: ['rooster_event_registration_id']
             isOneToOne: true
-            referencedRelation: 'rooster_records'
+            referencedRelation: 'rooster_event_registrations'
             referencedColumns: ['id']
           },
           {

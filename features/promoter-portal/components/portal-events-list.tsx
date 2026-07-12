@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge, Box, Flex, Text } from '@chakra-ui/react'
+import { Badge, Box, Flex, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
 import { EVENT_STATUS_LABELS, EVENT_TYPE_LABELS } from '@/features/events/schema'
@@ -15,7 +15,7 @@ function formatDate(iso: string) {
 
 export function PortalEventsList({ events }: { events: PromoterAssignedEvent[] }) {
   return (
-    <Box className="space-y-6">
+    <Stack gap={6}>
       <Box>
         <Text fontSize="2xl" fontWeight="semibold">
           Assigned events
@@ -68,6 +68,6 @@ export function PortalEventsList({ events }: { events: PromoterAssignedEvent[] }
           ))
         )}
       </Box>
-    </Box>
+    </Stack>
   )
 }

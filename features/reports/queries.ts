@@ -6,6 +6,10 @@ import { listMatchesByEvent } from '@/features/matches/queries'
 import { listResultsForEvent } from '@/features/results/queries'
 import type {
   AuditReportRow,
+  BandVerificationReportRow,
+  ClassificationExceptionReportRow,
+  EligibilitySummaryReportRow,
+  EntryApprovalReportRow,
   EventSummaryReportRow,
   MatchReportRow,
   PromoterReportRow,
@@ -14,6 +18,7 @@ import type {
   WeighingReportRow,
 } from '@/features/reports/types'
 import { listWeighingReport, countWeighingStats } from '@/features/weighing/queries'
+import { createExtendedClient } from '@/lib/supabase/extended'
 import { createClient } from '@/lib/supabase/server'
 
 export async function getEventSummaryReport(
@@ -37,7 +42,7 @@ export async function getEventSummaryReport(
     supabase.from('matches').select('status').eq('event_id', eventId),
     countWeighingStats(eventId),
     supabase
-      .from('rooster_records')
+      .from('rooster_event_registrations')
       .select('id', { count: 'exact', head: true })
       .eq('event_id', eventId),
   ])
@@ -253,7 +258,14 @@ export async function getAuditReport(
   }
 
   if (filters.eventId) {
-    query = query.eq('entity_type', 'event').eq('entity_id', filters.eventId)
+    query = query.in('entity_type', [
+      'event',
+      'entry',
+      'rooster_event_registration',
+      'match',
+      'weighing',
+      'rooster',
+    ])
   }
 
   const { data, error } = await query
@@ -266,4 +278,157 @@ export async function getAuditReport(
     entity_id: row.entity_id as string,
     actor_id: (row.actor_id as string | null) ?? null,
   }))
+}
+
+export async function getEntryApprovalReport(
+  eventId: string
+): Promise<EntryApprovalReportRow[]> {
+  const event = await getEvent(eventId)
+  if (!event) return []
+
+  const supabase = await createExtendedClient()
+  const { data, error } = await supabase
+    .from('rooster_event_registrations')
+    .select(
+      `
+      band_number,
+      registration_status,
+      eligibility_status,
+      approval_status,
+      submitted_at,
+      approved_at,
+      rejection_reason,
+      entries ( entry_name ),
+      roosters ( rooster_code )
+    `
+    )
+    .eq('event_id', eventId)
+
+  if (error) throw error
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    event_name: event.name,
+    entry_name: (row.entries as { entry_name: string } | null)?.entry_name ?? '—',
+    rooster_code: (row.roosters as { rooster_code: string } | null)?.rooster_code ?? '—',
+    band_number: row.band_number as string,
+    registration_status: row.registration_status as string,
+    eligibility_status: row.eligibility_status as string,
+    approval_status: row.approval_status as string,
+    submitted_at: (row.submitted_at as string | null) ?? null,
+    approved_at: (row.approved_at as string | null) ?? null,
+    rejection_reason: (row.rejection_reason as string | null) ?? null,
+  }))
+}
+
+export async function getEligibilitySummaryReport(
+  eventId: string
+): Promise<EligibilitySummaryReportRow[]> {
+  const supabase = await createExtendedClient()
+  const { data, error } = await supabase
+    .from('rooster_event_registrations')
+    .select('registration_status, eligibility_status, approval_status')
+    .eq('event_id', eventId)
+
+  if (error) throw error
+
+  const counts = new Map<string, number>()
+  for (const row of data ?? []) {
+    for (const field of [
+      `registration:${row.registration_status}`,
+      `eligibility:${row.eligibility_status}`,
+      `approval:${row.approval_status}`,
+    ]) {
+      counts.set(field, (counts.get(field) ?? 0) + 1)
+    }
+  }
+
+  return [...counts.entries()].map(([metric, count]) => ({ metric, count }))
+}
+
+export async function getClassificationExceptionsReport(
+  eventId: string
+): Promise<ClassificationExceptionReportRow[]> {
+  const event = await getEvent(eventId)
+  if (!event) return []
+
+  const supabase = await createExtendedClient()
+  const { data, error } = await supabase
+    .from('matchup_overrides')
+    .select(
+      'original_compatibility_result, override_reason, requested_by, approved_by, created_at, first_registration_id, second_registration_id'
+    )
+    .eq('event_id', eventId)
+    .eq('status', 'approved')
+
+  if (error) throw error
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    event_name: event.name,
+    first_entry: String(row.first_registration_id),
+    second_entry: String(row.second_registration_id),
+    original_result: JSON.stringify(row.original_compatibility_result),
+    override_reason: row.override_reason as string,
+    requested_by: (row.requested_by as string | null) ?? null,
+    approved_by: (row.approved_by as string | null) ?? null,
+    created_at: row.created_at as string,
+  }))
+}
+
+export async function getBandVerificationReport(
+  eventId: string
+): Promise<BandVerificationReportRow[]> {
+  const supabase = await createExtendedClient()
+  const { data, error } = await supabase
+    .from('rooster_event_registrations')
+    .select(
+      `
+      band_number,
+      entries ( entry_name ),
+      roosters (
+        rooster_code,
+        rooster_bands ( band_organization, band_number, verification_status )
+      )
+    `
+    )
+    .eq('event_id', eventId)
+
+  if (error) throw error
+
+  const rows: BandVerificationReportRow[] = []
+  for (const item of (data ?? []) as Array<Record<string, unknown>>) {
+    const rooster = item.roosters as {
+      rooster_code: string
+      rooster_bands: Array<{
+        band_organization: string | null
+        band_number: string
+        verification_status: string
+      }>
+    } | null
+
+    const bands = rooster?.rooster_bands ?? []
+    if (bands.length === 0) {
+      rows.push({
+        rooster_code: rooster?.rooster_code ?? '—',
+        entry_name: (item.entries as { entry_name: string } | null)?.entry_name ?? '—',
+        band_organization: null,
+        band_number: item.band_number as string,
+        verification_status: 'unverified',
+        duplicate_warning: '—',
+      })
+      continue
+    }
+
+    for (const band of bands) {
+      rows.push({
+        rooster_code: rooster?.rooster_code ?? '—',
+        entry_name: (item.entries as { entry_name: string } | null)?.entry_name ?? '—',
+        band_organization: band.band_organization,
+        band_number: band.band_number,
+        verification_status: band.verification_status,
+        duplicate_warning: '—',
+      })
+    }
+  }
+
+  return rows
 }

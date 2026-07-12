@@ -1,4 +1,4 @@
----
+﻿---
 description: Feature-based folder structure and module boundaries
 globs: "{app/**,features/**,lib/**,components/**}/*.{ts,tsx}"
 alwaysApply: false
@@ -17,7 +17,9 @@ features/{module}/
   schema.ts                   # Zod schemas (shared client + server)
   types.ts                    # Module-specific types
   components/                 # Feature-scoped UI
-components/ui/                # shadcn primitives
+components/chakra/            # ChakraProvider and app root wrapper
+components/dashboard/         # Chakra layout primitives (PageStack, PanelCard, FormField)
+components/ui/                # Shared hybrids (color mode, rich text editor)
 lib/
   supabase/client.ts          # Browser client
   supabase/server.ts          # Server Component / Action client

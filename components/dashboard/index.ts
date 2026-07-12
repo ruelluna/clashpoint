@@ -1,5 +1,7 @@
 export { ButtonGroup } from '@/components/dashboard/button-group'
 export { EventPageLayout } from '@/components/dashboard/event-page-layout'
+export { FormField } from '@/components/dashboard/form-field'
+export { OptionListField } from '@/components/dashboard/option-list-field'
 export { PageHeader } from '@/components/dashboard/page-header'
 export { PageStack } from '@/components/dashboard/page-stack'
 export { PanelCard } from '@/components/dashboard/panel-card'

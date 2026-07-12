@@ -3,7 +3,7 @@
 import { Box, Button, Checkbox, Input, Stack, Text, Textarea } from '@chakra-ui/react'
 import { useActionState } from 'react'
 
-import { LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { LAYOUT_GAP, FormField, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   updateSettingsAction,
   type SettingsActionState,
@@ -23,32 +23,24 @@ export function SettingsPageClient({ settings }: { settings: SystemSettings }) {
       <PanelCard>
         <form action={action}>
           <Stack gap={LAYOUT_GAP.form}>
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Organization name
-              </Text>
+            <FormField label="Organization name" required>
               <Input name="orgName" defaultValue={settings.orgName} required />
-            </Box>
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Default venue name
-              </Text>
+            </FormField>
+            <FormField
+              label="Default venue name"
+              required
+              helpText="Applied to new and updated events. Shown on event lists and public pages."
+            >
               <Input name="defaultVenue" defaultValue={settings.defaultVenue} required />
-              <Text fontSize="xs" color="fg.muted" mt={1}>
-                Applied to new and updated events. Shown on event lists and public pages.
-              </Text>
-            </Box>
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Legal disclaimer
-              </Text>
+            </FormField>
+            <FormField label="Legal disclaimer" required>
               <Textarea
                 name="legalDisclaimer"
                 defaultValue={settings.legalDisclaimer}
                 rows={4}
                 required
               />
-            </Box>
+            </FormField>
             <Checkbox.Root defaultChecked={settings.termsAccepted} name="termsAccepted">
               <Checkbox.HiddenInput name="termsAccepted" />
               <Checkbox.Control />

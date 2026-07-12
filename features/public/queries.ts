@@ -74,8 +74,8 @@ const MATCH_SELECT = `
   wala_weight,
   meron_entry:entries!matches_meron_entry_id_fkey ( id, entry_number, entry_name ),
   wala_entry:entries!matches_wala_entry_id_fkey ( id, entry_number, entry_name ),
-  meron_rooster:rooster_records!matches_meron_rooster_id_fkey ( id, cock_number, band_number ),
-  wala_rooster:rooster_records!matches_wala_rooster_id_fkey ( id, cock_number, band_number )
+  meron_rooster:rooster_event_registrations!matches_meron_rooster_id_fkey ( id, cock_number, band_number ),
+  wala_rooster:rooster_event_registrations!matches_wala_rooster_id_fkey ( id, cock_number, band_number )
 `
 
 function mapPublicEvent(row: EventPublishRow): PublicEvent {

@@ -15,7 +15,7 @@ import {
 import Link from 'next/link'
 import { useActionState, useState } from 'react'
 
-import { ButtonGroup, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { ButtonGroup, FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   changePromoterStatusAction,
   createPromoterAction,
@@ -103,58 +103,40 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
             <input type="hidden" name="promoterId" value={promoter.id} />
           ) : null}
           <Stack gap={LAYOUT_GAP.form}>
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Name
-              </Text>
+            <FormField label="Name" required>
               <Input
                 name="name"
                 defaultValue={promoter?.name ?? ''}
                 required
               />
-            </Box>
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Contact person
-              </Text>
+            </FormField>
+            <FormField label="Contact person">
               <Input
                 name="contactPerson"
                 defaultValue={promoter?.contact_person ?? ''}
               />
-            </Box>
+            </FormField>
             <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Email
-                </Text>
+              <FormField label="Email" flex="1">
                 <Input
                   name="email"
                   type="email"
                   defaultValue={promoter?.email ?? ''}
                 />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Phone
-                </Text>
+              </FormField>
+              <FormField label="Phone" flex="1">
                 <Input name="phone" defaultValue={promoter?.phone ?? ''} />
-              </Box>
+              </FormField>
             </Flex>
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Address
-              </Text>
+            <FormField label="Address">
               <Textarea
                 name="address"
                 rows={2}
                 defaultValue={promoter?.address ?? ''}
               />
-            </Box>
+            </FormField>
             <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Commission type
-                </Text>
+              <FormField label="Commission type" flex="1">
                 <NativeSelect.Root>
                   <NativeSelect.Field
                     name="commissionType"
@@ -170,12 +152,9 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                     ))}
                   </NativeSelect.Field>
                 </NativeSelect.Root>
-              </Box>
+              </FormField>
               {showCommissionValue ? (
-                <Box flex="1">
-                  <Text fontSize="sm" fontWeight="medium" mb={1}>
-                    Commission value
-                  </Text>
+                <FormField label="Commission value" flex="1">
                   <Input
                     name="commissionValue"
                     type="number"
@@ -183,14 +162,11 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                     min="0"
                     defaultValue={promoter?.commission_value ?? ''}
                   />
-                </Box>
+                </FormField>
               ) : null}
             </Flex>
             {!isCreate ? (
-              <Box>
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Status
-                </Text>
+              <FormField label="Status">
                 <NativeSelect.Root>
                   <NativeSelect.Field
                     name="status"
@@ -203,14 +179,11 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                     ))}
                   </NativeSelect.Field>
                 </NativeSelect.Root>
-              </Box>
+              </FormField>
             ) : null}
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Notes
-              </Text>
+            <FormField label="Notes">
               <Textarea name="notes" rows={3} defaultValue={promoter?.notes ?? ''} />
-            </Box>
+            </FormField>
 
             {isCreate ? (
               <Box borderTopWidth="1px" borderColor="border" pt={4}>
@@ -230,18 +203,12 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 ) : null}
                 {giveLoginAccess ? (
                   <Stack gap={LAYOUT_GAP.form} mt={4}>
-                    <Input
-                      name="loginEmail"
-                      type="email"
-                      placeholder="Login email"
-                      required
-                    />
-                    <Input
-                      name="loginPassword"
-                      type="password"
-                      placeholder="Temporary password"
-                      required
-                    />
+                    <FormField label="Login email" required>
+                      <Input name="loginEmail" type="email" required />
+                    </FormField>
+                    <FormField label="Temporary password" required>
+                      <Input name="loginPassword" type="password" required />
+                    </FormField>
                   </Stack>
                 ) : null}
               </Box>
@@ -278,13 +245,12 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
           <form action={linkAction}>
             <input type="hidden" name="promoterId" value={promoter.id} />
             <Stack gap={LAYOUT_GAP.form} maxW="md">
-              <Input name="loginEmail" type="email" placeholder="Login email" required />
-              <Input
-                name="loginPassword"
-                type="password"
-                placeholder="Temporary password"
-                required
-              />
+              <FormField label="Login email" required>
+                <Input name="loginEmail" type="email" required />
+              </FormField>
+              <FormField label="Temporary password" required>
+                <Input name="loginPassword" type="password" required />
+              </FormField>
               <Button type="submit" loading={linkPending} alignSelf="flex-start">
                 Create login account
               </Button>
@@ -314,10 +280,7 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
           <form action={statusAction}>
             <input type="hidden" name="promoterId" value={promoter?.id ?? ''} />
             <Flex gap={LAYOUT_GAP.form} wrap="wrap" align="flex-end">
-              <Box minW="48">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  New status
-                </Text>
+              <FormField label="New status" minW="48">
                 <NativeSelect.Root size="sm">
                   <NativeSelect.Field name="status" defaultValue={promoter?.status}>
                     {promoterStatuses.map(([value, label]) => (
@@ -327,13 +290,10 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                     ))}
                   </NativeSelect.Field>
                 </NativeSelect.Root>
-              </Box>
-              <Box flex="1" minW="48">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Reason (optional)
-                </Text>
+              </FormField>
+              <FormField label="Reason (optional)" flex="1" minW="48">
                 <Input name="reason" placeholder="Reason for status change" />
-              </Box>
+              </FormField>
               <Button type="submit" size="sm" loading={statusPending}>
                 Update status
               </Button>

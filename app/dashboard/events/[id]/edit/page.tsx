@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation'
 
+import { listAssociations } from '@/features/associations/queries'
+import { getDerbyEligibilityPolicy } from '@/features/eligibility/queries'
 import { EventFormClient } from '@/features/events/components/event-form-client'
 import { getEventWithPrize } from '@/features/events/queries'
 import { listPromoters } from '@/features/promoters/queries'
@@ -13,15 +15,22 @@ type EditEventPageProps = {
 export default async function EditEventPage({ params }: EditEventPageProps) {
   await requirePermission('events.view')
   const { id } = await params
-  const [event, promoters, user] = await Promise.all([
+  const [event, promoters, user, policy, associations] = await Promise.all([
     getEventWithPrize(id),
     listPromoters('active'),
     getUser(),
+    getDerbyEligibilityPolicy(id),
+    listAssociations(),
   ])
 
   if (!event) notFound()
 
-  const canManage = user ? await hasPermission(user.id, 'events.manage') : false
+  const [canManage, canManageEligibility] = user
+    ? await Promise.all([
+        hasPermission(user.id, 'events.manage'),
+        hasPermission(user.id, 'derby_eligibility.manage'),
+      ])
+    : [false, false]
 
   return (
     <EventFormClient
@@ -29,6 +38,9 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
       event={event}
       promoters={promoters}
       canManage={canManage}
+      eligibilityPolicy={policy}
+      associations={associations}
+      canManageEligibility={canManageEligibility}
     />
   )
 }

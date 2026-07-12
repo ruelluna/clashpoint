@@ -4,12 +4,17 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import {
+  getEntryFormEligibilityContext,
+  toPolicyValidationContext,
+} from '@/features/eligibility/registration-bridge'
+import {
   createEntrySchema,
   deleteEntrySchema,
   updateEntryRosterItemSchema,
   updateEntrySchema,
   type UpdateEntryRosterItemInput,
 } from '@/features/entries/schema'
+import { validateRoosterAgainstPolicy } from '@/features/entries/policy-validation'
 import {
   createEntryWithRooster,
   deleteEntry,
@@ -24,6 +29,26 @@ export type EntryActionState = { error?: string; success?: string }
 function parseOptionalUuid(value: FormDataEntryValue | null): string | null {
   if (value == null || value.toString().trim() === '') return null
   return value.toString()
+}
+
+function parseOptionalNumber(value: FormDataEntryValue | null): number | undefined {
+  if (value == null || value.toString().trim() === '') return undefined
+  const parsed = Number(value)
+  return Number.isNaN(parsed) ? undefined : parsed
+}
+
+function parseRoosterPolicyFields(formData: FormData, prefix = '') {
+  const field = (name: string) => formData.get(`${prefix}${name}`)
+  return {
+    ageClass: field('ageClass')?.toString().trim() || undefined,
+    originType: field('originType')?.toString().trim() || undefined,
+    breedingRelationship: field('breedingRelationship')?.toString().trim() || undefined,
+    experienceStatus: field('experienceStatus')?.toString().trim() || undefined,
+    bandLevel: field('bandLevel')?.toString().trim() || undefined,
+    bandOrganization: field('bandOrganization')?.toString().trim() || undefined,
+    bandYear: parseOptionalNumber(field('bandYear')),
+    bandSeason: field('bandSeason')?.toString().trim() || undefined,
+  }
 }
 
 function parseRosterUpdates(
@@ -49,6 +74,17 @@ function parseRosterUpdates(
       weight: formData.get(`weight_${roosterId}`),
       category: formData.get(`category_${roosterId}`)?.toString().trim() || undefined,
       colorMarking: formData.get(`colorMarking_${roosterId}`)?.toString().trim() || undefined,
+      ageClass: formData.get(`ageClass_${roosterId}`)?.toString().trim() || undefined,
+      originType: formData.get(`originType_${roosterId}`)?.toString().trim() || undefined,
+      breedingRelationship:
+        formData.get(`breedingRelationship_${roosterId}`)?.toString().trim() || undefined,
+      experienceStatus:
+        formData.get(`experienceStatus_${roosterId}`)?.toString().trim() || undefined,
+      bandLevel: formData.get(`bandLevel_${roosterId}`)?.toString().trim() || undefined,
+      bandOrganization:
+        formData.get(`bandOrganization_${roosterId}`)?.toString().trim() || undefined,
+      bandYear: parseOptionalNumber(formData.get(`bandYear_${roosterId}`)),
+      bandSeason: formData.get(`bandSeason_${roosterId}`)?.toString().trim() || undefined,
     })
 
     if (parsed.success) {
@@ -74,6 +110,8 @@ export async function createEntryAction(
   const parsed = createEntrySchema.safeParse({
     eventId: formData.get('eventId'),
     referredByPromoterId: parseOptionalUuid(formData.get('referredByPromoterId')),
+    competitorId: parseOptionalUuid(formData.get('competitorId')),
+    saveOwner: formData.get('saveOwner') === 'on',
     entryName: formData.get('entryName'),
     ownerName: formData.get('ownerName'),
     handlerName: formData.get('handlerName')?.toString().trim() || undefined,
@@ -86,10 +124,31 @@ export async function createEntryAction(
     weight: formData.get('weight'),
     category: formData.get('category')?.toString().trim() || undefined,
     colorMarking: formData.get('colorMarking')?.toString().trim() || undefined,
+    ...parseRoosterPolicyFields(formData),
   })
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const eligibilityContext = await getEntryFormEligibilityContext(parsed.data.eventId)
+  if (eligibilityContext) {
+    const policyError = validateRoosterAgainstPolicy(
+      {
+        weight: parsed.data.weight,
+        ageClass: parsed.data.ageClass,
+        category: parsed.data.category,
+        originType: parsed.data.originType,
+        breedingRelationship: parsed.data.breedingRelationship,
+        experienceStatus: parsed.data.experienceStatus,
+        bandLevel: parsed.data.bandLevel,
+        bandOrganization: parsed.data.bandOrganization,
+        bandYear: parsed.data.bandYear,
+        bandSeason: parsed.data.bandSeason,
+      },
+      toPolicyValidationContext(eligibilityContext)
+    )
+    if (policyError) return { error: policyError }
   }
 
   const result = await createEntryWithRooster(profile.id, parsed.data)
@@ -109,6 +168,8 @@ export async function updateEntryAction(
     eventId: formData.get('eventId'),
     entryId: formData.get('entryId'),
     referredByPromoterId: parseOptionalUuid(formData.get('referredByPromoterId')),
+    competitorId: parseOptionalUuid(formData.get('competitorId')),
+    saveOwner: formData.get('saveOwner') === 'on',
     entryName: formData.get('entryName'),
     ownerName: formData.get('ownerName'),
     handlerName: formData.get('handlerName')?.toString().trim() || undefined,
@@ -128,6 +189,29 @@ export async function updateEntryAction(
 
   const pairedIds = await getPairedRosterIdsForEntry(parsed.data.eventId, parsed.data.entryId)
   const rosterUpdates = parseRosterUpdates(formData, pairedIds)
+
+  const eligibilityContext = await getEntryFormEligibilityContext(parsed.data.eventId)
+  if (eligibilityContext) {
+    const policyContext = toPolicyValidationContext(eligibilityContext)
+    for (const rooster of rosterUpdates) {
+      const policyError = validateRoosterAgainstPolicy(
+        {
+          weight: rooster.weight,
+          ageClass: rooster.ageClass,
+          category: rooster.category,
+          originType: rooster.originType,
+          breedingRelationship: rooster.breedingRelationship,
+          experienceStatus: rooster.experienceStatus,
+          bandLevel: rooster.bandLevel,
+          bandOrganization: rooster.bandOrganization,
+          bandYear: rooster.bandYear,
+          bandSeason: rooster.bandSeason,
+        },
+        policyContext
+      )
+      if (policyError) return { error: policyError }
+    }
+  }
 
   const rosterResult = await updateEntryRoosters(
     profile.id,

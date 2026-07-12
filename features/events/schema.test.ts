@@ -37,7 +37,7 @@ describe('createEventSchema event_type', () => {
     expect(result.success).toBe(false)
     if (!result.success) {
       expect(result.error.issues[0]?.message).toBe(
-        'Derby type is required for derby events'
+        'Derby format is required for derby events'
       )
     }
   })
@@ -109,15 +109,26 @@ describe('createEventSchema event_type', () => {
     }
   })
 
-  it('requires cocks per entry for custom derby type', () => {
-    const result = createEventSchema.safeParse({
+  it('defaults entry fee to zero and rejects negative values', () => {
+    const valid = createEventSchema.safeParse({
       ...baseEvent,
-      eventType: 'derby',
-      derbyType: 'custom',
-      cocksPerEntry: 0,
+      derbyType: '5_cock',
       prizeStructure: basePrizeStructure,
+      entryFee: 250,
     })
 
-    expect(result.success).toBe(false)
+    expect(valid.success).toBe(true)
+    if (valid.success) {
+      expect(valid.data.entryFee).toBe(250)
+    }
+
+    const invalid = createEventSchema.safeParse({
+      ...baseEvent,
+      derbyType: '5_cock',
+      prizeStructure: basePrizeStructure,
+      entryFee: -1,
+    })
+
+    expect(invalid.success).toBe(false)
   })
 })

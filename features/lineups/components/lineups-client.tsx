@@ -12,7 +12,7 @@ import {
 } from '@chakra-ui/react'
 import { useActionState, useMemo, useState } from 'react'
 
-import { ButtonGroup, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { ButtonGroup, FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   submitLineupAction,
   type LineupActionState,
@@ -168,20 +168,14 @@ export function LineupsClient({
                         Cock #{cockNumber}
                       </Text>
                       <Flex gap={LAYOUT_GAP.form} wrap="wrap">
-                        <Box flex="1" minW="140px">
-                          <Text fontSize="xs" mb={1}>
-                            Band number
-                          </Text>
+                        <FormField label="Band number" required flex="1" minW="140px">
                           <Input
                             name={`bandNumber_${cockNumber}`}
                             defaultValue={existing?.band_number ?? ''}
                             required
                           />
-                        </Box>
-                        <Box flex="1" minW="120px">
-                          <Text fontSize="xs" mb={1}>
-                            Declared weight (kg)
-                          </Text>
+                        </FormField>
+                        <FormField label="Declared weight (kg)" flex="1" minW="120px">
                           <Input
                             name={`declaredWeight_${cockNumber}`}
                             type="number"
@@ -193,25 +187,19 @@ export function LineupsClient({
                                 : ''
                             }
                           />
-                        </Box>
-                        <Box flex="1" minW="120px">
-                          <Text fontSize="xs" mb={1}>
-                            Category
-                          </Text>
+                        </FormField>
+                        <FormField label="Category" flex="1" minW="120px">
                           <Input
                             name={`category_${cockNumber}`}
                             defaultValue={existing?.category ?? ''}
                           />
-                        </Box>
-                        <Box flex="1" minW="140px">
-                          <Text fontSize="xs" mb={1}>
-                            Color / marking
-                          </Text>
+                        </FormField>
+                        <FormField label="Color / marking" flex="1" minW="140px">
                           <Input
                             name={`colorMarking_${cockNumber}`}
                             defaultValue={existing?.color_marking ?? ''}
                           />
-                        </Box>
+                        </FormField>
                       </Flex>
                     </PanelCard>
                   )

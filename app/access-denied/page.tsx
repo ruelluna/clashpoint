@@ -9,7 +9,6 @@ import {
   Text,
 } from '@chakra-ui/react'
 
-import { ChakraClientRoot } from '@/components/chakra/client-root'
 import { signOutAction } from '@/features/auth/actions'
 import { getProfile } from '@/lib/auth/queries'
 import { getUser } from '@/lib/auth/session'
@@ -27,8 +26,7 @@ export default async function AccessDeniedPage() {
     : 'Your profile was not found. Contact support to finish setup.'
 
   return (
-    <ChakraClientRoot>
-      <Flex
+    <Flex
         minH="100vh"
         direction="column"
         align="center"
@@ -74,6 +72,5 @@ export default async function AccessDeniedPage() {
           </Stack>
         </Box>
       </Flex>
-    </ChakraClientRoot>
   )
 }

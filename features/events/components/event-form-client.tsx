@@ -18,6 +18,7 @@ import { useActionState, useMemo, useState } from 'react'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import {
   ButtonGroup,
+  FormField,
   LAYOUT_GAP,
   PageHeader,
   PageStack,
@@ -34,18 +35,23 @@ import {
   getNextStatuses,
 } from '@/features/events/utils'
 import {
-  DERBY_TYPE_LABELS,
+  DERBY_AGE_TYPE_LABELS,
+  DERBY_FORMAT_LABELS,
   EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
   PRIZE_TYPE_LABELS,
 } from '@/features/events/schema'
 import type {
+  DerbyAgeType,
   DerbyType,
   EventType,
   EventWithPrize,
   PrizeConfigEntry,
   PrizeType,
 } from '@/features/events/types'
+import type { AssociationListItem } from '@/features/associations/queries'
+import { DerbyEligibilityConfigPanel } from '@/features/eligibility/components/derby-eligibility-config-panel'
+import type { DerbyEligibilityPolicyRow } from '@/features/eligibility/queries'
 import type { PromoterListItem } from '@/features/promoters/types'
 
 type EventFormClientProps = {
@@ -53,6 +59,9 @@ type EventFormClientProps = {
   promoters: PromoterListItem[]
   event?: EventWithPrize
   canManage: boolean
+  eligibilityPolicy?: DerbyEligibilityPolicyRow | null
+  associations?: AssociationListItem[]
+  canManageEligibility?: boolean
 }
 
 const initialState: ActionState = {}
@@ -84,6 +93,9 @@ export function EventFormClient({
   promoters,
   event,
   canManage,
+  eligibilityPolicy = null,
+  associations = [],
+  canManageEligibility = false,
 }: EventFormClientProps) {
   const action = mode === 'create' ? createEventAction : updateEventAction
   const [formState, formAction, pending] = useActionState(action, initialState)
@@ -100,6 +112,9 @@ export function EventFormClient({
 
   const [derbyType, setDerbyType] = useState<DerbyType>(
     () => event?.derby_type ?? '5_cock'
+  )
+  const [derbyAgeType, setDerbyAgeType] = useState<DerbyAgeType>(
+    () => event?.derby_age_type ?? 'open_derby'
   )
   const isCustomDerby = derbyType === 'custom'
 
@@ -220,33 +235,33 @@ export function EventFormClient({
                 <input type="hidden" name="prizeType" value={prizeType} />
                 <input type="hidden" name="prizeConfig" value={prizeStructureJson} />
                 <input type="hidden" name="derbyType" value={derbyType} />
+                <input type="hidden" name="derbyAgeType" value={derbyAgeType} />
               </>
             ) : null}
             {isClassic ? <input type="hidden" name="cocksPerEntry" value="1" /> : null}
 
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Event name
-              </Text>
+            <FormField label="Event name" required>
               <Input name="name" defaultValue={event?.name ?? ''} required />
-            </Box>
+            </FormField>
 
             <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Event date
-                </Text>
+              <FormField label="Event date" required flex="1">
                 <Input
                   name="eventDate"
                   type="datetime-local"
                   defaultValue={toDatetimeLocalValue(event?.event_date)}
                   required
                 />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Event type
-                </Text>
+              </FormField>
+              <FormField
+                label="Event type"
+                flex="1"
+                helpText={
+                  isClassic
+                    ? 'Single weight-matched bouts, one cock per entry.'
+                    : 'Multi-cock tournament with cumulative scoring.'
+                }
+              >
                 <NativeSelect.Root>
                   <NativeSelect.Field
                     value={eventType}
@@ -259,18 +274,10 @@ export function EventFormClient({
                     ))}
                   </NativeSelect.Field>
                 </NativeSelect.Root>
-                <Text fontSize="xs" color="fg.muted" mt={1}>
-                  {isClassic
-                    ? 'Single weight-matched bouts, one cock per entry.'
-                    : 'Multi-cock tournament with cumulative scoring.'}
-                </Text>
-              </Box>
+              </FormField>
             </Flex>
 
-            <Box flex="1">
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Tax per fight
-              </Text>
+            <FormField label="Tax per fight" flex="1">
               <Input
                 name="taxPerFight"
                 type="number"
@@ -278,25 +285,19 @@ export function EventFormClient({
                 step="0.01"
                 defaultValue={event?.tax_per_fight ?? 0}
               />
-            </Box>
+            </FormField>
 
             {isDerby ? (
               <>
                 <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
-                  <Box flex="1">
-                    <Text fontSize="sm" fontWeight="medium" mb={1}>
-                      Registration deadline
-                    </Text>
+                  <FormField label="Registration deadline" flex="1">
                     <Input
                       name="registrationDeadline"
                       type="datetime-local"
                       defaultValue={toDatetimeLocalValue(event?.registration_deadline)}
                     />
-                  </Box>
-                  <Box flex="1">
-                    <Text fontSize="sm" fontWeight="medium" mb={1}>
-                      Promoter
-                    </Text>
+                  </FormField>
+                  <FormField label="Promoter" flex="1">
                     <NativeSelect.Root>
                       <NativeSelect.Field
                         name="promoterId"
@@ -310,14 +311,24 @@ export function EventFormClient({
                         ))}
                       </NativeSelect.Field>
                     </NativeSelect.Root>
-                  </Box>
+                  </FormField>
                 </Flex>
 
+                <FormField
+                  label="Registration entry fee"
+                  helpText="Amount due per entry when payment rules apply."
+                >
+                  <Input
+                    name="entryFee"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    defaultValue={event?.entry_fee ?? 0}
+                  />
+                </FormField>
+
                 <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
-                  <Box flex="1">
-                    <Text fontSize="sm" fontWeight="medium" mb={1}>
-                      Derby type
-                    </Text>
+                  <FormField label="Derby format" flex="1">
                     <NativeSelect.Root>
                       <NativeSelect.Field
                         value={derbyType}
@@ -325,35 +336,48 @@ export function EventFormClient({
                           setDerbyType(e.currentTarget.value as DerbyType)
                         }
                       >
-                        {Object.entries(DERBY_TYPE_LABELS).map(([value, label]) => (
+                        {Object.entries(DERBY_FORMAT_LABELS).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
                           </option>
                         ))}
                       </NativeSelect.Field>
                     </NativeSelect.Root>
-                  </Box>
+                  </FormField>
+                  <FormField label="Derby age profile" flex="1">
+                    <NativeSelect.Root>
+                      <NativeSelect.Field
+                        value={derbyAgeType}
+                        onChange={(e) =>
+                          setDerbyAgeType(e.currentTarget.value as DerbyAgeType)
+                        }
+                      >
+                        {Object.entries(DERBY_AGE_TYPE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </NativeSelect.Field>
+                    </NativeSelect.Root>
+                  </FormField>
+                </Flex>
+
+                <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
                   {isCustomDerby ? (
-                    <Box flex="1">
-                      <Text fontSize="sm" fontWeight="medium" mb={1}>
-                        Cocks per entry
-                      </Text>
+                    <FormField label="Cocks per entry" flex="1">
                       <Input
                         name="cocksPerEntry"
                         type="number"
                         min={1}
                         defaultValue={event?.cocks_per_entry ?? 5}
                       />
-                    </Box>
+                    </FormField>
                   ) : (
-                    <Box flex="1">
-                      <Text fontSize="sm" fontWeight="medium" mb={1}>
-                        Cocks per entry
-                      </Text>
+                    <FormField label="Cocks per entry" flex="1">
                       <Text fontSize="sm" color="fg.muted" pt={2}>
-                        {presetCocks} cocks per entry (from derby type)
+                        {presetCocks} cocks per entry (from derby format)
                       </Text>
-                    </Box>
+                    </FormField>
                   )}
                 </Flex>
 
@@ -432,15 +456,30 @@ export function EventFormClient({
                   </Button>
                 </Box>
 
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={1}>
-                    Registration rules
-                  </Text>
+                <FormField
+                  label="Registration rules"
+                  helpText="Supports bold, italic, lists, and links."
+                >
                   <RichTextEditor
                     name="registrationRules"
                     defaultValue={event?.registration_rules}
                   />
-                </Box>
+                </FormField>
+
+                {mode === 'create' && canManageEligibility ? (
+                  <Box>
+                    <Text fontSize="sm" color="fg.muted" mb={3}>
+                      Eligibility rules are optional; leave fields disabled to skip enforcement.
+                    </Text>
+                    <DerbyEligibilityConfigPanel
+                      mode="embedded"
+                      canManage={canManageEligibility}
+                      eligibilityEnforcementEnabled={false}
+                      policy={null}
+                      associations={associations}
+                    />
+                  </Box>
+                ) : null}
               </>
             ) : null}
 
@@ -480,12 +519,9 @@ export function EventFormClient({
               </Checkbox.Root>
             </Flex>
 
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={1}>
-                Notes
-              </Text>
+            <FormField label="Notes">
               <Textarea name="notes" rows={3} defaultValue={event?.notes ?? ''} />
-            </Box>
+            </FormField>
 
             <ButtonGroup wrap="wrap">
               <Button type="submit" loading={pending}>
@@ -511,6 +547,18 @@ export function EventFormClient({
           </Stack>
         </form>
       </PanelCard>
+
+      {mode === 'edit' && isDerby && event ? (
+        <DerbyEligibilityConfigPanel
+          mode="standalone"
+          eventId={event.id}
+          canManage={canManageEligibility}
+          eligibilityEnforcementEnabled={event.eligibility_enforcement_enabled}
+          policy={eligibilityPolicy}
+          associations={associations}
+          entryFee={event.entry_fee}
+        />
+      ) : null}
     </PageStack>
   )
 }

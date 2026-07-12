@@ -128,3 +128,105 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  .ProseMirror {
+    outline: none;
+  }
+
+  .ProseMirror p {
+    margin: 0.5em 0;
+  }
+
+  .ProseMirror p:first-child {
+    margin-top: 0;
+  }
+
+  .ProseMirror p:last-child {
+    margin-bottom: 0;
+  }
+
+  .ProseMirror ul,
+  .ProseMirror ol {
+    margin: 0.5em 0;
+    padding-left: 1.5rem;
+  }
+
+  .ProseMirror ul {
+    list-style-type: disc;
+  }
+
+  .ProseMirror ol {
+    list-style-type: decimal;
+  }
+
+  .ProseMirror li {
+    margin: 0.25em 0;
+  }
+
+  .ProseMirror a {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+
+  .ProseMirror.is-empty::before {
+    color: var(--muted-foreground);
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .ProseMirror p.is-editor-empty:first-child::before {
+    color: var(--muted-foreground);
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .rich-text-content p {
+    margin: 0.5em 0;
+  }
+
+  .rich-text-content p:first-child {
+    margin-top: 0;
+  }
+
+  .rich-text-content p:last-child {
+    margin-bottom: 0;
+  }
+
+  .rich-text-content ul,
+  .rich-text-content ol {
+    margin: 0.5em 0;
+    padding-left: 1.5rem;
+  }
+
+  .rich-text-content ul {
+    list-style-type: disc;
+  }
+
+  .rich-text-content ol {
+    list-style-type: decimal;
+  }
+
+  .rich-text-content li {
+    margin: 0.25em 0;
+  }
+
+  .rich-text-content a {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+
+  .rich-text-content strong,
+  .rich-text-content b {
+    font-weight: 600;
+  }
+
+  .rich-text-content em,
+  .rich-text-content i {
+    font-style: italic;
+  }
+}

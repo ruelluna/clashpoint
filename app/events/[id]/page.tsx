@@ -1,4 +1,4 @@
-import { Badge, Box, Text } from '@chakra-ui/react'
+import { Badge, Box, Stack, Text } from '@chakra-ui/react'
 import { notFound } from 'next/navigation'
 
 import {
@@ -37,9 +37,15 @@ export default async function PublicEventPage({ params }: PublicEventPageProps) 
   const isDerby = event.event_type === 'derby'
 
   return (
-    <div className="space-y-6">
+    <Stack gap={6}>
       <PublicEventNav event={event} />
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={6} className="space-y-4">
+      <Stack
+        gap={4}
+        borderWidth="1px"
+        borderColor="border"
+        rounded="lg"
+        p={6}
+      >
         <Box>
           <Text fontSize="sm" color="fg.muted">
             Event date
@@ -91,14 +97,14 @@ export default async function PublicEventPage({ params }: PublicEventPageProps) 
               Registration rules
             </Text>
             <Box
-              className="prose prose-sm max-w-none"
+              className="rich-text-content text-sm"
               dangerouslySetInnerHTML={{
                 __html: sanitizeHtml(event.registration_rules),
               }}
             />
           </Box>
         ) : null}
-      </Box>
-    </div>
+      </Stack>
+    </Stack>
   )
 }

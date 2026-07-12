@@ -13,7 +13,7 @@ import {
 } from '@chakra-ui/react'
 import { useActionState, useMemo, useState } from 'react'
 
-import { ButtonGroup, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { ButtonGroup, FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   PAYMENT_STATUS_LABELS,
 } from '@/features/entries/schema'
@@ -152,10 +152,7 @@ export function PaymentsLedgerClient({
           <Stack gap={LAYOUT_GAP.form} maxW="xl">
           <input type="hidden" name="eventId" value={eventId} />
 
-          <Box>
-            <Text fontSize="sm" fontWeight="medium" mb={2}>
-              Entry
-            </Text>
+          <FormField label="Entry" required>
             <NativeSelect.Root>
               <NativeSelect.Field
                 name="entryId"
@@ -171,13 +168,10 @@ export function PaymentsLedgerClient({
                 ))}
               </NativeSelect.Field>
             </NativeSelect.Root>
-          </Box>
+          </FormField>
 
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <Box flex="1">
-              <Text fontSize="sm" fontWeight="medium" mb={2}>
-                Amount paid
-              </Text>
+            <FormField label="Amount paid" required flex="1">
               <Input
                 name="amountPaid"
                 type="number"
@@ -186,11 +180,8 @@ export function PaymentsLedgerClient({
                 required
                 defaultValue={entryFee}
               />
-            </Box>
-            <Box flex="1">
-              <Text fontSize="sm" fontWeight="medium" mb={2}>
-                Payment method
-              </Text>
+            </FormField>
+            <FormField label="Payment method" flex="1">
               <NativeSelect.Root>
                 <NativeSelect.Field name="paymentMethod" defaultValue="cash">
                   {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
@@ -200,22 +191,16 @@ export function PaymentsLedgerClient({
                   ))}
                 </NativeSelect.Field>
               </NativeSelect.Root>
-            </Box>
+            </FormField>
           </Flex>
 
-          <Box>
-            <Text fontSize="sm" fontWeight="medium" mb={2}>
-              Receipt number
-            </Text>
+          <FormField label="Receipt number">
             <Input name="receiptNumber" maxLength={100} />
-          </Box>
+          </FormField>
 
-          <Box>
-            <Text fontSize="sm" fontWeight="medium" mb={2}>
-              Notes
-            </Text>
+          <FormField label="Notes">
             <Textarea name="notes" rows={2} maxLength={2000} />
-          </Box>
+          </FormField>
 
           {recordState.error ? (
             <Text fontSize="sm" color="red.500">

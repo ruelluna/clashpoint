@@ -14,11 +14,22 @@ export const eventStatusSchema = z.enum([
   'archived',
 ])
 
-export const derbyTypeSchema = z.enum([
+export const derbyFormatSchema = z.enum([
   '2_cock',
   '3_cock',
   '4_cock',
   '5_cock',
+  'custom',
+])
+
+export const derbyAgeTypeSchema = z.enum([
+  'stag_derby',
+  'bullstag_derby',
+  'cock_derby',
+  'stag_cock_derby',
+  'cock_bullstag_derby',
+  'stag_bullstag_cock_combo',
+  'open_derby',
   'custom',
 ])
 
@@ -66,7 +77,11 @@ const eventFieldsSchema = z.object({
   eventDate: z.string().datetime({ message: 'Valid event date required' }),
   registrationDeadline: z.string().datetime().nullable().optional(),
   eventType: eventTypeSchema.default('derby'),
-  derbyType: derbyTypeSchema.nullable().optional(),
+  derbyFormat: derbyFormatSchema.nullable().optional(),
+  /** @deprecated alias for derbyFormat */
+  derbyType: derbyFormatSchema.nullable().optional(),
+  derbyAgeType: derbyAgeTypeSchema.nullable().optional(),
+  entryFee: z.coerce.number().nonnegative('Entry fee cannot be negative').default(0),
   taxPerFight: z.coerce.number().nonnegative('Tax per fight cannot be negative').default(0),
   cocksPerEntry: z.coerce.number().int().positive().default(5),
   registrationRules: z.string().max(50000).nullable().optional(),
@@ -95,12 +110,14 @@ function refineEventRanges(
     })
   }
 
+  const derbyFormat = data.derbyFormat ?? data.derbyType
+
   if (data.eventType === 'derby') {
-    if (data.derbyType == null) {
+    if (derbyFormat == null) {
       ctx.addIssue({
         code: 'custom',
-        message: 'Derby type is required for derby events',
-        path: ['derbyType'],
+        message: 'Derby format is required for derby events',
+        path: ['derbyFormat'],
       })
     }
 
@@ -121,16 +138,16 @@ function refineEventRanges(
         path: ['cocksPerEntry'],
       })
     }
-    if (data.derbyType != null) {
+    if (derbyFormat != null) {
       ctx.addIssue({
         code: 'custom',
-        message: 'Derby type must not be set for classic events',
-        path: ['derbyType'],
+        message: 'Derby format must not be set for classic events',
+        path: ['derbyFormat'],
       })
     }
   }
 
-  if (data.eventType === 'derby' && data.derbyType === 'custom' && data.cocksPerEntry < 1) {
+  if (data.eventType === 'derby' && derbyFormat === 'custom' && data.cocksPerEntry < 1) {
     ctx.addIssue({
       code: 'custom',
       message: 'Cocks per entry is required for custom derby type',
@@ -188,13 +205,27 @@ export const EVENT_STATUS_LABELS: Record<z.infer<typeof eventStatusSchema>, stri
   archived: 'Archived',
 }
 
-export const DERBY_TYPE_LABELS: Record<z.infer<typeof derbyTypeSchema>, string> = {
+export const DERBY_FORMAT_LABELS: Record<z.infer<typeof derbyFormatSchema>, string> = {
   '2_cock': '2-Cock',
   '3_cock': '3-Cock',
   '4_cock': '4-Cock',
   '5_cock': '5-Cock',
   custom: 'Custom',
 }
+
+export const DERBY_AGE_TYPE_LABELS: Record<z.infer<typeof derbyAgeTypeSchema>, string> = {
+  stag_derby: 'Stag Derby',
+  bullstag_derby: 'Bullstag Derby',
+  cock_derby: 'Cock Derby',
+  stag_cock_derby: 'Stag/Cock Derby',
+  cock_bullstag_derby: 'Cock/Bullstag Derby',
+  stag_bullstag_cock_combo: 'Stag/Bullstag/Cock Combo',
+  open_derby: 'Open Derby',
+  custom: 'Custom Derby',
+}
+
+/** @deprecated Use DERBY_FORMAT_LABELS */
+export const DERBY_TYPE_LABELS = DERBY_FORMAT_LABELS
 
 export const PRIZE_TYPE_LABELS: Record<z.infer<typeof prizeTypeSchema>, string> = {
   percentage: 'Percentage',

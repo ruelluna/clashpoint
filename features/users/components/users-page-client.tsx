@@ -3,7 +3,7 @@
 import { Badge, Box, Button, Flex, Input, NativeSelect, Stack, Text } from '@chakra-ui/react'
 import { useActionState, useState } from 'react'
 
-import { LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { LAYOUT_GAP, FormField, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   deactivateUserAction,
   inviteUserAction,
@@ -46,10 +46,7 @@ function ModuleCheckboxGrid({
   defaultSelected?: AccessModuleId[]
 }) {
   return (
-    <Box>
-      <Text fontSize="sm" fontWeight="medium" mb={2}>
-        Module access
-      </Text>
+    <FormField label="Module access">
       <Flex direction="column" gap={2}>
         {ACCESS_MODULES.map((mod) => (
           <Flex key={mod.id} align="center" gap={2}>
@@ -66,7 +63,7 @@ function ModuleCheckboxGrid({
           </Flex>
         ))}
       </Flex>
-    </Box>
+    </FormField>
   )
 }
 
@@ -96,24 +93,32 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
       <PanelCard title="Invite user">
         <form action={inviteAction}>
           <Stack gap={LAYOUT_GAP.form} maxW="md">
-            <Input name="email" type="email" placeholder="Email" required />
-            <Input name="password" type="password" placeholder="Password" required />
-            <Input name="displayName" placeholder="Display name" />
-            <NativeSelect.Root>
-              <NativeSelect.Field
-                name="role"
-                value={inviteRole}
-                onChange={(event) =>
-                  setInviteRole(event.currentTarget.value as UsersManageableRole)
-                }
-              >
-                {manageableRoles.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </NativeSelect.Field>
-            </NativeSelect.Root>
+            <FormField label="Email" required>
+              <Input name="email" type="email" required />
+            </FormField>
+            <FormField label="Password" required>
+              <Input name="password" type="password" required />
+            </FormField>
+            <FormField label="Display name">
+              <Input name="displayName" />
+            </FormField>
+            <FormField label="Role" required>
+              <NativeSelect.Root>
+                <NativeSelect.Field
+                  name="role"
+                  value={inviteRole}
+                  onChange={(event) =>
+                    setInviteRole(event.currentTarget.value as AppRole)
+                  }
+                >
+                  {invitableRoles.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </NativeSelect.Field>
+              </NativeSelect.Root>
+            </FormField>
             {inviteRole === 'staff' ? (
               <ModuleCheckboxGrid />
             ) : (
@@ -199,7 +204,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
             <Box flex="2">
               {user.is_active ? (
                 <Stack gap={LAYOUT_GAP.form}>
-                  <form action={roleAction} className="flex gap-2 items-center flex-wrap">
+                  <Flex as="form" action={roleAction} gap={2} align="center" wrap="wrap">
                     <input type="hidden" name="userId" value={user.id} />
                     <NativeSelect.Root size="sm">
                       <NativeSelect.Field
@@ -216,7 +221,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                     <Button type="submit" size="sm" loading={rolePending}>
                       Update role
                     </Button>
-                  </form>
+                  </Flex>
                   {user.role === 'staff' ? (
                     <form action={modulesAction}>
                       <input type="hidden" name="userId" value={user.id} />

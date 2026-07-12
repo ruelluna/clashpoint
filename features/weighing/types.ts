@@ -2,7 +2,7 @@ export type WeightStatus = 'pending' | 'passed' | 'failed' | 'for_review'
 
 export type WeighingRow = {
   id: string
-  rooster_record_id: string
+  rooster_event_registration_id: string
   entry_id: string
   event_id: string
   official_weight: number | null
@@ -15,7 +15,7 @@ export type WeighingRow = {
 }
 
 export type WeighingStationItem = {
-  rooster_record_id: string
+  rooster_event_registration_id: string
   entry_id: string
   entry_number: string
   entry_name: string

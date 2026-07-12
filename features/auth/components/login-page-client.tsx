@@ -9,8 +9,6 @@ import {
   Text,
 } from '@chakra-ui/react'
 
-import { LoginLayoutFallback } from '@/components/auth/login-layout-fallback'
-import { ChakraClientRoot } from '@/components/chakra/client-root'
 import { ColorModeButton } from '@/components/ui/color-mode-button'
 import { FirstUserForm } from '@/features/auth/components/first-user-form'
 import { LoginForm } from '@/features/auth/components/login-form'
@@ -25,8 +23,7 @@ export function LoginPageClient({
   redirectTo,
 }: LoginPageClientProps) {
   return (
-    <ChakraClientRoot fallback={<LoginLayoutFallback />}>
-      <Flex
+    <Flex
         minH="100vh"
         direction="column"
         align="center"
@@ -74,6 +71,5 @@ export function LoginPageClient({
           </Stack>
         </Box>
       </Flex>
-    </ChakraClientRoot>
   )
 }
