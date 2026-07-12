@@ -13,6 +13,8 @@ import { getNextEntryNumber } from '@/features/entries/schema'
 import type {
   CreateEntryInput,
   DeleteEntryInput,
+  NewEntryRosterItemInput,
+  RoosterEntryItemInput,
   UpdateEntryInput,
   UpdateEntryRosterItemInput,
 } from '@/features/entries/schema'
@@ -25,7 +27,7 @@ import { createClient } from '@/lib/supabase/server'
 
 type EntryOwnerFields = Pick<
   CreateEntryInput,
-  'competitorId' | 'saveOwner' | 'ownerName' | 'contactNumber' | 'email' | 'address'
+  'competitorId' | 'saveOwner' | 'ownerName' | 'contactNumber' | 'email'
 >
 
 export async function resolveEntryCompetitor(
@@ -46,7 +48,7 @@ export async function resolveEntryCompetitor(
       displayName: input.ownerName,
       contactNumber: input.contactNumber,
       email: input.email,
-      address: input.address,
+      address: undefined,
     })
 
     if (result.error) {
@@ -108,12 +110,12 @@ export async function createEntry(
       referred_by_promoter_id: input.referredByPromoterId ?? null,
       competitor_id: competitorResult.competitorId ?? null,
       entry_number: entryNumber,
-      entry_name: input.entryName,
+      entry_name: input.ownerName,
       owner_name: input.ownerName,
       handler_name: input.handlerName ?? null,
       contact_number: input.contactNumber ?? null,
       email: input.email ?? null,
-      address: input.address ?? null,
+      address: null,
       entry_source: input.entrySource,
       registration_status: 'submitted',
       payment_status: 'unpaid',
@@ -136,7 +138,7 @@ export async function createEntry(
       event_id: input.eventId,
       event_name: event.name,
       entry_number: entryNumber,
-      entry_name: input.entryName,
+      entry_name: input.ownerName,
       owner_name: input.ownerName,
       competitor_id: competitorResult.competitorId ?? null,
     },
@@ -145,39 +147,121 @@ export async function createEntry(
   return { entryId: data.id }
 }
 
-export async function createEntryWithRooster(
+function toCreateRoosterInput(
+  eventId: string,
+  entryId: string,
+  rooster: RoosterEntryItemInput | NewEntryRosterItemInput
+) {
+  return {
+    eventId,
+    entryId,
+    entryName: rooster.entryName,
+    bandNumber: rooster.bandNumber,
+    weight: rooster.weight,
+    category: rooster.category,
+    colorMarking: rooster.colorMarking,
+    ageClass: rooster.ageClass,
+    originType: rooster.originType,
+    breedingRelationship: rooster.breedingRelationship,
+    experienceStatus: rooster.experienceStatus,
+    bandLevel: rooster.bandLevel,
+    bandOrganization: rooster.bandOrganization,
+    bandYear: rooster.bandYear,
+    bandSeason: rooster.bandSeason,
+  }
+}
+
+async function rollbackCreatedEntry(entryId: string, roosterIds: string[]) {
+  const supabase = await createClient()
+  const extended = await createExtendedClient()
+
+  for (const roosterId of roosterIds) {
+    const { data: record } = await extended
+      .from('rooster_event_registrations')
+      .select('registry_rooster_id')
+      .eq('id', roosterId)
+      .maybeSingle()
+
+    await supabase.from('weighings').delete().eq('rooster_event_registration_id', roosterId)
+    await supabase.from('rooster_event_registrations').delete().eq('id', roosterId)
+
+    if (record?.registry_rooster_id) {
+      await extended
+        .from('rooster_bands')
+        .delete()
+        .eq('rooster_id', record.registry_rooster_id)
+      await extended.from('roosters').delete().eq('id', record.registry_rooster_id)
+    }
+  }
+
+  await supabase.from('entries').delete().eq('id', entryId)
+}
+
+export async function createEntryWithRoosters(
   actorId: string,
   input: CreateEntryInput
-): Promise<{ error?: string; entryId?: string; roosterId?: string }> {
+): Promise<{ error?: string; entryId?: string; roosterIds?: string[] }> {
   const entryResult = await createEntry(actorId, input)
   if (entryResult.error || !entryResult.entryId) {
     return { error: entryResult.error ?? 'Failed to create entry' }
   }
 
-  const roosterResult = await createRoosterForEntry(actorId, {
-    eventId: input.eventId,
-    entryId: entryResult.entryId,
-    bandNumber: input.bandNumber,
-    weight: input.weight,
-    category: input.category,
-    colorMarking: input.colorMarking,
-    ageClass: input.ageClass,
-    originType: input.originType,
-    breedingRelationship: input.breedingRelationship,
-    experienceStatus: input.experienceStatus,
-    bandLevel: input.bandLevel,
-    bandOrganization: input.bandOrganization,
-    bandYear: input.bandYear,
-    bandSeason: input.bandSeason,
-  })
+  const createdRoosterIds: string[] = []
 
-  if (roosterResult.error) {
-    const supabase = await createClient()
-    await supabase.from('entries').delete().eq('id', entryResult.entryId)
-    return { error: roosterResult.error }
+  for (const rooster of input.roosters) {
+    const roosterResult = await createRoosterForEntry(
+      actorId,
+      toCreateRoosterInput(input.eventId, entryResult.entryId, rooster)
+    )
+
+    if (roosterResult.error || !roosterResult.roosterId) {
+      await rollbackCreatedEntry(entryResult.entryId, createdRoosterIds)
+      return { error: roosterResult.error ?? 'Failed to create rooster' }
+    }
+
+    createdRoosterIds.push(roosterResult.roosterId)
   }
 
-  return { entryId: entryResult.entryId, roosterId: roosterResult.roosterId }
+  return { entryId: entryResult.entryId, roosterIds: createdRoosterIds }
+}
+
+/** @deprecated Use createEntryWithRoosters */
+export async function createEntryWithRooster(
+  actorId: string,
+  input: CreateEntryInput
+): Promise<{ error?: string; entryId?: string; roosterId?: string }> {
+  const result = await createEntryWithRoosters(actorId, input)
+  return {
+    error: result.error,
+    entryId: result.entryId,
+    roosterId: result.roosterIds?.[0],
+  }
+}
+
+export async function addEntryRoosters(
+  actorId: string,
+  eventId: string,
+  entryId: string,
+  roosters: NewEntryRosterItemInput[]
+): Promise<{ error?: string; roosterIds?: string[] }> {
+  if (roosters.length === 0) return {}
+
+  const createdRoosterIds: string[] = []
+
+  for (const rooster of roosters) {
+    const roosterResult = await createRoosterForEntry(
+      actorId,
+      toCreateRoosterInput(eventId, entryId, rooster)
+    )
+
+    if (roosterResult.error || !roosterResult.roosterId) {
+      return { error: roosterResult.error ?? 'Failed to add rooster' }
+    }
+
+    createdRoosterIds.push(roosterResult.roosterId)
+  }
+
+  return { roosterIds: createdRoosterIds }
 }
 
 export async function updateEntry(
@@ -208,12 +292,11 @@ export async function updateEntry(
     .update({
       referred_by_promoter_id: input.referredByPromoterId ?? null,
       competitor_id: competitorResult.competitorId ?? null,
-      entry_name: input.entryName,
+      entry_name: input.ownerName,
       owner_name: input.ownerName,
       handler_name: input.handlerName ?? null,
       contact_number: input.contactNumber ?? null,
       email: input.email ?? null,
-      address: input.address ?? null,
       entry_source: input.entrySource,
       notes: input.notes ?? null,
       updated_at: new Date().toISOString(),
@@ -232,7 +315,7 @@ export async function updateEntry(
       entry_name: existing.entry_name,
     },
     newValues: {
-      entry_name: input.entryName,
+      entry_name: input.ownerName,
       owner_name: input.ownerName,
       competitor_id: competitorResult.competitorId ?? null,
     },
@@ -315,6 +398,7 @@ export async function updateEntryRoosters(
       const { error: registryUpdateError } = await extended
         .from('roosters')
         .update({
+          name: rooster.entryName,
           age_class: ageClass,
           origin_type: rooster.originType ?? 'unknown',
           breeding_relationship: rooster.breedingRelationship ?? 'unknown',

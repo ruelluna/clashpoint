@@ -36,6 +36,8 @@ export default async function EditRoosterEntryPage({ params }: EditRoosterEntryP
       <EntryEditClient
         eventId={event.id}
         eventName={event.name}
+        eventType={event.event_type}
+        cocksPerEntry={event.cocks_per_entry}
         entry={entry}
         roosters={roosters}
         promoters={promoters}

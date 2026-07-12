@@ -27,6 +27,7 @@ export default async function NewRoosterEntryPage({ params }: NewRoosterEntryPag
       <EntryFormClient
         eventId={event.id}
         eventName={event.name}
+        eventType={event.event_type}
         promoters={promoters}
         cocksPerEntry={event.cocks_per_entry}
         minWeight={event.min_weight}

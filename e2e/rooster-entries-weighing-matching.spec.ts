@@ -21,6 +21,10 @@ async function createClassicEvent(page: Page, name: string) {
   return page.url().replace(/.*\/events\//, '').replace(/\/.*$/, '')
 }
 
+async function fillContactSuffix(page: Page, suffix: string) {
+  await page.getByPlaceholder('12345678').fill(suffix.replace(/\D/g, '').slice(0, 8))
+}
+
 async function createEntryWithRooster(
   page: Page,
   eventId: string,
@@ -29,29 +33,31 @@ async function createEntryWithRooster(
   band: string,
   options?: {
     ownerName?: string
+    roosterName?: string
     handlerName?: string
     saveOwner?: boolean
-    contactNumber?: string
+    contactSuffix?: string
   }
 ) {
   await page.getByRole('link', { name: 'New entry' }).click()
-  await page.locator('input[name="entryName"]').fill(`${label} Entry ${suffix}`)
   const ownerName = options?.ownerName ?? `${label} Owner`
+  const roosterName = options?.roosterName ?? `${label} Rooster ${suffix}`
   await page.locator('input[name="ownerName"]').fill(ownerName)
   if (options?.saveOwner) {
     await page.getByLabel('Save owner for future entries').check()
   }
-  if (options?.contactNumber) {
-    await page.locator('input[name="contactNumber"]').fill(options.contactNumber)
+  if (options?.contactSuffix) {
+    await fillContactSuffix(page, options.contactSuffix)
   }
   if (options?.handlerName) {
     await page.locator('input[name="handlerName"]').fill(options.handlerName)
   }
-  await page.locator('input[name="bandNumber"]').fill(band)
-  await page.locator('input[name="weight"]').fill('2.10')
+  await page.locator('input[name="rooster_1_entryName"]').fill(roosterName)
+  await page.locator('input[name="rooster_1_bandNumber"]').fill(band)
+  await page.locator('input[name="rooster_1_weight"]').fill('2.10')
   await page.getByRole('button', { name: 'Save entry' }).click()
   await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
-  await expect(page.getByText(`${label} Entry ${suffix}`)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(ownerName)).toBeVisible({ timeout: 15_000 })
 }
 
 test.describe('Rooster entries → matching @auth', () => {
@@ -68,8 +74,6 @@ test.describe('Rooster entries → matching @auth', () => {
 
     await page.goto(`/dashboard/events/${eventId}/rooster-entries`)
     await expect(page.getByText('Rooster Entries')).toBeVisible()
-    await expect(page.getByText('Roosters & weights')).toHaveCount(0)
-    await expect(page.getByText('Add rooster with weight')).toHaveCount(0)
 
     await createEntryWithRooster(page, eventId, 'Meron', suffix, `M-${suffix}`)
     await createEntryWithRooster(page, eventId, 'Wala', suffix, `W-${suffix}`)
@@ -119,9 +123,9 @@ test.describe('Rooster entries → matching @auth', () => {
     await expect(page.getByText('Updated Owner')).toBeVisible()
 
     page.once('dialog', (dialog) => dialog.accept())
-    const deleteRow = page.locator('div').filter({ hasText: `DeleteMe Entry ${suffix}` })
+    const deleteRow = page.locator('div').filter({ hasText: 'DeleteMe Owner' })
     await deleteRow.getByRole('button', { name: 'Delete' }).click()
-    await expect(page.getByText(`DeleteMe Entry ${suffix}`)).toHaveCount(0, {
+    await expect(page.getByText('DeleteMe Owner')).toHaveCount(0, {
       timeout: 15_000,
     })
   })
@@ -153,7 +157,7 @@ test.describe('Rooster entries → matching @auth', () => {
     const suffix = uniqueSuffix()
     const eventName = `E2E Saved Owner ${suffix}`
     const savedOwnerName = `Saved Owner ${suffix}`
-    const savedContact = `09${suffix.slice(-9).padStart(9, '0').slice(0, 10)}`
+    const contactSuffix = suffix.replace(/\D/g, '').slice(0, 8).padStart(8, '1')
 
     await signInAsAdmin(page)
     const eventId = await createClassicEvent(page, eventName)
@@ -162,7 +166,7 @@ test.describe('Rooster entries → matching @auth', () => {
     await createEntryWithRooster(page, eventId, 'First', suffix, `F-${suffix}`, {
       ownerName: savedOwnerName,
       saveOwner: true,
-      contactNumber: savedContact,
+      contactSuffix,
       handlerName: `Handler A ${suffix}`,
     })
 
@@ -174,13 +178,13 @@ test.describe('Rooster entries → matching @auth', () => {
     await page.locator('input[name="ownerName"]').fill(savedOwnerName)
     await expect(page.getByText(savedOwnerName).first()).toBeVisible({ timeout: 15_000 })
     await page.getByText(savedOwnerName).first().click()
-    await expect(page.locator('input[name="contactNumber"]')).toHaveValue(savedContact)
+    await expect(page.locator('input[name="contactNumber"]')).toHaveValue(`69${contactSuffix}`)
     await expect(page.getByLabel('Save owner for future entries')).toHaveCount(0)
 
-    await page.locator('input[name="entryName"]').fill(`Third Entry ${suffix}`)
+    await page.locator('input[name="rooster_1_entryName"]').fill(`Third Rooster ${suffix}`)
     await page.locator('input[name="handlerName"]').fill(`Handler C ${suffix}`)
-    await page.locator('input[name="bandNumber"]').fill(`T-${suffix}`)
-    await page.locator('input[name="weight"]').fill('2.10')
+    await page.locator('input[name="rooster_1_bandNumber"]').fill(`T-${suffix}`)
+    await page.locator('input[name="rooster_1_weight"]').fill('2.10')
     await page.getByRole('button', { name: 'Save entry' }).click()
     await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
 

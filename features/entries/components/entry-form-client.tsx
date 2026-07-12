@@ -23,13 +23,12 @@ import {
   createEntryAction,
   type EntryActionState,
 } from '@/features/entries/actions'
+import { ContactNumberField } from '@/features/entries/components/contact-number-field'
 import {
   OwnerPickerField,
   type OwnerProfileValues,
 } from '@/features/entries/components/owner-picker-field'
-import {
-  RoosterPolicyFields,
-} from '@/features/entries/components/rooster-policy-fields'
+import { RoosterEntrySlots } from '@/features/entries/components/rooster-entry-slots'
 import { ENTRY_SOURCE_LABELS } from '@/features/entries/schema'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
 import type { PromoterListItem } from '@/features/promoters/types'
@@ -37,6 +36,7 @@ import type { PromoterListItem } from '@/features/promoters/types'
 type EntryFormClientProps = {
   eventId: string
   eventName: string
+  eventType: 'classic' | 'derby'
   promoters: PromoterListItem[]
   cocksPerEntry: number
   minWeight: number | null
@@ -51,9 +51,24 @@ function formatWeightRange(minWeight: number | null, maxWeight: number | null) {
   return `${minWeight ?? '—'} – ${maxWeight ?? '—'} kg`
 }
 
+function formatDescription(
+  eventName: string,
+  eventType: 'classic' | 'derby',
+  cocksPerEntry: number,
+  minWeight: number | null,
+  maxWeight: number | null
+) {
+  const weightText = formatWeightRange(minWeight, maxWeight)
+  if (eventType === 'classic') {
+    return `${eventName} · Register game farm / handler and one rooster. Weight limits: ${weightText}`
+  }
+  return `${eventName} · Register game farm / handler, then add up to ${cocksPerEntry} cocks (at least one required). Weight limits: ${weightText}`
+}
+
 export function EntryFormClient({
   eventId,
   eventName,
+  eventType,
   promoters,
   cocksPerEntry,
   minWeight,
@@ -76,7 +91,13 @@ export function EntryFormClient({
     <PageStack maxW="2xl">
       <PageHeader
         title="New rooster entry"
-        description={`${eventName} · Register owner and first cock (${cocksPerEntry} per entry max). Weight limits: ${formatWeightRange(minWeight, maxWeight)}`}
+        description={formatDescription(
+          eventName,
+          eventType,
+          cocksPerEntry,
+          minWeight,
+          maxWeight
+        )}
       />
 
       <form action={formAction}>
@@ -92,10 +113,6 @@ export function EntryFormClient({
             Owner / handler
           </Text>
 
-          <FormField label="Entry name" required>
-            <Input name="entryName" required maxLength={200} />
-          </FormField>
-
           <OwnerPickerField onOwnerProfileChange={setOwnerProfile} />
 
           <FormField label="Handler name">
@@ -103,19 +120,13 @@ export function EntryFormClient({
           </FormField>
 
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <FormField label="Contact number" flex="1">
-              <Input
-                name="contactNumber"
-                maxLength={50}
-                value={ownerProfile.contactNumber}
-                onChange={(event) =>
-                  setOwnerProfile((current) => ({
-                    ...current,
-                    contactNumber: event.target.value,
-                  }))
-                }
-              />
-            </FormField>
+            <ContactNumberField
+              flex="1"
+              value={ownerProfile.contactNumber}
+              onChange={(contactNumber) =>
+                setOwnerProfile((current) => ({ ...current, contactNumber }))
+              }
+            />
             <FormField label="Email" flex="1">
               <Input
                 name="email"
@@ -131,21 +142,6 @@ export function EntryFormClient({
               />
             </FormField>
           </Flex>
-
-          <FormField label="Address">
-            <Textarea
-              name="address"
-              rows={2}
-              maxLength={500}
-              value={ownerProfile.address}
-              onChange={(event) =>
-                setOwnerProfile((current) => ({
-                  ...current,
-                  address: event.target.value,
-                }))
-              }
-            />
-          </FormField>
 
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
             <FormField label="Entry source" flex="1">
@@ -184,19 +180,15 @@ export function EntryFormClient({
             textTransform="uppercase"
             pt={2}
           >
-            Rooster &amp; weight
+            Roosters
           </Text>
 
-          <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <FormField label="Band number" required flex="1">
-              <Input name="bandNumber" required maxLength={50} />
-            </FormField>
-            <FormField label="Weight (kg)" required flex="1">
-              <Input name="weight" type="number" step="0.01" min="0" required />
-            </FormField>
-          </Flex>
-
-          <RoosterPolicyFields eligibilityContext={eligibilityContext} />
+          <RoosterEntrySlots
+            mode="create"
+            eventType={eventType}
+            cocksPerEntry={cocksPerEntry}
+            eligibilityContext={eligibilityContext}
+          />
 
           {formState.error ? (
             <Text fontSize="sm" color="red.500" whiteSpace="pre-line">

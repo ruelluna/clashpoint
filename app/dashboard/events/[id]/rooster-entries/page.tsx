@@ -17,7 +17,7 @@ export default async function RoosterEntriesPage({ params }: RoosterEntriesPageP
 
   if (!event) notFound()
 
-  const entries = await listEntriesByEvent(id)
+  const entries = await listEntriesByEvent(id, event.cocks_per_entry)
 
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>

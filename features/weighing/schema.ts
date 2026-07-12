@@ -36,6 +36,12 @@ export const verifyWeightSchema = z.object({
 export const createRoosterSchema = z.object({
   eventId: z.string().uuid(),
   entryId: z.string().uuid(),
+  entryName: z
+    .string()
+    .max(200)
+    .optional()
+    .or(z.literal(''))
+    .transform((value) => value || undefined),
   bandNumber: z.string().min(1, 'Band number is required').max(50),
   weight: z.coerce.number().positive('Weight must be greater than zero'),
   category: z

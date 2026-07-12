@@ -18,10 +18,10 @@ type RoosterEntriesClientProps = {
 type DeleteEntryButtonProps = {
   eventId: string
   entryId: string
-  entryName: string
+  entryNumber: string
 }
 
-function DeleteEntryButton({ eventId, entryId, entryName }: DeleteEntryButtonProps) {
+function DeleteEntryButton({ eventId, entryId, entryNumber }: DeleteEntryButtonProps) {
   const [state, action, pending] = useActionState(deleteEntryAction, {} as EntryActionState)
 
   return (
@@ -30,7 +30,7 @@ function DeleteEntryButton({ eventId, entryId, entryName }: DeleteEntryButtonPro
       onSubmit={(event) => {
         if (
           !window.confirm(
-            `Delete entry "${entryName}"? This cannot be undone from the roster list.`
+            `Delete entry #${entryNumber}? This cannot be undone from the roster list.`
           )
         ) {
           event.preventDefault()
@@ -62,7 +62,7 @@ export function RoosterEntriesClient({
     <PageStack>
       <PageHeader
         title="Rooster Entries"
-        description={`${eventName} · ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}. Use New entry to register an owner and cock. Edit or delete entries from the list.`}
+        description={`${eventName} · ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}. Register game farm / handler first, then add roosters per event format.`}
         actions={
           <Button asChild alignSelf={{ base: 'flex-start', sm: 'auto' }}>
             <Link href={`/dashboard/events/${eventId}/rooster-entries/new`}>New entry</Link>
@@ -80,9 +80,9 @@ export function RoosterEntriesClient({
           fontSize="sm"
           display={{ base: 'none', lg: 'flex' }}
         >
-          <Box flex="0.6">#</Box>
-          <Box flex="1.4">Entry</Box>
-          <Box flex="1">Owner</Box>
+          <Box flex="0.6">Entry #</Box>
+          <Box flex="1.4">Owner / Game Farm</Box>
+          <Box flex="0.8">Cocks</Box>
           <Box flex="0.8" textAlign="right">
             Actions
           </Box>
@@ -112,22 +112,21 @@ export function RoosterEntriesClient({
                 align={{ lg: 'center' }}
               >
                 <Box flex="0.6">
-                  <Text fontWeight="semibold">{entry.entry_number}</Text>
+                  <Text fontWeight="semibold">#{entry.entry_number}</Text>
                 </Box>
                 <Box flex="1.4">
-                  <Text fontWeight="medium">{entry.entry_name}</Text>
+                  <Text fontWeight="medium">{entry.owner_name}</Text>
                   <Text fontSize="sm" color="fg.muted">
                     {ENTRY_SOURCE_LABELS[entry.entry_source]}
                     {entry.promoter_name ? ` · ${entry.promoter_name}` : ''}
+                    {entry.handler_name ? ` · Handler: ${entry.handler_name}` : ''}
                   </Text>
                 </Box>
-                <Box flex="1">
-                  <Text fontSize="sm">{entry.owner_name}</Text>
-                  {entry.handler_name ? (
-                    <Text fontSize="xs" color="fg.muted">
-                      Handler: {entry.handler_name}
-                    </Text>
-                  ) : null}
+                <Box flex="0.8">
+                  <Text fontSize="sm">
+                    {entry.rooster_count}/{entry.cocks_per_entry} cock
+                    {entry.cocks_per_entry === 1 ? '' : 's'}
+                  </Text>
                 </Box>
                 <Box flex="0.8">
                   <ButtonGroup justify={{ base: 'flex-start', lg: 'flex-end' }}>
@@ -141,7 +140,7 @@ export function RoosterEntriesClient({
                     <DeleteEntryButton
                       eventId={eventId}
                       entryId={entry.id}
-                      entryName={entry.entry_name}
+                      entryNumber={entry.entry_number}
                     />
                   </ButtonGroup>
                 </Box>

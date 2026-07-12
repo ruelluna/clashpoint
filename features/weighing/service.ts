@@ -136,6 +136,7 @@ export async function createRoosterForEntry(
   const registryResult = await createRooster(
     actorId,
     registryRoosterSchema.parse({
+      name: input.entryName,
       ageClass,
       competitionClass: 'unclassified',
       originType: input.originType ?? 'unknown',

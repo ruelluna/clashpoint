@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { contactNumberSchema } from '@/features/entries/schema'
+
 const optionalText = (max: number) =>
   z
     .string()
@@ -22,7 +24,7 @@ export const searchCompetitorsSchema = z.object({
 
 export const createCompetitorSchema = z.object({
   displayName: z.string().min(1, 'Display name is required').max(200),
-  contactNumber: optionalText(50),
+  contactNumber: contactNumberSchema,
   email: optionalEmail,
   address: optionalText(500),
 })
