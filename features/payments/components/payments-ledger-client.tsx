@@ -14,7 +14,6 @@ import { useActionState, useMemo, useState } from 'react'
 
 import {
   PAYMENT_STATUS_LABELS,
-  REGISTRATION_STATUS_LABELS,
 } from '@/features/entries/schema'
 import type { EntryListItem } from '@/features/entries/types'
 import {
@@ -135,13 +134,7 @@ export function PaymentsLedgerClient({
   const [selectedEntryId, setSelectedEntryId] = useState('')
 
   const payableEntries = useMemo(
-    () =>
-      entries.filter(
-        (entry) =>
-          entry.registration_status !== 'rejected' &&
-          entry.registration_status !== 'cancelled' &&
-          entry.payment_status !== 'paid'
-      ),
+    () => entries.filter((entry) => entry.payment_status !== 'paid'),
     [entries]
   )
 
@@ -331,9 +324,6 @@ export function PaymentsLedgerClient({
                 #{entry.entry_number} {entry.entry_name}
               </Text>
               <Flex gap={2}>
-                <Badge colorPalette="gray">
-                  {REGISTRATION_STATUS_LABELS[entry.registration_status]}
-                </Badge>
                 <Badge colorPalette={paymentStatusColor(entry.payment_status)}>
                   {PAYMENT_STATUS_LABELS[entry.payment_status]}
                 </Badge>

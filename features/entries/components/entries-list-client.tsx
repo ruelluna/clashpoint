@@ -1,19 +1,13 @@
 'use client'
 
-import { Badge, Box, Button, Flex, NativeSelect, Text, Textarea } from '@chakra-ui/react'
+import { Badge, Box, Button, Flex, NativeSelect, Text } from '@chakra-ui/react'
 import Link from 'next/link'
-import { useActionState, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import {
-  approveEntryAction,
-  rejectEntryAction,
-  type EntryActionState,
-} from '@/features/entries/actions'
 import {
   canSubmitLineup,
   ENTRY_SOURCE_LABELS,
   PAYMENT_STATUS_LABELS,
-  REGISTRATION_STATUS_LABELS,
 } from '@/features/entries/schema'
 import type { EntryListItem } from '@/features/entries/types'
 
@@ -21,29 +15,6 @@ type EntriesListClientProps = {
   eventId: string
   eventName: string
   entries: EntryListItem[]
-}
-
-const initialState: EntryActionState = {}
-
-function registrationColor(
-  status: EntryListItem['registration_status']
-): 'gray' | 'yellow' | 'green' | 'red' | 'blue' | 'orange' {
-  switch (status) {
-    case 'submitted':
-      return 'gray'
-    case 'pending_review':
-      return 'yellow'
-    case 'approved':
-      return 'blue'
-    case 'confirmed':
-      return 'green'
-    case 'rejected':
-      return 'red'
-    case 'cancelled':
-      return 'orange'
-    default:
-      return 'gray'
-  }
 }
 
 function paymentColor(
@@ -63,99 +34,19 @@ function paymentColor(
   }
 }
 
-function EntryActions({
-  entry,
-  eventId,
-}: {
-  entry: EntryListItem
-  eventId: string
-}) {
-  const [approveState, approveAction, approvePending] = useActionState(
-    approveEntryAction,
-    initialState
-  )
-  const [rejectState, rejectAction, rejectPending] = useActionState(
-    rejectEntryAction,
-    initialState
-  )
-  const [showRejectReason, setShowRejectReason] = useState(false)
-
-  const canReview =
-    entry.registration_status === 'submitted' ||
-    entry.registration_status === 'pending_review' ||
-    entry.registration_status === 'approved'
-
-  if (!canReview) return null
-
-  return (
-    <Box mt={3}>
-      <Flex gap={2} wrap="wrap">
-        <form action={approveAction}>
-          <input type="hidden" name="entryId" value={entry.id} />
-          <input type="hidden" name="eventId" value={eventId} />
-          <Button size="xs" type="submit" loading={approvePending}>
-            Approve
-          </Button>
-        </form>
-        <Button
-          size="xs"
-          variant="outline"
-          onClick={() => setShowRejectReason((current) => !current)}
-        >
-          Reject
-        </Button>
-      </Flex>
-
-      {showRejectReason ? (
-        <form action={rejectAction} className="mt-3">
-          <input type="hidden" name="entryId" value={entry.id} />
-          <input type="hidden" name="eventId" value={eventId} />
-          <Textarea
-            name="reason"
-            placeholder="Reason for rejection"
-            rows={2}
-            size="sm"
-            required
-            minLength={3}
-          />
-          <Button size="xs" type="submit" mt={2} colorPalette="red" loading={rejectPending}>
-            Confirm reject
-          </Button>
-        </form>
-      ) : null}
-
-      {approveState.error ? (
-        <Text fontSize="xs" color="red.500" mt={1}>
-          {approveState.error}
-        </Text>
-      ) : null}
-      {rejectState.error ? (
-        <Text fontSize="xs" color="red.500" mt={1}>
-          {rejectState.error}
-        </Text>
-      ) : null}
-      {approveState.success || rejectState.success ? (
-        <Text fontSize="xs" color="green.600" mt={1}>
-          {approveState.success ?? rejectState.success}
-        </Text>
-      ) : null}
-    </Box>
-  )
-}
-
 export function EntriesListClient({
   eventId,
   eventName,
   entries,
 }: EntriesListClientProps) {
-  const [statusFilter, setStatusFilter] = useState<
-    '' | EntryListItem['registration_status']
+  const [paymentFilter, setPaymentFilter] = useState<
+    '' | EntryListItem['payment_status']
   >('')
 
   const filteredEntries = useMemo(() => {
-    if (!statusFilter) return entries
-    return entries.filter((entry) => entry.registration_status === statusFilter)
-  }, [entries, statusFilter])
+    if (!paymentFilter) return entries
+    return entries.filter((entry) => entry.payment_status === paymentFilter)
+  }, [entries, paymentFilter])
 
   return (
     <Flex direction="column" gap={8}>
@@ -173,6 +64,9 @@ export function EntriesListClient({
             <Text color="fg.muted" fontSize="sm">
               {eventName} · {entries.length} entr{entries.length === 1 ? 'y' : 'ies'}
             </Text>
+            <Text color="fg.muted" fontSize="sm" mt={1}>
+              Event roster — payment unlocks lineup submission; matching happens later.
+            </Text>
           </Box>
           <Button asChild alignSelf={{ base: 'flex-start', sm: 'auto' }}>
             <Link href={`/dashboard/events/${eventId}/registrations/new`}>
@@ -183,19 +77,19 @@ export function EntriesListClient({
 
         <Flex align="center" gap={3} maxW="xs">
           <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
-            Filter by status
+            Filter by payment
           </Text>
           <NativeSelect.Root size="sm">
             <NativeSelect.Field
-              value={statusFilter}
+              value={paymentFilter}
               onChange={(event) =>
-                setStatusFilter(
-                  event.currentTarget.value as '' | EntryListItem['registration_status']
+                setPaymentFilter(
+                  event.currentTarget.value as '' | EntryListItem['payment_status']
                 )
               }
             >
-              <option value="">All statuses</option>
-              {Object.entries(REGISTRATION_STATUS_LABELS).map(([value, label]) => (
+              <option value="">All payments</option>
+              {Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
@@ -218,7 +112,6 @@ export function EntriesListClient({
           <Box flex="0.6">#</Box>
           <Box flex="1.4">Entry</Box>
           <Box flex="1">Owner</Box>
-          <Box flex="1">Registration</Box>
           <Box flex="1">Payment</Box>
           <Box flex="0.8">Lineup</Box>
         </Flex>
@@ -235,7 +128,6 @@ export function EntriesListClient({
         ) : (
           filteredEntries.map((entry) => {
             const lineupEligible = canSubmitLineup({
-              registration_status: entry.registration_status,
               payment_status: entry.payment_status,
             })
 
@@ -271,11 +163,6 @@ export function EntriesListClient({
                     ) : null}
                   </Box>
                   <Box flex="1">
-                    <Badge colorPalette={registrationColor(entry.registration_status)}>
-                      {REGISTRATION_STATUS_LABELS[entry.registration_status]}
-                    </Badge>
-                  </Box>
-                  <Box flex="1">
                     <Badge colorPalette={paymentColor(entry.payment_status)}>
                       {PAYMENT_STATUS_LABELS[entry.payment_status]}
                     </Badge>
@@ -286,7 +173,6 @@ export function EntriesListClient({
                     </Badge>
                   </Box>
                 </Flex>
-                <EntryActions entry={entry} eventId={eventId} />
               </Box>
             )
           })

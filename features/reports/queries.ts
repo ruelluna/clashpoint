@@ -34,7 +34,7 @@ export async function getEventSummaryReport(
   ] = await Promise.all([
     supabase
       .from('entries')
-      .select('registration_status', { count: 'exact' })
+      .select('payment_status', { count: 'exact' })
       .eq('event_id', eventId)
       .is('deleted_at', null),
     supabase.from('matches').select('status').eq('event_id', eventId),
@@ -52,9 +52,7 @@ export async function getEventSummaryReport(
 
   const entries = entriesResult.data ?? []
   const matches = matchesResult.data ?? []
-  const confirmedEntries = entries.filter(
-    (row) => row.registration_status === 'confirmed' || row.registration_status === 'approved'
-  ).length
+  const paidEntries = entries.filter((row) => row.payment_status === 'paid').length
 
   const totalCollected = payments
     .filter((row) => row.paymentStatus !== 'refunded')
@@ -71,7 +69,7 @@ export async function getEventSummaryReport(
       derby_type: event.derby_type ?? '',
       entry_fee: event.entry_fee,
       total_entries: entriesResult.count ?? entries.length,
-      confirmed_entries: confirmedEntries,
+      paid_entries: paidEntries,
       total_matches: matches.length,
       completed_matches: matches.filter((row) => row.status === 'completed').length,
       total_roosters: roosterCountResult.count ?? weighingStats.total,

@@ -3,21 +3,11 @@ import 'server-only'
 import { writeAuditLog } from '@/features/audit/service'
 import { listEntryNumbersForEvent } from '@/features/entries/queries'
 import { getNextEntryNumber } from '@/features/entries/schema'
-import type {
-  ApproveEntryInput,
-  CreateEntryInput,
-  RejectEntryInput,
-} from '@/features/entries/schema'
+import type { CreateEntryInput } from '@/features/entries/schema'
 import type { PaymentStatus, RegistrationStatus } from '@/features/entries/types'
 import { createClient } from '@/lib/supabase/server'
 
 export { canSubmitLineup } from '@/features/entries/schema'
-
-const OPEN_REGISTRATION_STATUSES: RegistrationStatus[] = [
-  'submitted',
-  'pending_review',
-  'approved',
-]
 
 export async function createEntry(
   actorId: string,
@@ -95,105 +85,6 @@ export async function createEntry(
   })
 
   return { entryId: data.id }
-}
-
-export async function approveEntry(
-  actorId: string,
-  input: ApproveEntryInput
-): Promise<{ error?: string }> {
-  const supabase = await createClient()
-
-  const { data: existing, error: fetchError } = await supabase
-    .from('entries')
-    .select('id, event_id, entry_number, entry_name, registration_status, payment_status')
-    .eq('id', input.entryId)
-    .eq('event_id', input.eventId)
-    .is('deleted_at', null)
-    .maybeSingle()
-
-  if (fetchError) return { error: fetchError.message }
-  if (!existing) return { error: 'Entry not found' }
-
-  const currentStatus = existing.registration_status as RegistrationStatus
-  if (!OPEN_REGISTRATION_STATUSES.includes(currentStatus)) {
-    return { error: 'Entry cannot be approved in its current status' }
-  }
-
-  const nextStatus: RegistrationStatus =
-    existing.payment_status === 'paid' ? 'confirmed' : 'approved'
-
-  const { error } = await supabase
-    .from('entries')
-    .update({ registration_status: nextStatus })
-    .eq('id', input.entryId)
-
-  if (error) return { error: error.message }
-
-  await writeAuditLog({
-    actorId,
-    action: 'entry.approved',
-    entityType: 'entry',
-    entityId: input.entryId,
-    oldValues: {
-      registration_status: currentStatus,
-      entry_number: existing.entry_number,
-    },
-    newValues: {
-      registration_status: nextStatus,
-      entry_name: existing.entry_name,
-    },
-    reason: input.reason,
-  })
-
-  return {}
-}
-
-export async function rejectEntry(
-  actorId: string,
-  input: RejectEntryInput
-): Promise<{ error?: string }> {
-  const supabase = await createClient()
-
-  const { data: existing, error: fetchError } = await supabase
-    .from('entries')
-    .select('id, event_id, entry_number, entry_name, registration_status')
-    .eq('id', input.entryId)
-    .eq('event_id', input.eventId)
-    .is('deleted_at', null)
-    .maybeSingle()
-
-  if (fetchError) return { error: fetchError.message }
-  if (!existing) return { error: 'Entry not found' }
-
-  const currentStatus = existing.registration_status as RegistrationStatus
-  if (currentStatus === 'rejected' || currentStatus === 'cancelled') {
-    return { error: 'Entry is already rejected or cancelled' }
-  }
-
-  const { error } = await supabase
-    .from('entries')
-    .update({ registration_status: 'rejected' })
-    .eq('id', input.entryId)
-
-  if (error) return { error: error.message }
-
-  await writeAuditLog({
-    actorId,
-    action: 'entry.rejected',
-    entityType: 'entry',
-    entityId: input.entryId,
-    oldValues: {
-      registration_status: currentStatus,
-      entry_number: existing.entry_number,
-    },
-    newValues: {
-      registration_status: 'rejected',
-      entry_name: existing.entry_name,
-    },
-    reason: input.reason,
-  })
-
-  return {}
 }
 
 export async function syncEntryRegistrationAfterPayment(

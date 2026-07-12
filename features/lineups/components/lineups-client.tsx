@@ -70,7 +70,7 @@ export function LineupsClient({
           Rooster Entries
         </Text>
         <Text color="fg.muted">
-          Submit rooster entries for confirmed, fully paid entries ({cocksPerEntry}{' '}
+          Submit rooster entries for fully paid entries ({cocksPerEntry}{' '}
           cocks per entry).
         </Text>
       </Box>
@@ -152,7 +152,7 @@ export function LineupsClient({
 
           {!selectedSummary.can_submit ? (
             <Text color="fg.error" fontSize="sm">
-              This entry must be confirmed and fully paid before submitting a lineup.
+              This entry must be fully paid before submitting a lineup.
             </Text>
           ) : (
             <form action={action}>

@@ -19,7 +19,7 @@ export async function submitLineup(
   }
   if (!canSubmitLineup(entry)) {
     return {
-      error: 'Only confirmed and fully paid entries can submit a lineup',
+      error: 'Only fully paid entries can submit a lineup',
     }
   }
 

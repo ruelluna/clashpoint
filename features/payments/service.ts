@@ -154,9 +154,6 @@ export async function recordPayment(
 
   if (entryError) return { error: entryError.message }
   if (!entry) return { error: 'Entry not found' }
-  if (entry.registration_status === 'rejected' || entry.registration_status === 'cancelled') {
-    return { error: 'Cannot record payment for a rejected or cancelled entry' }
-  }
 
   const { data: event, error: eventError } = await supabase
     .from('events')

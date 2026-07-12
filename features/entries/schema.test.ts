@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  canSubmitLineup,
   formatEntryNumber,
   getNextEntryNumber,
   parseEntryNumber,
@@ -32,5 +33,17 @@ describe('entry number helpers', () => {
 
   it('ignores non-numeric values when calculating the next number', () => {
     expect(getNextEntryNumber(['001', 'VIP-A', '002'])).toBe('003')
+  })
+})
+
+describe('canSubmitLineup', () => {
+  it('allows lineup when payment is paid', () => {
+    expect(canSubmitLineup({ payment_status: 'paid' })).toBe(true)
+  })
+
+  it('blocks lineup when payment is not paid', () => {
+    expect(canSubmitLineup({ payment_status: 'unpaid' })).toBe(false)
+    expect(canSubmitLineup({ payment_status: 'partial' })).toBe(false)
+    expect(canSubmitLineup({ payment_status: 'refunded' })).toBe(false)
   })
 })

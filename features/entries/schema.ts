@@ -50,21 +50,7 @@ const entryFieldsSchema = {
 
 export const createEntrySchema = z.object(entryFieldsSchema)
 
-export const approveEntrySchema = z.object({
-  entryId: z.string().uuid(),
-  eventId: z.string().uuid(),
-  reason: z.string().min(3).max(500).optional(),
-})
-
-export const rejectEntrySchema = z.object({
-  entryId: z.string().uuid(),
-  eventId: z.string().uuid(),
-  reason: z.string().min(3, 'Reason must be at least 3 characters').max(500),
-})
-
 export type CreateEntryInput = z.infer<typeof createEntrySchema>
-export type ApproveEntryInput = z.infer<typeof approveEntrySchema>
-export type RejectEntryInput = z.infer<typeof rejectEntrySchema>
 
 export const REGISTRATION_STATUS_LABELS: Record<RegistrationStatus, string> = {
   submitted: 'Submitted',
@@ -121,8 +107,7 @@ export function getNextEntryNumber(existingNumbers: string[]): string {
 }
 
 export function canSubmitLineup(entry: {
-  registration_status: RegistrationStatus
   payment_status: z.infer<typeof paymentStatusSchema>
 }): boolean {
-  return entry.registration_status === 'confirmed' && entry.payment_status === 'paid'
+  return entry.payment_status === 'paid'
 }

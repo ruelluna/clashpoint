@@ -22,7 +22,7 @@ export type EventSummaryReportRow = {
   derby_type: string
   entry_fee: number
   total_entries: number
-  confirmed_entries: number
+  paid_entries: number
   total_matches: number
   completed_matches: number
   total_roosters: number
