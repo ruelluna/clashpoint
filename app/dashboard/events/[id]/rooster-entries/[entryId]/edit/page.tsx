@@ -1,11 +1,10 @@
 import { notFound } from 'next/navigation'
-import { Box } from '@chakra-ui/react'
 
 import { EntryEditClient } from '@/features/entries/components/entry-edit-client'
 import { getEntry, listEntryRoostersForEdit } from '@/features/entries/queries'
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
 import { getEvent } from '@/features/events/queries'
 import { listPromoters } from '@/features/promoters/queries'
+import { EventPageLayout } from '@/components/dashboard'
 import { requirePermission } from '@/lib/auth/permissions'
 
 type EditRoosterEntryPageProps = {
@@ -26,8 +25,7 @@ export default async function EditRoosterEntryPage({ params }: EditRoosterEntryP
   if (!event || !entry || entry.event_id !== eventId) notFound()
 
   return (
-    <Box className="space-y-6">
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
+    <EventPageLayout eventId={event.id} eventName={event.name}>
       <EntryEditClient
         eventId={event.id}
         eventName={event.name}
@@ -37,6 +35,6 @@ export default async function EditRoosterEntryPage({ params }: EditRoosterEntryP
         minWeight={event.min_weight}
         maxWeight={event.max_weight}
       />
-    </Box>
+    </EventPageLayout>
   )
 }

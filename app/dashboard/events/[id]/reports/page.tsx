@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
-import { Box } from '@chakra-ui/react'
 
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
+import { EventPageLayout } from '@/components/dashboard'
 import { getEvent } from '@/features/events/queries'
 import { ReportsHubClient } from '@/features/reports/components/reports-hub-client'
 import { requirePermission } from '@/lib/auth/permissions'
@@ -18,9 +17,8 @@ export default async function EventReportsPage({ params }: EventReportsPageProps
   if (!event) notFound()
 
   return (
-    <Box className="space-y-6">
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
+    <EventPageLayout eventId={event.id} eventName={event.name}>
       <ReportsHubClient eventId={event.id} eventName={event.name} />
-    </Box>
+    </EventPageLayout>
   )
 }

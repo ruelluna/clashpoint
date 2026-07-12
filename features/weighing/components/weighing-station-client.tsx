@@ -1,8 +1,9 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Input, Text } from '@chakra-ui/react'
+import { Badge, Box, Button, Flex, Input, Stack, Text } from '@chakra-ui/react'
 import { useActionState, useMemo, useState } from 'react'
 
+import { LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   createRoosterAction,
   recordWeightAction,
@@ -49,13 +50,10 @@ function CreateRoosterForm({
   const addableEntries = entries.filter((entry) => entry.can_add_rooster)
 
   return (
-    <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-      <Text fontWeight="medium" mb={4}>
-        {title}
-      </Text>
+    <PanelCard title={title}>
       <form action={action}>
         <input type="hidden" name="eventId" value={eventId} />
-        <Flex direction="column" gap={4} maxW="2xl">
+        <Stack gap={LAYOUT_GAP.form} maxW="2xl">
           <Box>
             <Text fontSize="sm" fontWeight="medium" mb={1}>
               Entry
@@ -77,7 +75,7 @@ function CreateRoosterForm({
               ))}
             </select>
           </Box>
-          <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+          <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
             <Box flex="1">
               <Text fontSize="sm" fontWeight="medium" mb={1}>
                 Band number
@@ -91,7 +89,7 @@ function CreateRoosterForm({
               <Input name="weight" type="number" step="0.01" min="0" required />
             </Box>
           </Flex>
-          <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+          <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
             <Box flex="1">
               <Text fontSize="sm" fontWeight="medium" mb={1}>
                 Category
@@ -118,14 +116,14 @@ function CreateRoosterForm({
               {state.success}
             </Text>
           ) : null}
-        </Flex>
+        </Stack>
       </form>
       {addableEntries.length === 0 ? (
         <Text mt={3} fontSize="sm" color="fg.muted">
           All entries have reached their cock limit, or no entries exist yet.
         </Text>
       ) : null}
-    </Box>
+    </PanelCard>
   )
 }
 
@@ -249,27 +247,17 @@ export function WeighingStationClient({
   const createFormEntries = embedded ? addableEntries : entries.filter((e) => e.can_add_rooster)
 
   return (
-    <Box className="space-y-6">
+    <PageStack>
       {embedded ? (
-        <Box>
-          <Text fontSize="md" fontWeight="semibold">
-            Roosters &amp; weights
-          </Text>
-          <Text color="fg.muted" fontSize="sm">
-            {cocksPerEntry} cock{cocksPerEntry === 1 ? '' : 's'} per entry · Limits:{' '}
-            {weightRange}
-          </Text>
-        </Box>
+        <PageHeader
+          title="Roosters & weights"
+          description={`${cocksPerEntry} cock${cocksPerEntry === 1 ? '' : 's'} per entry · Limits: ${weightRange}`}
+        />
       ) : (
-        <Box>
-          <Text fontSize="2xl" fontWeight="semibold">
-            Weighing
-          </Text>
-          <Text color="fg.muted">
-            Register roosters with weight for each entry ({cocksPerEntry} cock
-            {cocksPerEntry === 1 ? '' : 's'} per entry). Limits: {weightRange}.
-          </Text>
-        </Box>
+        <PageHeader
+          title="Weighing"
+          description={`Register roosters with weight for each entry (${cocksPerEntry} cock${cocksPerEntry === 1 ? '' : 's'} per entry). Limits: ${weightRange}.`}
+        />
       )}
 
       {showCreateForm && createFormEntries.length > 0 ? (
@@ -280,7 +268,7 @@ export function WeighingStationClient({
         />
       ) : null}
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         <Box overflowX="auto">
           <Box as="table" width="100%" fontSize="sm">
             <Box as="thead" bg="bg.subtle">
@@ -358,7 +346,7 @@ export function WeighingStationClient({
             </Box>
           </Box>
         </Box>
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

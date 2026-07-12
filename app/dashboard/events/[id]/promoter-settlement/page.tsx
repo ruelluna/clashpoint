@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation'
-import { Box, Text } from '@chakra-ui/react'
+import { Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
+import { EventPageLayout, PanelCard } from '@/components/dashboard'
 import { getEventWithPrize } from '@/features/events/queries'
 import { SettlementClient } from '@/features/promoter-settlements/components/settlement-client'
 import { getSettlementByEvent } from '@/features/promoter-settlements/queries'
@@ -24,17 +24,15 @@ export default async function EventPromoterSettlementPage({
 
   if (!event.promoter_id) {
     return (
-      <Box className="space-y-6">
-        <EventDetailTabs eventId={event.id} eventName={event.name} />
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={6}>
-          <Text fontWeight="medium">No promoter assigned</Text>
-          <Text fontSize="sm" color="fg.muted" mt={2}>
+      <EventPageLayout eventId={event.id} eventName={event.name}>
+        <PanelCard title="No promoter assigned">
+          <Text fontSize="sm" color="fg.muted">
             Promoter settlement applies only to events with an external promoter. Edit the
             event to assign a promoter, or return to the{' '}
             <Link href={`/dashboard/events/${event.id}`}>event overview</Link>.
           </Text>
-        </Box>
-      </Box>
+        </PanelCard>
+      </EventPageLayout>
     )
   }
 
@@ -45,14 +43,13 @@ export default async function EventPromoterSettlementPage({
   const canManage = user ? await hasPermission(user.id, 'settlements.manage') : false
 
   return (
-    <Box className="space-y-6">
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
+    <EventPageLayout eventId={event.id} eventName={event.name}>
       <SettlementClient
         eventId={event.id}
         settlement={settlement}
         promoterName={event.promoter_name}
         canManage={canManage}
       />
-    </Box>
+    </EventPageLayout>
   )
 }

@@ -4,6 +4,7 @@ import { Badge, Box, Button, Flex, NativeSelect, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
+import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   COMMISSION_TYPE_LABELS,
   PROMOTER_STATUS_LABELS,
@@ -46,18 +47,16 @@ export function PromotersListClient({
   }, [promoters, statusFilter])
 
   return (
-    <Box className="space-y-6">
-      <Flex justify="space-between" align={{ base: 'stretch', md: 'center' }} gap={4} direction={{ base: 'column', md: 'row' }}>
-        <Box>
-          <Text fontSize="2xl" fontWeight="semibold">
-            Promoters
-          </Text>
-          <Text color="fg.muted">Manage external promoters and commission settings.</Text>
-        </Box>
-        <Button asChild alignSelf={{ base: 'flex-start', md: 'auto' }}>
-          <Link href="/dashboard/promoters/new">Add promoter</Link>
-        </Button>
-      </Flex>
+    <PageStack>
+      <PageHeader
+        title="Promoters"
+        description="Manage external promoters and commission settings."
+        actions={
+          <Button asChild alignSelf={{ base: 'flex-start', md: 'auto' }}>
+            <Link href="/dashboard/promoters/new">Add promoter</Link>
+          </Button>
+        }
+      />
 
       <Flex align="center" gap={3} maxW="xs">
         <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
@@ -79,7 +78,7 @@ export function PromotersListClient({
         </NativeSelect.Root>
       </Flex>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         <Flex
           px={4}
           py={3}
@@ -137,7 +136,7 @@ export function PromotersListClient({
             </Link>
           ))
         )}
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

@@ -1,9 +1,10 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Text } from '@chakra-ui/react'
+import { Badge, Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 
+import { ButtonGroup, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import { downloadReportCsvAction } from '@/features/reports/actions'
 import type { EventReportType } from '@/features/reports/types'
 import type { EventListItem } from '@/features/events/types'
@@ -87,15 +88,11 @@ export function ReportsHubClient({ eventId, eventName }: ReportsHubClientProps) 
   }
 
   return (
-    <Box className="space-y-6">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Reports
-        </Text>
-        <Text color="fg.muted">
-          Generate and download CSV reports for {eventName}.
-        </Text>
-      </Box>
+    <PageStack>
+      <PageHeader
+        title="Reports"
+        description={`Generate and download CSV reports for ${eventName}.`}
+      />
 
       {error ? (
         <Box
@@ -112,7 +109,7 @@ export function ReportsHubClient({ eventId, eventName }: ReportsHubClientProps) 
         </Box>
       ) : null}
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         {EVENT_REPORTS.map((report, index) => {
           const isDownloading = isPending && pendingType === report.type
           const viewHref = report.viewHref
@@ -143,7 +140,7 @@ export function ReportsHubClient({ eventId, eventName }: ReportsHubClientProps) 
                 </Text>
               </Box>
 
-              <Flex gap={2} shrink={0}>
+              <ButtonGroup shrink={0}>
                 {viewHref ? (
                   <Button asChild size="sm" variant="outline">
                     <Link href={viewHref}>View</Link>
@@ -156,12 +153,12 @@ export function ReportsHubClient({ eventId, eventName }: ReportsHubClientProps) 
                 >
                   Download CSV
                 </Button>
-              </Flex>
+              </ButtonGroup>
             </Flex>
           )
         })}
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }
 
@@ -192,15 +189,11 @@ export function GlobalReportsClient({ events }: GlobalReportsClientProps) {
   }
 
   return (
-    <Box className="space-y-8">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Reports
-        </Text>
-        <Text color="fg.muted">
-          Global reports and event-scoped exports.
-        </Text>
-      </Box>
+    <PageStack>
+      <PageHeader
+        title="Reports"
+        description="Global reports and event-scoped exports."
+      />
 
       {error ? (
         <Box
@@ -217,9 +210,9 @@ export function GlobalReportsClient({ events }: GlobalReportsClientProps) {
         </Box>
       ) : null}
 
-      <Box className="space-y-3">
+      <Stack gap={LAYOUT_GAP.form}>
         <Text fontWeight="semibold">Global reports</Text>
-        <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+        <PanelCard flush>
           <Flex
             px={4}
             py={4}
@@ -236,7 +229,7 @@ export function GlobalReportsClient({ events }: GlobalReportsClientProps) {
                 Events hosted, referrals, and collections by promoter.
               </Text>
             </Box>
-            <Flex gap={2}>
+            <ButtonGroup>
               <Button asChild size="sm" variant="outline">
                 <Link href="/dashboard/reports/promoters">View</Link>
               </Button>
@@ -247,7 +240,7 @@ export function GlobalReportsClient({ events }: GlobalReportsClientProps) {
               >
                 Download CSV
               </Button>
-            </Flex>
+            </ButtonGroup>
           </Flex>
           <Flex
             px={4}
@@ -263,7 +256,7 @@ export function GlobalReportsClient({ events }: GlobalReportsClientProps) {
                 System-wide audit log export (latest 500 entries).
               </Text>
             </Box>
-            <Flex gap={2}>
+            <ButtonGroup>
               <Button asChild size="sm" variant="outline">
                 <Link href="/dashboard/audit">View</Link>
               </Button>
@@ -274,14 +267,14 @@ export function GlobalReportsClient({ events }: GlobalReportsClientProps) {
               >
                 Download CSV
               </Button>
-            </Flex>
+            </ButtonGroup>
           </Flex>
-        </Box>
-      </Box>
+        </PanelCard>
+      </Stack>
 
-      <Box className="space-y-3">
+      <Stack gap={LAYOUT_GAP.form}>
         <Text fontWeight="semibold">Event reports</Text>
-        <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+        <PanelCard flush>
           {events.length === 0 ? (
             <Box px={4} py={6} color="fg.muted">
               No events yet.
@@ -311,8 +304,8 @@ export function GlobalReportsClient({ events }: GlobalReportsClientProps) {
               </Flex>
             ))
           )}
-        </Box>
-      </Box>
-    </Box>
+        </PanelCard>
+      </Stack>
+    </PageStack>
   )
 }

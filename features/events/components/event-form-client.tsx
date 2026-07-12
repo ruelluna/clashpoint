@@ -8,6 +8,7 @@ import {
   Flex,
   Input,
   NativeSelect,
+  Stack,
   Text,
   Textarea,
 } from '@chakra-ui/react'
@@ -15,6 +16,13 @@ import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
 
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
+import {
+  ButtonGroup,
+  LAYOUT_GAP,
+  PageHeader,
+  PageStack,
+  PanelCard,
+} from '@/components/dashboard'
 import {
   createEventAction,
   transitionStatusAction,
@@ -157,28 +165,21 @@ export function EventFormClient({
   }
 
   return (
-    <Box className="space-y-6">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          {mode === 'create' ? 'New event' : 'Edit event'}
-        </Text>
-        {event ? (
-          <Flex align="center" gap={2} mt={1}>
-            <Badge>{EVENT_STATUS_LABELS[event.status]}</Badge>
-            <Text fontSize="sm" color="fg.muted">
-              {event.name}
-            </Text>
-          </Flex>
-        ) : (
-          <Text color="fg.muted">Configure event details and prize structure.</Text>
-        )}
-      </Box>
+    <PageStack>
+      <PageHeader
+        title={mode === 'create' ? 'New event' : 'Edit event'}
+        description={
+          event
+            ? event.name
+            : 'Configure event details and prize structure.'
+        }
+        actions={
+          event ? <Badge>{EVENT_STATUS_LABELS[event.status]}</Badge> : undefined
+        }
+      />
 
       {event && nextStatuses.length > 0 ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-          <Text fontWeight="medium" mb={3}>
-            Status
-          </Text>
+        <PanelCard title="Status">
           <Flex gap={2} wrap="wrap">
             {nextStatuses.map((status) => (
               <form key={status} action={statusAction}>
@@ -206,12 +207,12 @@ export function EventFormClient({
               {statusState.success}
             </Text>
           ) : null}
-        </Box>
+        </PanelCard>
       ) : null}
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
+      <PanelCard>
         <form action={formAction}>
-          <Flex direction="column" gap={5}>
+          <Stack gap={LAYOUT_GAP.form}>
             {event ? <input type="hidden" name="eventId" value={event.id} /> : null}
             <input type="hidden" name="eventType" value={eventType} />
             {isDerby ? (
@@ -230,7 +231,7 @@ export function EventFormClient({
               <Input name="name" defaultValue={event?.name ?? ''} required />
             </Box>
 
-            <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
+            <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
               <Box flex="1">
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
                   Event date
@@ -281,7 +282,7 @@ export function EventFormClient({
 
             {isDerby ? (
               <>
-                <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
+                <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
                   <Box flex="1">
                     <Text fontSize="sm" fontWeight="medium" mb={1}>
                       Registration deadline
@@ -312,7 +313,7 @@ export function EventFormClient({
                   </Box>
                 </Flex>
 
-                <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
+                <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
                   <Box flex="1">
                     <Text fontSize="sm" fontWeight="medium" mb={1}>
                       Derby type
@@ -486,7 +487,7 @@ export function EventFormClient({
               <Textarea name="notes" rows={3} defaultValue={event?.notes ?? ''} />
             </Box>
 
-            <Flex gap={3} wrap="wrap">
+            <ButtonGroup wrap="wrap">
               <Button type="submit" loading={pending}>
                 {mode === 'create' ? 'Create event' : 'Save changes'}
               </Button>
@@ -495,7 +496,7 @@ export function EventFormClient({
                   Cancel
                 </Link>
               </Button>
-            </Flex>
+            </ButtonGroup>
 
             {formState.error ? (
               <Text color="fg.error" fontSize="sm">
@@ -507,9 +508,9 @@ export function EventFormClient({
                 {formState.success}
               </Text>
             ) : null}
-          </Flex>
+          </Stack>
         </form>
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

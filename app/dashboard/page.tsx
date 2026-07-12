@@ -1,5 +1,6 @@
-import { Box, Flex, SimpleGrid, Text } from '@chakra-ui/react'
+import { Flex, SimpleGrid, Text } from '@chakra-ui/react'
 
+import { LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import { listAuditLogs } from '@/features/audit/queries'
 import { getUserCount } from '@/features/users/queries'
 import { requireDashboardAccess } from '@/lib/auth'
@@ -32,39 +33,26 @@ export default async function DashboardPage() {
   ]
 
   return (
-    <Box className="space-y-6">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Dashboard
-        </Text>
-        <Text color="fg.muted">
-          Signed in as {profile.display_name ?? profile.role}.
-        </Text>
-      </Box>
+    <PageStack>
+      <PageHeader
+        title="Dashboard"
+        description={`Signed in as ${profile.display_name ?? profile.role}.`}
+      />
 
-      <SimpleGrid columns={{ base: 1, md: 3 }} gap={4}>
+      <SimpleGrid columns={{ base: 1, md: 3 }} gap={LAYOUT_GAP.form}>
         {cards.map((card) => (
-          <Box
-            key={card.label}
-            borderWidth="1px"
-            borderColor="border"
-            rounded="lg"
-            p={4}
-          >
+          <PanelCard key={card.label}>
             <Text fontSize="sm" color="fg.muted">
               {card.label}
             </Text>
             <Text fontSize="3xl" fontWeight="bold">
               {card.value}
             </Text>
-          </Box>
+          </PanelCard>
         ))}
       </SimpleGrid>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-        <Text fontWeight="medium" mb={3}>
-          Recent activity
-        </Text>
+      <PanelCard title="Recent activity">
         {auditResult.logs.length === 0 ? (
           <Text color="fg.muted" fontSize="sm">
             No audit entries yet.
@@ -90,7 +78,7 @@ export default async function DashboardPage() {
             ))}
           </Flex>
         )}
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
+import { EventPageLayout } from '@/components/dashboard'
 import { getEvent } from '@/features/events/queries'
 import { MatchingBoardClient } from '@/features/matches/components/matching-board-client'
 import {
@@ -32,8 +32,7 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
   const canManage = user ? await hasPermission(user.id, 'matches.manage') : false
 
   return (
-    <>
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
+    <EventPageLayout eventId={event.id} eventName={event.name}>
       <MatchingBoardClient
         eventId={event.id}
         eventName={event.name}
@@ -42,6 +41,6 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
         eligibleRoosters={eligibleRoosters}
         canManage={canManage}
       />
-    </>
+    </EventPageLayout>
   )
 }

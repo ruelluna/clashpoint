@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation'
-import { Flex } from '@chakra-ui/react'
 
+import { EventPageLayout } from '@/components/dashboard'
 import { RoosterEntriesClient } from '@/features/entries/components/rooster-entries-client'
 import { listEntriesByEvent } from '@/features/entries/queries'
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
 import { getEvent } from '@/features/events/queries'
 import { requirePermission } from '@/lib/auth/permissions'
 
@@ -21,13 +20,12 @@ export default async function RoosterEntriesPage({ params }: RoosterEntriesPageP
   const entries = await listEntriesByEvent(id)
 
   return (
-    <Flex direction="column" gap={8}>
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
+    <EventPageLayout eventId={event.id} eventName={event.name}>
       <RoosterEntriesClient
         eventId={event.id}
         eventName={event.name}
         entries={entries}
       />
-    </Flex>
+    </EventPageLayout>
   )
 }

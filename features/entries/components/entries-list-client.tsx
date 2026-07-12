@@ -3,6 +3,7 @@
 import { Box, Button, Flex, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
+import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import { ENTRY_SOURCE_LABELS } from '@/features/entries/schema'
 import type { EntryListItem } from '@/features/entries/types'
 
@@ -18,32 +19,20 @@ export function EntriesListClient({
   entries,
 }: EntriesListClientProps) {
   return (
-    <Flex direction="column" gap={8}>
-      <Flex
-        justify="space-between"
-        align={{ base: 'stretch', sm: 'center' }}
-        direction={{ base: 'column', sm: 'row' }}
-        gap={3}
-      >
-        <Box>
-          <Text fontSize="lg" fontWeight="semibold">
-            Rooster Entries
-          </Text>
-          <Text color="fg.muted" fontSize="sm">
-            {eventName} · {entries.length} entr{entries.length === 1 ? 'y' : 'ies'}
-          </Text>
-          <Text color="fg.muted" fontSize="sm" mt={1}>
-            Event roster — add roosters and weights on Weighing; matching happens later.
-          </Text>
-        </Box>
-        <Button asChild alignSelf={{ base: 'flex-start', sm: 'auto' }}>
-          <Link href={`/dashboard/events/${eventId}/rooster-entries/new`}>
-            New entry
-          </Link>
-        </Button>
-      </Flex>
+    <PageStack>
+      <PageHeader
+        title="Rooster Entries"
+        description={`${eventName} · ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}. Event roster — add roosters and weights on Weighing; matching happens later.`}
+        actions={
+          <Button asChild alignSelf={{ base: 'flex-start', sm: 'auto' }}>
+            <Link href={`/dashboard/events/${eventId}/rooster-entries/new`}>
+              New entry
+            </Link>
+          </Button>
+        }
+      />
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         <Flex
           px={4}
           py={4}
@@ -103,7 +92,7 @@ export function EntriesListClient({
             </Box>
           ))
         )}
-      </Box>
-    </Flex>
+      </PanelCard>
+    </PageStack>
   )
 }

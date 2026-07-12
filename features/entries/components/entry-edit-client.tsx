@@ -6,12 +6,14 @@ import {
   Flex,
   Input,
   NativeSelect,
+  Stack,
   Text,
   Textarea,
 } from '@chakra-ui/react'
 import Link from 'next/link'
 import { useActionState } from 'react'
 
+import { ButtonGroup, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   updateEntryAction,
   type EntryActionState,
@@ -52,20 +54,14 @@ export function EntryEditClient({
   const activePromoters = promoters.filter((promoter) => promoter.status === 'active')
 
   return (
-    <Box className="space-y-6" maxW="2xl">
-      <Box>
-        <Text fontSize="lg" fontWeight="semibold">
-          Edit rooster entry
-        </Text>
-        <Text color="fg.muted" fontSize="sm">
-          {eventName} · Entry #{entry.entry_number}
-        </Text>
-        <Text color="fg.muted" fontSize="sm">
-          Weight limits: {formatWeightRange(minWeight, maxWeight)}
-        </Text>
-      </Box>
+    <PageStack maxW="2xl">
+      <PageHeader
+        title="Edit rooster entry"
+        description={`${eventName} · Entry #${entry.entry_number} · Weight limits: ${formatWeightRange(minWeight, maxWeight)}`}
+      />
 
-      <form action={formAction} className="space-y-4">
+      <form action={formAction}>
+        <Stack gap={LAYOUT_GAP.form}>
         <input type="hidden" name="eventId" value={eventId} />
         <input type="hidden" name="entryId" value={entry.id} />
         <input type="hidden" name="roosterIds" value={roosters.map((r) => r.rooster_id).join(',')} />
@@ -99,7 +95,7 @@ export function EntryEditClient({
           />
         </Box>
 
-        <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+        <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
           <Box flex="1">
             <Text fontSize="sm" fontWeight="medium" mb={1}>
               Contact number
@@ -130,7 +126,7 @@ export function EntryEditClient({
           <Textarea name="address" rows={2} maxLength={500} defaultValue={entry.address ?? ''} />
         </Box>
 
-        <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+        <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
           <Box flex="1">
             <Text fontSize="sm" fontWeight="medium" mb={1}>
               Entry source
@@ -184,13 +180,7 @@ export function EntryEditClient({
               Roosters &amp; weights
             </Text>
             {roosters.map((rooster) => (
-              <Box
-                key={rooster.rooster_id}
-                borderWidth="1px"
-                borderColor="border"
-                rounded="lg"
-                p={4}
-              >
+              <PanelCard key={rooster.rooster_id}>
                 <Text fontSize="sm" fontWeight="medium" mb={3}>
                   Cock #{rooster.cock_number}
                   {rooster.is_paired ? (
@@ -199,7 +189,7 @@ export function EntryEditClient({
                     </Text>
                   ) : null}
                 </Text>
-                <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+                <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
                   <Box flex="1">
                     <Text fontSize="sm" fontWeight="medium" mb={1}>
                       Band number
@@ -229,7 +219,7 @@ export function EntryEditClient({
                     />
                   </Box>
                 </Flex>
-                <Flex gap={4} direction={{ base: 'column', sm: 'row' }} mt={4}>
+                <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }} mt={LAYOUT_GAP.form}>
                   <Box flex="1">
                     <Text fontSize="sm" fontWeight="medium" mb={1}>
                       Category
@@ -253,7 +243,7 @@ export function EntryEditClient({
                     />
                   </Box>
                 </Flex>
-              </Box>
+              </PanelCard>
             ))}
           </>
         ) : null}
@@ -264,15 +254,16 @@ export function EntryEditClient({
           </Text>
         ) : null}
 
-        <Flex gap={3}>
+        <ButtonGroup>
           <Button type="submit" loading={pending}>
             Save entry
           </Button>
           <Button asChild variant="outline">
             <Link href={`/dashboard/events/${eventId}/rooster-entries`}>Cancel</Link>
           </Button>
-        </Flex>
+        </ButtonGroup>
+        </Stack>
       </form>
-    </Box>
+    </PageStack>
   )
 }

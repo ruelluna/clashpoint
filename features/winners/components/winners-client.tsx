@@ -5,11 +5,13 @@ import {
   Box,
   Button,
   Flex,
+  Stack,
   Text,
   Textarea,
 } from '@chakra-ui/react'
 import { useActionState } from 'react'
 
+import { LAYOUT_GAP, PageStack, PanelCard } from '@/components/dashboard'
 import {
   finalizeWinnersAction,
   type WinnersActionState,
@@ -30,10 +32,9 @@ export function WinnersClient({ eventId, summary, canManage }: WinnersClientProp
   const isLocked = summary.finalization?.is_locked ?? false
 
   return (
-    <Box className="space-y-6">
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-        <Text fontWeight="medium">Winner finalization</Text>
-        <Text fontSize="sm" color="fg.muted" mt={1}>
+    <PageStack>
+      <PanelCard title="Winner finalization">
+        <Text fontSize="sm" color="fg.muted">
           Tie-breaker rule: {summary.tieBreakerRule.replace(/_/g, ' ')}
         </Text>
         {isFinalized ? (
@@ -49,12 +50,9 @@ export function WinnersClient({ eventId, summary, canManage }: WinnersClientProp
             Standings must be computed before finalizing winners.
           </Text>
         )}
-      </Box>
+      </PanelCard>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
-        <Box p={4} borderBottomWidth="1px" borderColor="border">
-          <Text fontWeight="medium">Rankings & champions</Text>
-        </Box>
+      <PanelCard flush title="Rankings & champions">
         {summary.winners.length === 0 ? (
           <Box p={4}>
             <Text fontSize="sm" color="fg.muted">
@@ -118,50 +116,45 @@ export function WinnersClient({ eventId, summary, canManage }: WinnersClientProp
             </Box>
           </Box>
         )}
-      </Box>
+      </PanelCard>
 
       {canManage && !isLocked ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-          <Text fontWeight="medium" mb={2}>
-            Finalize winners
-          </Text>
+        <PanelCard title="Finalize winners">
           <Text fontSize="sm" color="fg.muted" mb={3}>
             Applies the event tie-breaker, locks results, and generates pending prize
             payouts.
           </Text>
           <form action={action}>
+            <Stack gap={LAYOUT_GAP.form}>
             <input type="hidden" name="eventId" value={eventId} />
             <Textarea
               name="notes"
               placeholder="Optional notes for audit log"
               rows={2}
-              mb={3}
             />
-            <Button type="submit" colorPalette="green" loading={pending}>
+            <Button type="submit" colorPalette="green" loading={pending} alignSelf="flex-start">
               Finalize winners
             </Button>
             {state.error ? (
-              <Text fontSize="sm" color="red.500" mt={2}>
+              <Text fontSize="sm" color="red.500">
                 {state.error}
               </Text>
             ) : null}
             {state.success ? (
-              <Text fontSize="sm" color="green.600" mt={2}>
+              <Text fontSize="sm" color="green.600">
                 {state.success}
               </Text>
             ) : null}
+            </Stack>
           </form>
-        </Box>
+        </PanelCard>
       ) : null}
 
       {summary.finalization?.notes ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-          <Text fontWeight="medium">Finalization notes</Text>
-          <Text fontSize="sm" mt={1}>
-            {summary.finalization.notes}
-          </Text>
-        </Box>
+        <PanelCard title="Finalization notes">
+          <Text fontSize="sm">{summary.finalization.notes}</Text>
+        </PanelCard>
       ) : null}
-    </Box>
+    </PageStack>
   )
 }

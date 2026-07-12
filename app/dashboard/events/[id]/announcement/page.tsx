@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
-import { Box } from '@chakra-ui/react'
 
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
+import { EventPageLayout } from '@/components/dashboard'
 import { getEventWithPrize } from '@/features/events/queries'
 import { listPayoutsByEvent } from '@/features/payouts/queries'
 import { AnnouncementClient } from '@/features/winners/components/announcement-client'
@@ -67,12 +66,11 @@ export default async function EventAnnouncementPage({
   })
 
   return (
-    <Box className="space-y-6">
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
+    <EventPageLayout eventId={event.id} eventName={event.name}>
       <AnnouncementClient
         announcementText={announcementText}
         isFinalized={summary.finalization != null}
       />
-    </Box>
+    </EventPageLayout>
   )
 }

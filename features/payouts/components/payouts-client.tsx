@@ -6,11 +6,13 @@ import {
   Button,
   Flex,
   NativeSelect,
+  Stack,
   Text,
   Textarea,
 } from '@chakra-ui/react'
 import { useActionState, useState } from 'react'
 
+import { ButtonGroup, LAYOUT_GAP, PageStack, PanelCard } from '@/components/dashboard'
 import {
   recordPayoutAction,
   type PayoutActionState,
@@ -67,10 +69,11 @@ function ReleasePayoutForm({
   }
 
   return (
-    <form action={action} className="mt-2">
+    <form action={action}>
+      <Stack gap={LAYOUT_GAP.form} mt={2}>
       <input type="hidden" name="payoutId" value={payout.id} />
       <input type="hidden" name="eventId" value={eventId} />
-      <NativeSelect.Root size="sm" mb={2}>
+      <NativeSelect.Root size="sm">
         <NativeSelect.Field name="paymentMethod" defaultValue="cash">
           {Object.entries(PAYOUT_METHOD_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -79,25 +82,26 @@ function ReleasePayoutForm({
           ))}
         </NativeSelect.Field>
       </NativeSelect.Root>
-      <Textarea name="notes" placeholder="Optional notes" rows={2} size="sm" mb={2} />
-      <Flex gap={2}>
+      <Textarea name="notes" placeholder="Optional notes" rows={2} size="sm" />
+      <ButtonGroup>
         <Button size="xs" type="submit" colorPalette="green" loading={pending}>
           Confirm release
         </Button>
         <Button size="xs" variant="ghost" onClick={() => setOpen(false)}>
           Cancel
         </Button>
-      </Flex>
+      </ButtonGroup>
       {state.error ? (
-        <Text fontSize="xs" color="red.500" mt={1}>
+        <Text fontSize="xs" color="red.500">
           {state.error}
         </Text>
       ) : null}
       {state.success ? (
-        <Text fontSize="xs" color="green.600" mt={1}>
+        <Text fontSize="xs" color="green.600">
           {state.success}
         </Text>
       ) : null}
+      </Stack>
     </form>
   )
 }
@@ -116,10 +120,9 @@ export function PayoutsClient({
     .reduce((sum, row) => sum + row.amount, 0)
 
   return (
-    <Box className="space-y-6">
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-        <Text fontWeight="medium">Prize pool</Text>
-        <Flex wrap="wrap" gap={4} mt={3} fontSize="sm">
+    <PageStack>
+      <PanelCard title="Prize pool">
+        <Flex wrap="wrap" gap={4} fontSize="sm">
           <Box>
             <Text color="fg.muted">Gross collection</Text>
             <Text fontWeight="medium">{formatCurrency(prizePool.grossCollection)}</Text>
@@ -147,12 +150,9 @@ export function PayoutsClient({
             <Text fontWeight="medium">{formatCurrency(totalReleased)}</Text>
           </Box>
         </Flex>
-      </Box>
+      </PanelCard>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
-        <Box p={4} borderBottomWidth="1px" borderColor="border">
-          <Text fontWeight="medium">Prize payouts</Text>
-        </Box>
+      <PanelCard flush title="Prize payouts">
         {payouts.length === 0 ? (
           <Box p={4}>
             <Text fontSize="sm" color="fg.muted">
@@ -227,7 +227,7 @@ export function PayoutsClient({
             </Box>
           </Box>
         )}
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

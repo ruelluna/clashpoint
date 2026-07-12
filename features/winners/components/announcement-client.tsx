@@ -1,7 +1,9 @@
 'use client'
 
-import { Box, Button, Text, Textarea } from '@chakra-ui/react'
+import { Button, Text, Textarea } from '@chakra-ui/react'
 import { useMemo, useState } from 'react'
+
+import { PageStack, PanelCard } from '@/components/dashboard'
 
 type AnnouncementClientProps = {
   announcementText: string
@@ -22,21 +24,20 @@ export function AnnouncementClient({
   }
 
   return (
-    <Box className="space-y-4">
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-        <Text fontWeight="medium">Winner announcement</Text>
-        <Text fontSize="sm" color="fg.muted" mt={1}>
+    <PageStack>
+      <PanelCard title="Winner announcement">
+        <Text fontSize="sm" color="fg.muted">
           {isFinalized
             ? 'Generated from finalized winners and prize payouts.'
             : 'Preview based on current standings. Finalize winners for the official announcement.'}
         </Text>
-      </Box>
+      </PanelCard>
 
       <Textarea value={text} readOnly rows={14} fontFamily="mono" fontSize="sm" />
 
-      <Button onClick={copyToClipboard} variant="outline">
+      <Button onClick={copyToClipboard} variant="outline" alignSelf="flex-start">
         {copied ? 'Copied!' : 'Copy to clipboard'}
       </Button>
-    </Box>
+    </PageStack>
   )
 }

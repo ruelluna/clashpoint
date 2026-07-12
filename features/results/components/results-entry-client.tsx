@@ -7,11 +7,13 @@ import {
   Checkbox,
   Flex,
   NativeSelect,
+  Stack,
   Text,
   Textarea,
 } from '@chakra-ui/react'
 import { useActionState } from 'react'
 
+import { LAYOUT_GAP, PageStack, PanelCard } from '@/components/dashboard'
 import {
   recordResultAction,
   verifyResultAction,
@@ -65,7 +67,7 @@ export function ResultsEntryClient({
   const feedbackTone = recordState.error || verifyState.error ? 'red' : 'green'
 
   return (
-    <Box className="space-y-6">
+    <PageStack>
       {feedback ? (
         <Box
           borderWidth="1px"
@@ -81,19 +83,17 @@ export function ResultsEntryClient({
       ) : null}
 
       {canManage ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-          <Text fontWeight="medium" mb={4}>
-            Record result
-          </Text>
+        <PanelCard title="Record result">
           {pendingMatches.length === 0 ? (
             <Text fontSize="sm" color="fg.muted">
               No matches are waiting for a result.
             </Text>
           ) : (
-            <form action={recordFormAction} className="space-y-4">
+            <form action={recordFormAction}>
+              <Stack gap={LAYOUT_GAP.form}>
               <input type="hidden" name="eventId" value={eventId} />
-              <Flex direction="column" gap={2}>
-                <Text fontSize="sm" fontWeight="medium">
+              <Box>
+                <Text fontSize="sm" fontWeight="medium" mb={2}>
                   Match
                 </Text>
                 <NativeSelect.Root size="sm">
@@ -108,9 +108,9 @@ export function ResultsEntryClient({
                     ))}
                   </NativeSelect.Field>
                 </NativeSelect.Root>
-              </Flex>
-              <Flex direction="column" gap={2}>
-                <Text fontSize="sm" fontWeight="medium">
+              </Box>
+              <Box>
+                <Text fontSize="sm" fontWeight="medium" mb={2}>
                   Result
                 </Text>
                 <NativeSelect.Root size="sm">
@@ -122,13 +122,13 @@ export function ResultsEntryClient({
                     ))}
                   </NativeSelect.Field>
                 </NativeSelect.Root>
-              </Flex>
-              <Flex direction="column" gap={2}>
-                <Text fontSize="sm" fontWeight="medium">
+              </Box>
+              <Box>
+                <Text fontSize="sm" fontWeight="medium" mb={2}>
                   Notes
                 </Text>
                 <Textarea name="notes" rows={2} placeholder="Optional notes" />
-              </Flex>
+              </Box>
               <Checkbox.Root name="underProtest">
                 <Checkbox.HiddenInput />
                 <Checkbox.Control />
@@ -137,18 +137,16 @@ export function ResultsEntryClient({
               <Button type="submit" loading={recordPending} alignSelf="flex-start">
                 Submit result
               </Button>
+              </Stack>
             </form>
           )}
-        </Box>
+        </PanelCard>
       ) : null}
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
-        <Box p={4} borderBottomWidth="1px" borderColor="border">
-          <Text fontWeight="medium">Recorded results</Text>
-          <Text fontSize="sm" color="fg.muted">
-            Verified results update event standings.
-          </Text>
-        </Box>
+      <PanelCard flush title="Recorded results">
+        <Text fontSize="sm" color="fg.muted" px={LAYOUT_GAP.cardPadding} pb={LAYOUT_GAP.cardTitle}>
+          Verified results update event standings.
+        </Text>
         {results.length === 0 ? (
           <Box p={4}>
             <Text fontSize="sm" color="fg.muted">
@@ -225,7 +223,7 @@ export function ResultsEntryClient({
             </Box>
           </Box>
         )}
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

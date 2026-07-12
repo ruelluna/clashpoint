@@ -7,11 +7,13 @@ import {
   Flex,
   Input,
   NativeSelect,
+  Stack,
   Text,
   Textarea,
 } from '@chakra-ui/react'
 import { useActionState, useMemo, useState } from 'react'
 
+import { ButtonGroup, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   PAYMENT_STATUS_LABELS,
 } from '@/features/entries/schema'
@@ -96,14 +98,14 @@ function RefundForm({
             required
             minLength={3}
           />
-          <Flex gap={2} mt={2}>
+          <ButtonGroup mt={2}>
             <Button size="xs" type="submit" colorPalette="red" loading={pending}>
               Confirm refund
             </Button>
             <Button size="xs" variant="ghost" onClick={() => setShowForm(false)}>
               Cancel
             </Button>
-          </Flex>
+          </ButtonGroup>
           {state.error ? (
             <Text fontSize="xs" color="red.500" mt={1}>
               {state.error}
@@ -139,21 +141,15 @@ export function PaymentsLedgerClient({
   )
 
   return (
-    <Flex direction="column" gap={8}>
-      <Box>
-        <Text fontSize="lg" fontWeight="semibold">
-          Payments
-        </Text>
-        <Text color="fg.muted" fontSize="sm">
-          {eventName} · Entry fee {formatCurrency(entryFee)}
-        </Text>
-      </Box>
+    <PageStack>
+      <PageHeader
+        title="Payments"
+        description={`${eventName} · Entry fee ${formatCurrency(entryFee)}`}
+      />
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={6}>
-        <Text fontWeight="medium" mb={5}>
-          Record payment
-        </Text>
-        <form action={recordAction} className="flex max-w-xl flex-col gap-5">
+      <PanelCard title="Record payment">
+        <form action={recordAction}>
+          <Stack gap={LAYOUT_GAP.form} maxW="xl">
           <input type="hidden" name="eventId" value={eventId} />
 
           <Box>
@@ -177,7 +173,7 @@ export function PaymentsLedgerClient({
             </NativeSelect.Root>
           </Box>
 
-          <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+          <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
             <Box flex="1">
               <Text fontSize="sm" fontWeight="medium" mb={2}>
                 Amount paid
@@ -232,13 +228,14 @@ export function PaymentsLedgerClient({
             </Text>
           ) : null}
 
-          <Button type="submit" loading={recordPending} disabled={!payableEntries.length}>
+          <Button type="submit" loading={recordPending} disabled={!payableEntries.length} alignSelf="flex-start">
             Record payment
           </Button>
+          </Stack>
         </form>
-      </Box>
+      </PanelCard>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         <Flex
           px={4}
           py={4}
@@ -311,27 +308,22 @@ export function PaymentsLedgerClient({
             </Box>
           ))
         )}
-      </Box>
+      </PanelCard>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={6}>
-        <Text fontWeight="medium" mb={5}>
-          Entry payment summary
-        </Text>
-        <Flex direction="column" gap={4}>
+      <PanelCard title="Entry payment summary">
+        <Stack gap={LAYOUT_GAP.form}>
           {entries.map((entry) => (
             <Flex key={entry.id} justify="space-between" gap={3} fontSize="sm">
               <Text>
                 #{entry.entry_number} {entry.entry_name}
               </Text>
-              <Flex gap={2}>
-                <Badge colorPalette={paymentStatusColor(entry.payment_status)}>
-                  {PAYMENT_STATUS_LABELS[entry.payment_status]}
-                </Badge>
-              </Flex>
+              <Badge colorPalette={paymentStatusColor(entry.payment_status)}>
+                {PAYMENT_STATUS_LABELS[entry.payment_status]}
+              </Badge>
             </Flex>
           ))}
-        </Flex>
-      </Box>
-    </Flex>
+        </Stack>
+      </PanelCard>
+    </PageStack>
   )
 }

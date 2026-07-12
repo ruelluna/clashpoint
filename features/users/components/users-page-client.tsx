@@ -1,8 +1,9 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Input, NativeSelect, Text } from '@chakra-ui/react'
+import { Badge, Box, Button, Flex, Input, NativeSelect, Stack, Text } from '@chakra-ui/react'
 import { useActionState, useState } from 'react'
 
+import { LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   deactivateUserAction,
   inviteUserAction,
@@ -78,22 +79,15 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
   const [, deactivateAction] = useActionState(deactivateUserAction, initialState)
 
   return (
-    <Box className="space-y-8">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Users
-        </Text>
-        <Text color="fg.muted">
-          Manage staff accounts, roles, and module access.
-        </Text>
-      </Box>
+    <PageStack>
+      <PageHeader
+        title="Users"
+        description="Manage staff accounts, roles, and module access."
+      />
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-        <Text fontWeight="medium" mb={4}>
-          Invite user
-        </Text>
+      <PanelCard title="Invite user">
         <form action={inviteAction}>
-          <Flex direction="column" gap={3} maxW="md">
+          <Stack gap={LAYOUT_GAP.form} maxW="md">
             <Input name="email" type="email" placeholder="Email" required />
             <Input name="password" type="password" placeholder="Password" required />
             <Input name="displayName" placeholder="Display name" />
@@ -136,11 +130,11 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                 {inviteState.success}
               </Text>
             ) : null}
-          </Flex>
+          </Stack>
         </form>
-      </Box>
+      </PanelCard>
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         <Flex
           px={4}
           py={3}
@@ -192,7 +186,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
             </Box>
             <Box flex="2">
               {user.is_active ? (
-                <Flex direction="column" gap={3}>
+                <Stack gap={LAYOUT_GAP.form}>
                   <form action={roleAction} className="flex gap-2 items-center flex-wrap">
                     <input type="hidden" name="userId" value={user.id} />
                     <NativeSelect.Root size="sm">
@@ -229,12 +223,12 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                       Deactivate
                     </Button>
                   </form>
-                </Flex>
+                </Stack>
               ) : null}
             </Box>
           </Flex>
         ))}
-      </Box>
+      </PanelCard>
 
       {roleState.error ? (
         <Text color="fg.error" fontSize="sm">
@@ -256,6 +250,6 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
           {modulesState.success}
         </Text>
       ) : null}
-    </Box>
+    </PageStack>
   )
 }

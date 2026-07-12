@@ -1,5 +1,6 @@
 import { Badge, Box, Flex, Text } from '@chakra-ui/react'
 
+import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import { listAuditLogs } from '@/features/audit/queries'
 import { requirePermission } from '@/lib/auth/permissions'
 
@@ -17,29 +18,23 @@ export default async function AuditPage({
   })
 
   return (
-    <Box className="space-y-6">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Audit trail
-        </Text>
-        <Text color="fg.muted">{count} entries</Text>
-      </Box>
+    <PageStack>
+      <PageHeader title="Audit trail" description={`${count} entries`} />
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard>
         {logs.length === 0 ? (
-          <Box p={4}>
-            <Text color="fg.muted">No audit entries found.</Text>
-          </Box>
+          <Text color="fg.muted">No audit entries found.</Text>
         ) : (
           logs.map((log) => (
             <Flex
               key={log.id}
-              px={4}
+              px={0}
               py={3}
               borderBottomWidth="1px"
               borderColor="border"
               direction="column"
               gap={1}
+              _last={{ borderBottomWidth: 0 }}
             >
               <Flex justify="space-between" wrap="wrap" gap={2}>
                 <Flex gap={2} align="center">
@@ -56,7 +51,7 @@ export default async function AuditPage({
             </Flex>
           ))
         )}
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

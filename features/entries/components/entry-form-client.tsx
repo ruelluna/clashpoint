@@ -6,12 +6,14 @@ import {
   Flex,
   Input,
   NativeSelect,
+  Stack,
   Text,
   Textarea,
 } from '@chakra-ui/react'
 import Link from 'next/link'
 import { useActionState } from 'react'
 
+import { ButtonGroup, LAYOUT_GAP, PageHeader, PageStack } from '@/components/dashboard'
 import {
   createEntryAction,
   type EntryActionState,
@@ -51,20 +53,14 @@ export function EntryFormClient({
   const activePromoters = promoters.filter((promoter) => promoter.status === 'active')
 
   return (
-    <Box className="space-y-6" maxW="2xl">
-      <Box>
-        <Text fontSize="lg" fontWeight="semibold">
-          New rooster entry
-        </Text>
-        <Text color="fg.muted" fontSize="sm">
-          {eventName} · Register owner and first cock ({cocksPerEntry} per entry max)
-        </Text>
-        <Text color="fg.muted" fontSize="sm">
-          Weight limits: {formatWeightRange(minWeight, maxWeight)}
-        </Text>
-      </Box>
+    <PageStack maxW="2xl">
+      <PageHeader
+        title="New rooster entry"
+        description={`${eventName} · Register owner and first cock (${cocksPerEntry} per entry max). Weight limits: ${formatWeightRange(minWeight, maxWeight)}`}
+      />
 
-      <form action={formAction} className="space-y-4">
+      <form action={formAction}>
+        <Stack gap={LAYOUT_GAP.form}>
         <input type="hidden" name="eventId" value={eventId} />
 
         <Text fontSize="sm" fontWeight="semibold" color="fg.muted" textTransform="uppercase">
@@ -92,7 +88,7 @@ export function EntryFormClient({
           <Input name="handlerName" maxLength={200} />
         </Box>
 
-        <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+        <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
           <Box flex="1">
             <Text fontSize="sm" fontWeight="medium" mb={1}>
               Contact number
@@ -114,7 +110,7 @@ export function EntryFormClient({
           <Textarea name="address" rows={2} maxLength={500} />
         </Box>
 
-        <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+        <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
           <Box flex="1">
             <Text fontSize="sm" fontWeight="medium" mb={1}>
               Entry source
@@ -163,7 +159,7 @@ export function EntryFormClient({
           Rooster &amp; weight
         </Text>
 
-        <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+        <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
           <Box flex="1">
             <Text fontSize="sm" fontWeight="medium" mb={1}>
               Band number
@@ -178,7 +174,7 @@ export function EntryFormClient({
           </Box>
         </Flex>
 
-        <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+        <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
           <Box flex="1">
             <Text fontSize="sm" fontWeight="medium" mb={1}>
               Category
@@ -199,15 +195,16 @@ export function EntryFormClient({
           </Text>
         ) : null}
 
-        <Flex gap={3} mt={6}>
+        <ButtonGroup mt={LAYOUT_GAP.form}>
           <Button type="submit" loading={pending}>
             Save entry
           </Button>
           <Button asChild variant="outline">
             <Link href={`/dashboard/events/${eventId}/rooster-entries`}>Cancel</Link>
           </Button>
-        </Flex>
+        </ButtonGroup>
+        </Stack>
       </form>
-    </Box>
+    </PageStack>
   )
 }

@@ -7,10 +7,18 @@ import {
   Flex,
   Input,
   NativeSelect,
+  Stack,
   Text,
 } from '@chakra-ui/react'
 import { useActionState, useMemo, useState } from 'react'
 
+import {
+  ButtonGroup,
+  LAYOUT_GAP,
+  PageHeader,
+  PageStack,
+  PanelCard,
+} from '@/components/dashboard'
 import {
   createMatchAction,
   lockMatchListAction,
@@ -255,16 +263,11 @@ export function MatchingBoardClient({
     lockState.success
 
   return (
-    <Box className="space-y-6">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Matching
-        </Text>
-        <Text color="fg.muted">
-          Pair weighed roosters, record side bets, and advance the fight queue for{' '}
-          {eventName}.
-        </Text>
-      </Box>
+    <PageStack>
+      <PageHeader
+        title="Matching"
+        description={`Pair weighed roosters, record side bets, and advance the fight queue for ${eventName}.`}
+      />
 
       {feedback ? (
         <Box
@@ -280,10 +283,7 @@ export function MatchingBoardClient({
       ) : null}
 
       {canManage ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-          <Text fontWeight="medium" mb={4}>
-            Create match
-          </Text>
+        <PanelCard title="Create match">
           <form action={createAction}>
             <input type="hidden" name="eventId" value={eventId} />
             <input
@@ -296,7 +296,7 @@ export function MatchingBoardClient({
               name="walaEntryId"
               value={walaRooster?.entry_id ?? ''}
             />
-            <Flex direction={{ base: 'column', md: 'row' }} gap={4} mb={4}>
+            <Flex direction={{ base: 'column', md: 'row' }} gap={LAYOUT_GAP.form} mb={LAYOUT_GAP.form}>
               <Box flex="1">
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
                   Meron
@@ -349,16 +349,19 @@ export function MatchingBoardClient({
               size="sm"
               loading={createPending}
               disabled={!meronRoosterId || !walaRoosterId}
+              mt={LAYOUT_GAP.form}
             >
               Add match
             </Button>
           </form>
           {hasLockableMatches ? (
-            <form action={lockAction} style={{ marginTop: '0.75rem' }}>
+            <form action={lockAction}>
               <input type="hidden" name="eventId" value={eventId} />
-              <Button type="submit" size="sm" variant="outline" loading={lockPending}>
-                Lock match list
-              </Button>
+              <ButtonGroup mt={LAYOUT_GAP.buttons}>
+                <Button type="submit" size="sm" variant="outline" loading={lockPending}>
+                  Lock match list
+                </Button>
+              </ButtonGroup>
             </form>
           ) : null}
           {eligibleRoosters.length === 0 ? (
@@ -366,10 +369,10 @@ export function MatchingBoardClient({
               No eligible roosters. Add roosters with weight on Rooster Entries first.
             </Text>
           ) : null}
-        </Box>
+        </PanelCard>
       ) : null}
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         <Flex
           px={4}
           py={3}
@@ -454,30 +457,23 @@ export function MatchingBoardClient({
             )
           })
         )}
-      </Box>
+      </PanelCard>
 
-      <Box>
-        <Text fontSize="lg" fontWeight="semibold" mb={3}>
+      <Stack gap={LAYOUT_GAP.section}>
+        <Text fontSize="lg" fontWeight="semibold">
           Fight queue
         </Text>
         {ongoing ? (
-          <Box
-            borderWidth="1px"
-            borderColor="green.emphasized"
-            rounded="lg"
-            p={4}
-            bg="green.subtle"
-            mb={4}
-          >
+          <PanelCard>
             <Text fontWeight="medium" color="green.fg">
               Now fighting: #{ongoing.fight_number}
             </Text>
             <Text fontSize="sm" color="green.fg">
               {ongoing.meron.entry_name} vs {ongoing.wala.entry_name}
             </Text>
-          </Box>
+          </PanelCard>
         ) : null}
-        <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+        <PanelCard flush>
           {queueMatches.length === 0 ? (
             <Box px={4} py={8} textAlign="center">
               <Text color="fg.muted">
@@ -494,8 +490,8 @@ export function MatchingBoardClient({
               />
             ))
           )}
-        </Box>
-      </Box>
-    </Box>
+        </PanelCard>
+      </Stack>
+    </PageStack>
   )
 }
