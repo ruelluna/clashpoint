@@ -266,32 +266,18 @@ export function EventFormClient({
               </Box>
             </Flex>
 
-            <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Entry fee
-                </Text>
-                <Input
-                  name="entryFee"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={event?.entry_fee ?? 0}
-                />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Tax per fight
-                </Text>
-                <Input
-                  name="taxPerFight"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={event?.tax_per_fight ?? 0}
-                />
-              </Box>
-            </Flex>
+            <Box flex="1">
+              <Text fontSize="sm" fontWeight="medium" mb={1}>
+                Tax per fight
+              </Text>
+              <Input
+                name="taxPerFight"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={event?.tax_per_fight ?? 0}
+              />
+            </Box>
 
             {isDerby ? (
               <>

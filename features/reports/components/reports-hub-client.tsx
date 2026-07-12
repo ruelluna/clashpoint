@@ -19,18 +19,18 @@ const EVENT_REPORTS: EventReportDefinition[] = [
   {
     type: 'event_summary',
     label: 'Event summary',
-    description: 'Entries, matches, weigh-ins, and payment totals for the event.',
+    description: 'Entries, matches, weigh-ins, and rooster totals for the event.',
   },
   {
     type: 'registration',
-    label: 'Registration',
-    description: 'All entries with registration and payment status.',
+    label: 'Rooster entries',
+    description: 'All owner entries registered for the event.',
   },
   {
     type: 'weighing',
     label: 'Weighing',
     description: 'Official weights and verification status per rooster.',
-    viewHref: 'weighing',
+    viewHref: 'rooster-entries',
   },
   {
     type: 'match',
@@ -41,11 +41,6 @@ const EVENT_REPORTS: EventReportDefinition[] = [
     type: 'result',
     label: 'Results',
     description: 'Fight outcomes and verification status.',
-  },
-  {
-    type: 'financial',
-    label: 'Financial',
-    description: 'Payment ledger with amounts due, paid, and balance.',
   },
   {
     type: 'audit',

@@ -79,7 +79,6 @@ export function EventsListClient({ events, canManage }: EventsListClientProps) {
           <Box flex="1">Date</Box>
           <Box flex="1">Type</Box>
           <Box flex="1">Status</Box>
-          <Box flex="1">Entry fee</Box>
         </Flex>
 
         {events.length === 0 ? (
@@ -133,9 +132,6 @@ export function EventsListClient({ events, canManage }: EventsListClientProps) {
                       Public
                     </Badge>
                   ) : null}
-                </Box>
-                <Box flex="1">
-                  <Text fontSize="sm">{formatCurrency(event.entry_fee)}</Text>
                 </Box>
               </Link>
             </Flex>

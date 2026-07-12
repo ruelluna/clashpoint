@@ -18,7 +18,6 @@ export async function countEligibleEntries(eventId: string): Promise<number> {
     .from('entries')
     .select('id', { count: 'exact', head: true })
     .eq('event_id', eventId)
-    .eq('payment_status', 'paid')
     .is('deleted_at', null)
 
   if (error) throw error

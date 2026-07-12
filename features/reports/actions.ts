@@ -4,7 +4,6 @@ import { exportToCsv, reportFilename } from '@/features/reports/export'
 import {
   getAuditReport,
   getEventSummaryReport,
-  getFinancialReport,
   getMatchReport,
   getPromoterReport,
   getRegistrationReport,
@@ -40,9 +39,6 @@ async function fetchReportRows(
     case 'result':
       if (!eventId) throw new Error('Event ID required')
       return getResultReport(eventId)
-    case 'financial':
-      if (!eventId) throw new Error('Event ID required')
-      return getFinancialReport(eventId)
     case 'audit':
       return getAuditReport(eventId ? { eventId, limit: 500 } : { limit: 500 })
     case 'promoter':

@@ -3,12 +3,10 @@ import 'server-only'
 import { listEntriesByEvent } from '@/features/entries/queries'
 import { getEvent } from '@/features/events/queries'
 import { listMatchesByEvent } from '@/features/matches/queries'
-import { listPaymentsByEvent } from '@/features/payments/service'
 import { listResultsForEvent } from '@/features/results/queries'
 import type {
   AuditReportRow,
   EventSummaryReportRow,
-  FinancialReportRow,
   MatchReportRow,
   PromoterReportRow,
   RegistrationReportRow,
@@ -28,17 +26,15 @@ export async function getEventSummaryReport(
   const [
     entriesResult,
     matchesResult,
-    payments,
     weighingStats,
     roosterCountResult,
   ] = await Promise.all([
     supabase
       .from('entries')
-      .select('payment_status', { count: 'exact' })
+      .select('id', { count: 'exact' })
       .eq('event_id', eventId)
       .is('deleted_at', null),
     supabase.from('matches').select('status').eq('event_id', eventId),
-    listPaymentsByEvent(eventId),
     countWeighingStats(eventId),
     supabase
       .from('rooster_records')
@@ -52,12 +48,6 @@ export async function getEventSummaryReport(
 
   const entries = entriesResult.data ?? []
   const matches = matchesResult.data ?? []
-  const paidEntries = entries.filter((row) => row.payment_status === 'paid').length
-
-  const totalCollected = payments
-    .filter((row) => row.paymentStatus !== 'refunded')
-    .reduce((sum, row) => sum + row.amountPaid, 0)
-  const totalOutstanding = payments.reduce((sum, row) => sum + row.balance, 0)
 
   return [
     {
@@ -67,15 +57,11 @@ export async function getEventSummaryReport(
       status: event.status,
       event_type: event.event_type,
       derby_type: event.derby_type ?? '',
-      entry_fee: event.entry_fee,
       total_entries: entriesResult.count ?? entries.length,
-      paid_entries: paidEntries,
       total_matches: matches.length,
       completed_matches: matches.filter((row) => row.status === 'completed').length,
       total_roosters: roosterCountResult.count ?? weighingStats.total,
       verified_weighings: weighingStats.verified,
-      total_collected: totalCollected,
-      total_outstanding: totalOutstanding,
     },
   ]
 }
@@ -92,8 +78,6 @@ export async function getRegistrationReport(
     handler_name: entry.handler_name,
     contact_number: entry.contact_number,
     entry_source: entry.entry_source,
-    registration_status: entry.registration_status,
-    payment_status: entry.payment_status,
     promoter_name: entry.promoter_name,
     registered_at: entry.created_at,
   }))
@@ -150,25 +134,6 @@ export async function getResultReport(eventId: string): Promise<ResultReportRow[
     result_time: result.result_time,
     notes: result.notes,
     recorded_at: result.created_at,
-  }))
-}
-
-export async function getFinancialReport(eventId: string): Promise<FinancialReportRow[]> {
-  const payments = await listPaymentsByEvent(eventId)
-
-  return payments.map((payment) => ({
-    payment_reference: payment.paymentReference,
-    entry_number: payment.entryNumber,
-    entry_name: payment.entryName,
-    owner_name: payment.ownerName,
-    amount_due: payment.amountDue,
-    amount_paid: payment.amountPaid,
-    balance: payment.balance,
-    payment_method: payment.paymentMethod,
-    receipt_number: payment.receiptNumber,
-    payment_status: payment.paymentStatus,
-    paid_at: payment.paidAt,
-    notes: payment.notes,
   }))
 }
 

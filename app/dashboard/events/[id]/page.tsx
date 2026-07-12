@@ -96,10 +96,6 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             </Flex>
           ) : null}
           <Flex gap={4}>
-            <Text color="fg.muted" minW="40">Entry fee</Text>
-            <Text>{formatCurrency(event.entry_fee)}</Text>
-          </Flex>
-          <Flex gap={4}>
             <Text color="fg.muted" minW="40">Tax per fight</Text>
             <Text>{formatCurrency(event.tax_per_fight)}</Text>
           </Flex>

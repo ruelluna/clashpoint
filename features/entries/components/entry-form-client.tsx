@@ -22,24 +22,26 @@ import type { PromoterListItem } from '@/features/promoters/types'
 type EntryFormClientProps = {
   eventId: string
   eventName: string
-  entryFee: number
   promoters: PromoterListItem[]
+  cocksPerEntry: number
+  minWeight: number | null
+  maxWeight: number | null
 }
 
 const initialState: EntryActionState = {}
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'PHP',
-  }).format(amount)
+function formatWeightRange(minWeight: number | null, maxWeight: number | null) {
+  if (minWeight == null && maxWeight == null) return 'No weight limits configured'
+  return `${minWeight ?? '—'} – ${maxWeight ?? '—'} kg`
 }
 
 export function EntryFormClient({
   eventId,
   eventName,
-  entryFee,
   promoters,
+  cocksPerEntry,
+  minWeight,
+  maxWeight,
 }: EntryFormClientProps) {
   const [formState, formAction, pending] = useActionState(
     createEntryAction,
@@ -52,15 +54,22 @@ export function EntryFormClient({
     <Box className="space-y-6" maxW="2xl">
       <Box>
         <Text fontSize="lg" fontWeight="semibold">
-          New registration
+          New rooster entry
         </Text>
         <Text color="fg.muted" fontSize="sm">
-          {eventName} · Entry fee {formatCurrency(entryFee)}
+          {eventName} · Register owner and first cock ({cocksPerEntry} per entry max)
+        </Text>
+        <Text color="fg.muted" fontSize="sm">
+          Weight limits: {formatWeightRange(minWeight, maxWeight)}
         </Text>
       </Box>
 
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="eventId" value={eventId} />
+
+        <Text fontSize="sm" fontWeight="semibold" color="fg.muted" textTransform="uppercase">
+          Owner / handler
+        </Text>
 
         <Box>
           <Text fontSize="sm" fontWeight="medium" mb={1}>
@@ -144,18 +153,58 @@ export function EntryFormClient({
           <Textarea name="notes" rows={3} maxLength={2000} />
         </Box>
 
+        <Text
+          fontSize="sm"
+          fontWeight="semibold"
+          color="fg.muted"
+          textTransform="uppercase"
+          pt={2}
+        >
+          Rooster &amp; weight
+        </Text>
+
+        <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+          <Box flex="1">
+            <Text fontSize="sm" fontWeight="medium" mb={1}>
+              Band number
+            </Text>
+            <Input name="bandNumber" required maxLength={50} />
+          </Box>
+          <Box flex="1">
+            <Text fontSize="sm" fontWeight="medium" mb={1}>
+              Weight (kg)
+            </Text>
+            <Input name="weight" type="number" step="0.01" min="0" required />
+          </Box>
+        </Flex>
+
+        <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
+          <Box flex="1">
+            <Text fontSize="sm" fontWeight="medium" mb={1}>
+              Category
+            </Text>
+            <Input name="category" maxLength={100} />
+          </Box>
+          <Box flex="1">
+            <Text fontSize="sm" fontWeight="medium" mb={1}>
+              Color / marking
+            </Text>
+            <Input name="colorMarking" maxLength={200} />
+          </Box>
+        </Flex>
+
         {formState.error ? (
           <Text fontSize="sm" color="red.500">
             {formState.error}
           </Text>
         ) : null}
 
-        <Flex gap={3}>
+        <Flex gap={3} mt={6}>
           <Button type="submit" loading={pending}>
-            Save registration
+            Save entry
           </Button>
           <Button asChild variant="outline">
-            <Link href={`/dashboard/events/${eventId}/registrations`}>Cancel</Link>
+            <Link href={`/dashboard/events/${eventId}/rooster-entries`}>Cancel</Link>
           </Button>
         </Flex>
       </form>

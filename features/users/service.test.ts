@@ -68,12 +68,13 @@ describe('inviteUser', () => {
       email: 'staff@clashpoint.test',
       password: 'password123',
       role: 'staff',
-      modules: ['registrations'],
+      modules: ['rooster-entries'],
     })
 
     expect(result.error).toBeUndefined()
     expect(insert).toHaveBeenCalledWith([
       { user_id: 'user-1', permission_id: 'entries.manage' },
+      { user_id: 'user-1', permission_id: 'weighing.manage' },
       { user_id: 'user-1', permission_id: 'events.view' },
     ])
     expect(writeAuditLog).toHaveBeenCalled()
@@ -100,7 +101,7 @@ describe('updateUserModules', () => {
 
     const result = await updateUserModules('actor-1', {
       userId: 'user-2',
-      modules: ['payments'],
+      modules: ['rooster-entries'],
     })
 
     expect(result.error).toBe('Modules can only be updated for staff users')

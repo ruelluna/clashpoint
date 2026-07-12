@@ -36,6 +36,7 @@ export type MatchSideDetails = {
   cock_number: number
   band_number: string
   weight: number | null
+  bet_amount: number
 }
 
 export type MatchListItem = {

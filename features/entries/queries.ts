@@ -7,6 +7,16 @@ type EntryListRow = EntryListItem & {
   promoters: { name: string } | null
 }
 
+export type EntryRoosterEditItem = {
+  rooster_id: string
+  cock_number: number
+  band_number: string
+  weight: number | null
+  category: string | null
+  color_marking: string | null
+  is_paired: boolean
+}
+
 export async function listEntriesByEvent(eventId: string): Promise<EntryListItem[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -100,4 +110,115 @@ export async function listEntryNumbersForEvent(eventId: string): Promise<string[
 
   if (error) throw error
   return (data ?? []).map((row) => row.entry_number as string)
+}
+
+export async function getPairedRosterIdsForEntry(
+  eventId: string,
+  entryId: string
+): Promise<Set<string>> {
+  const supabase = await createClient()
+
+  const { data: roosters, error: roosterError } = await supabase
+    .from('rooster_records')
+    .select('id')
+    .eq('entry_id', entryId)
+    .eq('event_id', eventId)
+
+  if (roosterError) throw roosterError
+
+  const roosterIds = (roosters ?? []).map((row) => row.id as string)
+  const paired = new Set<string>()
+
+  if (roosterIds.length === 0) return paired
+
+  const { data: matches, error: matchError } = await supabase
+    .from('matches')
+    .select('meron_entry_id, wala_entry_id, meron_rooster_id, wala_rooster_id')
+    .eq('event_id', eventId)
+    .or(
+      `meron_entry_id.eq.${entryId},wala_entry_id.eq.${entryId},meron_rooster_id.in.(${roosterIds.join(',')}),wala_rooster_id.in.(${roosterIds.join(',')})`
+    )
+
+  if (matchError) throw matchError
+
+  for (const match of matches ?? []) {
+    if (match.meron_entry_id === entryId && match.meron_rooster_id) {
+      paired.add(match.meron_rooster_id as string)
+    }
+    if (match.wala_entry_id === entryId && match.wala_rooster_id) {
+      paired.add(match.wala_rooster_id as string)
+    }
+    if (roosterIds.includes(match.meron_rooster_id as string)) {
+      paired.add(match.meron_rooster_id as string)
+    }
+    if (roosterIds.includes(match.wala_rooster_id as string)) {
+      paired.add(match.wala_rooster_id as string)
+    }
+  }
+
+  return paired
+}
+
+export async function entryHasMatchReferences(
+  eventId: string,
+  entryId: string
+): Promise<boolean> {
+  const paired = await getPairedRosterIdsForEntry(eventId, entryId)
+  if (paired.size > 0) return true
+
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('matches')
+    .select('id', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+    .or(`meron_entry_id.eq.${entryId},wala_entry_id.eq.${entryId}`)
+
+  if (error) throw error
+  return (count ?? 0) > 0
+}
+
+export async function listEntryRoostersForEdit(
+  eventId: string,
+  entryId: string
+): Promise<EntryRoosterEditItem[]> {
+  const supabase = await createClient()
+  const pairedIds = await getPairedRosterIdsForEntry(eventId, entryId)
+
+  const { data, error } = await supabase
+    .from('rooster_records')
+    .select(
+      `
+      id,
+      cock_number,
+      band_number,
+      category,
+      color_marking,
+      weighings ( official_weight )
+    `
+    )
+    .eq('entry_id', entryId)
+    .eq('event_id', eventId)
+    .order('cock_number', { ascending: true })
+
+  if (error) throw error
+
+  return (data ?? []).map((row) => {
+    const weighingRaw = row.weighings
+    const weighing = Array.isArray(weighingRaw)
+      ? weighingRaw[0] ?? null
+      : weighingRaw
+
+    const roosterId = row.id as string
+
+    return {
+      rooster_id: roosterId,
+      cock_number: Number(row.cock_number),
+      band_number: row.band_number as string,
+      weight:
+        weighing?.official_weight != null ? Number(weighing.official_weight) : null,
+      category: (row.category as string | null) ?? null,
+      color_marking: (row.color_marking as string | null) ?? null,
+      is_paired: pairedIds.has(roosterId),
+    }
+  })
 }

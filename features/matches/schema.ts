@@ -27,6 +27,8 @@ export const createMatchSchema = z
     walaRoosterId: z.string().uuid(),
     fightNumber: z.coerce.number().int().positive().optional(),
     roundNumber: z.coerce.number().int().positive().optional(),
+    meronBet: z.coerce.number().nonnegative().optional(),
+    walaBet: z.coerce.number().nonnegative().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.meronRoosterId === data.walaRoosterId) {
@@ -52,10 +54,18 @@ export const updateMatchStatusSchema = z.object({
   status: matchStatusSchema,
 })
 
+export const updateMatchBetSchema = z.object({
+  eventId: z.string().uuid(),
+  matchId: z.string().uuid(),
+  side: z.enum(['meron', 'wala']),
+  amount: z.coerce.number().nonnegative('Bet amount cannot be negative'),
+})
+
 export type CreateMatchInput = z.infer<typeof createMatchSchema>
 export type LockMatchListInput = z.infer<typeof lockMatchListSchema>
 export type UpdateFightQueueStatusInput = z.infer<typeof updateFightQueueStatusSchema>
 export type UpdateMatchStatusInput = z.infer<typeof updateMatchStatusSchema>
+export type UpdateMatchBetInput = z.infer<typeof updateMatchBetSchema>
 
 export const MATCH_STATUS_LABELS: Record<z.infer<typeof matchStatusSchema>, string> = {
   draft: 'Draft',

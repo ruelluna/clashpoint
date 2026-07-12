@@ -53,11 +53,11 @@ export default async function WeighingReportPage({ params }: WeighingReportPageP
           </Text>
           <Text color="fg.muted">
             {stats.verified} verified · {stats.passed} passed · {stats.failed} failed ·{' '}
-            {stats.total} roosters in lineups
+            {stats.total} roosters weighed
           </Text>
         </Box>
         <Button asChild size="sm" variant="outline">
-          <Link href={`/dashboard/events/${eventId}/weighing`}>Weighing station</Link>
+          <Link href={`/dashboard/events/${eventId}/rooster-entries`}>Rooster entries</Link>
         </Button>
       </Flex>
 

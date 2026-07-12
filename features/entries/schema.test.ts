@@ -1,11 +1,90 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  canSubmitLineup,
+  createEntrySchema,
+  deleteEntrySchema,
   formatEntryNumber,
   getNextEntryNumber,
   parseEntryNumber,
+  updateEntrySchema,
 } from '@/features/entries/schema'
+
+const eventId = '00000000-0000-4000-8000-000000000001'
+const entryId = '00000000-0000-4000-8000-000000000002'
+
+describe('createEntrySchema', () => {
+  it('accepts entry with required rooster fields', () => {
+    const result = createEntrySchema.safeParse({
+      eventId,
+      entryName: 'Team Alpha',
+      ownerName: 'Juan Dela Cruz',
+      bandNumber: 'B-101',
+      weight: 2.15,
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects missing band number', () => {
+    const result = createEntrySchema.safeParse({
+      eventId,
+      entryName: 'Team Alpha',
+      ownerName: 'Juan Dela Cruz',
+      bandNumber: '',
+      weight: 2.15,
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects non-positive weight', () => {
+    const result = createEntrySchema.safeParse({
+      eventId,
+      entryName: 'Team Alpha',
+      ownerName: 'Juan Dela Cruz',
+      bandNumber: 'B-101',
+      weight: 0,
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('updateEntrySchema', () => {
+  it('accepts valid entry update input', () => {
+    const result = updateEntrySchema.safeParse({
+      eventId,
+      entryId,
+      entryName: 'Team Alpha',
+      ownerName: 'Juan Dela Cruz',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects missing owner name', () => {
+    const result = updateEntrySchema.safeParse({
+      eventId,
+      entryId,
+      entryName: 'Team Alpha',
+      ownerName: '',
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('deleteEntrySchema', () => {
+  it('accepts valid delete input', () => {
+    const result = deleteEntrySchema.safeParse({ eventId, entryId })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid entry id', () => {
+    const result = deleteEntrySchema.safeParse({ eventId, entryId: 'not-uuid' })
+    expect(result.success).toBe(false)
+  })
+})
 
 describe('entry number helpers', () => {
   it('parses numeric entry numbers', () => {
@@ -33,17 +112,5 @@ describe('entry number helpers', () => {
 
   it('ignores non-numeric values when calculating the next number', () => {
     expect(getNextEntryNumber(['001', 'VIP-A', '002'])).toBe('003')
-  })
-})
-
-describe('canSubmitLineup', () => {
-  it('allows lineup when payment is paid', () => {
-    expect(canSubmitLineup({ payment_status: 'paid' })).toBe(true)
-  })
-
-  it('blocks lineup when payment is not paid', () => {
-    expect(canSubmitLineup({ payment_status: 'unpaid' })).toBe(false)
-    expect(canSubmitLineup({ payment_status: 'partial' })).toBe(false)
-    expect(canSubmitLineup({ payment_status: 'refunded' })).toBe(false)
   })
 })

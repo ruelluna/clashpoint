@@ -67,7 +67,6 @@ const eventFieldsSchema = z.object({
   registrationDeadline: z.string().datetime().nullable().optional(),
   eventType: eventTypeSchema.default('derby'),
   derbyType: derbyTypeSchema.nullable().optional(),
-  entryFee: z.coerce.number().nonnegative('Entry fee cannot be negative'),
   taxPerFight: z.coerce.number().nonnegative('Tax per fight cannot be negative').default(0),
   cocksPerEntry: z.coerce.number().int().positive().default(5),
   registrationRules: z.string().max(50000).nullable().optional(),

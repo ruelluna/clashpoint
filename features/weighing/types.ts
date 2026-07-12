@@ -28,6 +28,15 @@ export type WeighingStationItem = {
   verified_at: string | null
 }
 
+export type WeighingEntrySummary = {
+  entry_id: string
+  entry_number: string
+  entry_name: string
+  owner_name: string
+  rooster_count: number
+  can_add_rooster: boolean
+}
+
 export type WeighingReportRow = {
   id: string
   entry_number: string

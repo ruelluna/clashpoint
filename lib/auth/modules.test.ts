@@ -8,9 +8,10 @@ import {
 } from '@/lib/auth/modules'
 
 describe('moduleToPermissions', () => {
-  it('expands registrations to entries and events view', () => {
-    expect(moduleToPermissions('registrations')).toEqual([
+  it('expands rooster-entries to entries, weighing, and events view', () => {
+    expect(moduleToPermissions('rooster-entries')).toEqual([
       'entries.manage',
+      'weighing.manage',
       'events.view',
     ])
   })
@@ -18,10 +19,11 @@ describe('moduleToPermissions', () => {
 
 describe('modulesToPermissions', () => {
   it('deduplicates shared permissions across modules', () => {
-    expect(modulesToPermissions(['events', 'registrations'])).toEqual([
+    expect(modulesToPermissions(['events', 'rooster-entries'])).toEqual([
       'events.manage',
       'events.view',
       'entries.manage',
+      'weighing.manage',
     ])
   })
 })
@@ -30,17 +32,16 @@ describe('permissionsToModules', () => {
   it('returns modules only when all module permissions are present', () => {
     const modules = permissionsToModules([
       'entries.manage',
+      'weighing.manage',
       'events.view',
-      'payments.manage',
     ])
 
-    expect(modules).toContain('registrations')
-    expect(modules).toContain('payments')
+    expect(modules).toContain('rooster-entries')
     expect(modules).not.toContain('events')
   })
 
   it('round-trips selected modules through permission expansion', () => {
-    const selected = ['lineups', 'weighing'] as const
+    const selected = ['rooster-entries', 'matching'] as const
     const roundTrip = permissionsToModules(modulesToPermissions([...selected]))
 
     expect(roundTrip).toEqual([...selected])

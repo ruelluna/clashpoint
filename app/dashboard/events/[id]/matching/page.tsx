@@ -5,6 +5,7 @@ import { getEvent } from '@/features/events/queries'
 import { MatchingBoardClient } from '@/features/matches/components/matching-board-client'
 import {
   getEligibleRoostersForMatching,
+  listFightQueueByEvent,
   listMatchesByEvent,
 } from '@/features/matches/queries'
 import { getUser } from '@/lib/auth/session'
@@ -21,8 +22,9 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
 
   if (!event) notFound()
 
-  const [matches, eligibleRoosters] = await Promise.all([
+  const [matches, queueMatches, eligibleRoosters] = await Promise.all([
     listMatchesByEvent(id),
+    listFightQueueByEvent(id),
     getEligibleRoostersForMatching(id),
   ])
 
@@ -36,6 +38,7 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
         eventId={event.id}
         eventName={event.name}
         matches={matches}
+        queueMatches={queueMatches}
         eligibleRoosters={eligibleRoosters}
         canManage={canManage}
       />

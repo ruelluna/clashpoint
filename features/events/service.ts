@@ -29,7 +29,7 @@ async function toEventInsert(input: CreateEventInput | UpdateEventInput) {
     registration_deadline: isClassic ? null : (input.registrationDeadline ?? null),
     event_type: input.eventType,
     derby_type: isClassic ? null : (input.derbyType ?? null),
-    entry_fee: input.entryFee,
+    entry_fee: 0,
     tax_per_fight: input.taxPerFight,
     min_entries: null,
     max_entries: null,

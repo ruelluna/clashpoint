@@ -19,7 +19,7 @@ describe('inviteUserSchema', () => {
       email: 'staff@clashpoint.test',
       password: 'password123',
       role: 'staff',
-      modules: ['registrations', 'payments'],
+      modules: ['rooster-entries'],
     })
 
     expect(result.success).toBe(true)

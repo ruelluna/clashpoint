@@ -1,7 +1,6 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
-import { syncEntryRegistrationAfterPayment } from '@/features/entries/service'
 import {
   calculateBalance,
   getNextPaymentReference,
@@ -129,11 +128,6 @@ export async function updateEntryPaymentStatus(
     .eq('id', entryId)
 
   if (error) return { error: error.message }
-
-  if (paymentStatus === 'paid') {
-    const syncResult = await syncEntryRegistrationAfterPayment(entryId)
-    if (syncResult.error) return syncResult
-  }
 
   return { paymentStatus }
 }

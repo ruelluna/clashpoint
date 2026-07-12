@@ -1,35 +1,12 @@
-import { notFound } from 'next/navigation'
-import { Flex } from '@chakra-ui/react'
+import { redirect } from 'next/navigation'
 
-import { EntriesListClient } from '@/features/entries/components/entries-list-client'
-import { listEntriesByEvent } from '@/features/entries/queries'
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
-import { getEvent } from '@/features/events/queries'
-import { requirePermission } from '@/lib/auth/permissions'
-
-type RegistrationsPageProps = {
+type RegistrationsRedirectProps = {
   params: Promise<{ id: string }>
 }
 
-export default async function EventRegistrationsPage({
+export default async function RegistrationsRedirectPage({
   params,
-}: RegistrationsPageProps) {
-  await requirePermission('entries.manage')
+}: RegistrationsRedirectProps) {
   const { id } = await params
-  const event = await getEvent(id)
-
-  if (!event) notFound()
-
-  const entries = await listEntriesByEvent(id)
-
-  return (
-    <Flex direction="column" gap={8}>
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
-      <EntriesListClient
-        eventId={event.id}
-        eventName={event.name}
-        entries={entries}
-      />
-    </Flex>
-  )
+  redirect(`/dashboard/events/${id}/rooster-entries`)
 }
