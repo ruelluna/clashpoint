@@ -53,6 +53,9 @@ export function PromotersListClient({
             Promoters
           </Text>
           <Text color="fg.muted">Manage external promoters and commission settings.</Text>
+          <Text fontSize="sm" color="fg.muted" mt={1}>
+            Create promoter profiles here; grant portal login when needed.
+          </Text>
         </Box>
         <Button asChild alignSelf={{ base: 'flex-start', md: 'auto' }}>
           <Link href="/dashboard/promoters/new">Add promoter</Link>

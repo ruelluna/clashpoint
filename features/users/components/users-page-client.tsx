@@ -1,6 +1,7 @@
 'use client'
 
 import { Badge, Box, Button, Flex, Input, NativeSelect, Text } from '@chakra-ui/react'
+import Link from 'next/link'
 import { useActionState, useState } from 'react'
 
 import {
@@ -10,7 +11,7 @@ import {
   updateUserRoleAction,
   type ActionState,
 } from '@/features/users/actions'
-import { ROLE_LABELS } from '@/features/users/schema'
+import { ROLE_LABELS, type UsersManageableRole } from '@/features/users/schema'
 import { ACCESS_MODULES } from '@/lib/auth/modules'
 import type { AccessModuleId } from '@/lib/auth/modules'
 import type { AppRole } from '@/lib/auth/types'
@@ -27,9 +28,16 @@ type UserRow = {
 
 const initialState: ActionState = {}
 
-const invitableRoles = (
+const manageableRoles = (
   Object.entries(ROLE_LABELS) as [AppRole, string][]
-).filter(([role]) => role !== 'admin')
+).filter(([role]) => role !== 'admin' && role !== 'promoter')
+
+function defaultRoleForUpdate(user: UserRow): UsersManageableRole {
+  if (user.role === 'staff' || user.role === 'event_organizer' || user.role === 'system_owner') {
+    return user.role
+  }
+  return 'staff'
+}
 
 function ModuleCheckboxGrid({
   defaultSelected = [],
@@ -62,7 +70,7 @@ function ModuleCheckboxGrid({
 }
 
 export function UsersPageClient({ users }: { users: UserRow[] }) {
-  const [inviteRole, setInviteRole] = useState<AppRole>('staff')
+  const [inviteRole, setInviteRole] = useState<UsersManageableRole>('staff')
   const [inviteState, inviteAction, invitePending] = useActionState(
     inviteUserAction,
     initialState
@@ -84,7 +92,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
           Users
         </Text>
         <Text color="fg.muted">
-          Manage staff accounts, roles, and module access.
+          Manage staff and organizer accounts, roles, and module access.
         </Text>
       </Box>
 
@@ -94,6 +102,9 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
         </Text>
         <form action={inviteAction}>
           <Flex direction="column" gap={3} maxW="md">
+            <Text fontSize="sm" color="fg.muted">
+              External promoters are created under Promoters, not here.
+            </Text>
             <Input name="email" type="email" placeholder="Email" required />
             <Input name="password" type="password" placeholder="Password" required />
             <Input name="displayName" placeholder="Display name" />
@@ -102,10 +113,10 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                 name="role"
                 value={inviteRole}
                 onChange={(event) =>
-                  setInviteRole(event.currentTarget.value as AppRole)
+                  setInviteRole(event.currentTarget.value as UsersManageableRole)
                 }
               >
-                {invitableRoles.map(([value, label]) => (
+                {manageableRoles.map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
@@ -118,9 +129,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
               <Text fontSize="sm" color="fg.muted">
                 {inviteRole === 'event_organizer'
                   ? 'Event organizers receive the full operational module preset.'
-                  : inviteRole === 'promoter'
-                    ? 'Promoters receive portal and read-only event/report access.'
-                    : 'System owners receive full platform access.'}
+                  : 'System owners receive full platform access.'}
               </Text>
             )}
             <Button type="submit" loading={invitePending} alignSelf="flex-start">
@@ -171,6 +180,12 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
               <Text fontSize="sm" color="fg.muted">
                 {user.email}
               </Text>
+              {user.role === 'promoter' ? (
+                <Text fontSize="sm" color="fg.muted" mt={1}>
+                  Promoter login —{' '}
+                  <Link href="/dashboard/promoters">manage profile in Promoters</Link>.
+                </Text>
+              ) : null}
               {user.role === 'staff' && user.modules.length > 0 ? (
                 <Flex gap={1} wrap="wrap" mt={1}>
                   {user.modules.map((moduleId) => (
@@ -196,8 +211,11 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                   <form action={roleAction} className="flex gap-2 items-center flex-wrap">
                     <input type="hidden" name="userId" value={user.id} />
                     <NativeSelect.Root size="sm">
-                      <NativeSelect.Field name="role" defaultValue={user.role}>
-                        {invitableRoles.map(([value, label]) => (
+                      <NativeSelect.Field
+                        name="role"
+                        defaultValue={defaultRoleForUpdate(user)}
+                      >
+                        {manageableRoles.map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
                           </option>
