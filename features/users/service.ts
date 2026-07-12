@@ -1,11 +1,12 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
-import type {
-  DeactivateUserInput,
-  InviteUserInput,
-  UpdateUserModulesInput,
-  UpdateUserRoleInput,
+import {
+  PROMOTER_CREATED_IN_PROMOTERS_MESSAGE,
+  type DeactivateUserInput,
+  type InviteUserInput,
+  type UpdateUserModulesInput,
+  type UpdateUserRoleInput,
 } from '@/features/users/schema'
 import {
   modulesToPermissions,
@@ -52,6 +53,10 @@ export async function inviteUser(
   actorId: string,
   input: InviteUserInput
 ): Promise<{ error?: string; userId?: string }> {
+  if ((input.role as string) === 'promoter') {
+    return { error: PROMOTER_CREATED_IN_PROMOTERS_MESSAGE }
+  }
+
   const admin = createAdminClient()
   const { data: created, error: createError } = await admin.auth.admin.createUser(
     {
@@ -110,6 +115,10 @@ export async function updateUserRole(
   actorId: string,
   input: UpdateUserRoleInput
 ): Promise<{ error?: string }> {
+  if ((input.role as string) === 'promoter') {
+    return { error: PROMOTER_CREATED_IN_PROMOTERS_MESSAGE }
+  }
+
   const supabase = await createClient()
   const { data: existing } = await supabase
     .from('profiles')

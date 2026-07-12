@@ -195,7 +195,7 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 >
                   <Checkbox.Control />
                   <Checkbox.Label>
-                    Give this promoter login access
+                    Give this promoter portal login access
                   </Checkbox.Label>
                 </Checkbox.Root>
                 {giveLoginAccess ? (

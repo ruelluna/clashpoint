@@ -612,6 +612,57 @@ export type Database = {
           },
         ]
       }
+      match_bets: {
+        Row: {
+          id: string
+          match_id: string
+          event_id: string
+          side: Database['public']['Enums']['fight_side']
+          amount: number
+          recorded_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          event_id: string
+          side: Database['public']['Enums']['fight_side']
+          amount?: number
+          recorded_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          event_id?: string
+          side?: Database['public']['Enums']['fight_side']
+          amount?: number
+          recorded_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'match_bets_match_id_fkey'
+            columns: ['match_id']
+            isOneToOne: false
+            referencedRelation: 'matches'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'match_bets_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       matches: {
         Row: {
           id: string

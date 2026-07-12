@@ -25,6 +25,8 @@ import type { Database } from '@/lib/supabase/database.types'
 import { evaluateMatchCompatibility } from '@/features/compatibility/service'
 import { createClient } from '@/lib/supabase/server'
 
+type MatchBetInsert = Database['public']['Tables']['match_bets']['Insert']
+
 type MatchUpdate = Database['public']['Tables']['matches']['Update']
 
 type RoosterRow = {
@@ -78,9 +80,9 @@ async function upsertMatchBets(
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
 
-  const rows = [
-    { match_id: matchId, event_id: eventId, side: 'meron' as const, amount: meronBet, recorded_by: actorId },
-    { match_id: matchId, event_id: eventId, side: 'wala' as const, amount: walaBet, recorded_by: actorId },
+  const rows: MatchBetInsert[] = [
+    { match_id: matchId, event_id: eventId, side: 'meron', amount: meronBet, recorded_by: actorId },
+    { match_id: matchId, event_id: eventId, side: 'wala', amount: walaBet, recorded_by: actorId },
   ]
 
   for (const row of rows) {

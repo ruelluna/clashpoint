@@ -14,6 +14,13 @@ export const appRoleSchema = z.enum([
   'staff',
 ])
 
+export const usersManageableRoleSchema = appRoleSchema.exclude(['admin', 'promoter'])
+
+export type UsersManageableRole = z.infer<typeof usersManageableRoleSchema>
+
+export const PROMOTER_CREATED_IN_PROMOTERS_MESSAGE =
+  'Promoter accounts are created in Promoters (optional login there).'
+
 export const moduleIdSchema = z
   .string()
   .refine(isAccessModuleId, 'Invalid module')
@@ -28,7 +35,7 @@ export const inviteUserSchema = z
     email: z.string().email('Valid email required'),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     displayName: z.string().min(1).max(100).optional(),
-    role: appRoleSchema.exclude(['admin']),
+    role: usersManageableRoleSchema,
     modules: modulesFieldSchema,
   })
   .superRefine((data, ctx) => {
@@ -43,7 +50,7 @@ export const inviteUserSchema = z
 
 export const updateUserRoleSchema = z.object({
   userId: z.string().uuid(),
-  role: appRoleSchema,
+  role: usersManageableRoleSchema,
   reason: z.string().min(3).optional(),
 })
 

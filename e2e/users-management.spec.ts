@@ -16,8 +16,14 @@ test.describe('Users management @auth', () => {
 
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
     await expect(
-      page.getByText('Manage staff accounts, roles, and module access.')
+      page.getByText('Manage staff and organizer accounts, roles, and module access.')
     ).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Invite user' })).toBeVisible()
+    await expect(
+      page.getByText('External promoters are created under Promoters, not here.')
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Invite' })).toBeVisible()
+
+    const roleSelect = page.locator('form').filter({ has: page.getByPlaceholder('Email') }).getByRole('combobox')
+    await expect(roleSelect.locator('option', { hasText: 'Promoter' })).toHaveCount(0)
   })
 })
