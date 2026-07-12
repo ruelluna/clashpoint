@@ -458,7 +458,7 @@ export function EventFormClient({
 
                 <FormField
                   label="Registration rules"
-                  helpText="Supports bold, italic, lists, and links."
+                  helpText="Supports headings, bold, italic, lists, links, blockquotes, and strikethrough."
                 >
                   <RichTextEditor
                     name="registrationRules"

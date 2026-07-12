@@ -134,6 +134,12 @@
     outline: none;
   }
 
+  .rich-text-editor-content {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    min-height: 100%;
+  }
+
   .ProseMirror p {
     margin: 0.5em 0;
   }
@@ -167,6 +173,30 @@
   .ProseMirror a {
     color: var(--primary);
     text-decoration: underline;
+  }
+
+  .ProseMirror h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0.75em 0 0.35em;
+  }
+
+  .ProseMirror h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0.65em 0 0.3em;
+  }
+
+  .ProseMirror blockquote {
+    border-left: 3px solid var(--border);
+    margin: 0.5em 0;
+    padding-left: 0.875rem;
+    color: var(--muted-foreground);
+  }
+
+  .ProseMirror s,
+  .ProseMirror del {
+    text-decoration: line-through;
   }
 
   .ProseMirror.is-empty::before {
@@ -228,5 +258,29 @@
   .rich-text-content em,
   .rich-text-content i {
     font-style: italic;
+  }
+
+  .rich-text-content h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0.75em 0 0.35em;
+  }
+
+  .rich-text-content h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0.65em 0 0.3em;
+  }
+
+  .rich-text-content blockquote {
+    border-left: 3px solid var(--border);
+    margin: 0.5em 0;
+    padding-left: 0.875rem;
+    color: var(--muted-foreground);
+  }
+
+  .rich-text-content s,
+  .rich-text-content del {
+    text-decoration: line-through;
   }
 }
