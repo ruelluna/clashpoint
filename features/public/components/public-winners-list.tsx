@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Flex, Text } from '@chakra-ui/react'
+import { Box, Flex, Stack, Text } from '@chakra-ui/react'
 
 import type { PublicWinnersSummary } from '@/features/public/types'
 
@@ -19,7 +19,7 @@ export function PublicWinnersList({
   showAmounts: boolean
 }) {
   return (
-    <Box className="space-y-6">
+    <Stack gap={6}>
       {winners.champions.length > 0 ? (
         <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
           <Text fontWeight="medium" mb={3}>
@@ -103,6 +103,6 @@ export function PublicWinnersList({
           </Box>
         )}
       </Box>
-    </Box>
+    </Stack>
   )
 }

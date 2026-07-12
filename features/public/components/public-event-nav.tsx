@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Flex, Link as ChakraLink, Text } from '@chakra-ui/react'
+import { Box, Flex, Link as ChakraLink, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -22,7 +22,7 @@ export function PublicEventNav({ event }: PublicEventNavProps) {
   const base = `/events/${event.id}`
 
   return (
-    <Box className="space-y-4">
+    <Stack gap={4}>
       <Box>
         <ChakraLink asChild fontSize="sm" color="fg.muted">
           <Link href="/events">← All events</Link>
@@ -59,6 +59,6 @@ export function PublicEventNav({ event }: PublicEventNavProps) {
           )
         })}
       </Flex>
-    </Box>
+    </Stack>
   )
 }

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "seed:first-admin": "node scripts/seed-first-admin.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

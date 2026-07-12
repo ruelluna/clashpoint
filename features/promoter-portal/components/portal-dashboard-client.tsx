@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Grid, Text } from '@chakra-ui/react'
+import { Box, Grid, Stack, Text } from '@chakra-ui/react'
 
 import type { PromoterDashboardStats } from '@/features/promoter-portal/types'
 
@@ -23,7 +23,7 @@ export function PortalDashboardClient({
   stats: PromoterDashboardStats
 }) {
   return (
-    <Box className="space-y-6">
+    <Stack gap={6}>
       <Box>
         <Text fontSize="2xl" fontWeight="semibold">
           Dashboard
@@ -41,6 +41,6 @@ export function PortalDashboardClient({
         <StatCard label="Referred entries" value={stats.referred_entries_count} />
         <StatCard label="Pending settlements" value={stats.pending_settlements_count} />
       </Grid>
-    </Box>
+    </Stack>
   )
 }

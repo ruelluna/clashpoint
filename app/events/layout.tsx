@@ -1,6 +1,5 @@
+import { Box, Container, Flex, Link as ChakraLink } from '@chakra-ui/react'
 import Link from 'next/link'
-
-import { ChakraClientRoot } from '@/components/chakra/client-root'
 
 export default function PublicLayout({
   children,
@@ -8,28 +7,30 @@ export default function PublicLayout({
   children: React.ReactNode
 }) {
   return (
-    <ChakraClientRoot>
-      <div className="min-h-screen bg-background">
-        <header className="border-b">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-            <Link href="/" className="text-sm font-semibold tracking-wide">
-              ClashPoint
-            </Link>
-            <nav className="flex items-center gap-4 text-sm">
-              <Link href="/events" className="text-muted-foreground hover:text-foreground">
-                Events
-              </Link>
-              <Link href="/portal" className="text-muted-foreground hover:text-foreground">
-                Promoter portal
-              </Link>
-              <Link href="/login" className="text-muted-foreground hover:text-foreground">
-                Sign in
-              </Link>
-            </nav>
-          </div>
-        </header>
-        <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
-      </div>
-    </ChakraClientRoot>
+    <Box minH="100vh" bg="bg">
+      <Box as="header" borderBottomWidth="1px" borderColor="border">
+        <Container maxW="6xl" py={4} px={6}>
+          <Flex align="center" justify="space-between">
+            <ChakraLink asChild fontSize="sm" fontWeight="semibold" letterSpacing="wide">
+              <Link href="/">ClashPoint</Link>
+            </ChakraLink>
+            <Flex as="nav" align="center" gap={4} fontSize="sm">
+              <ChakraLink asChild color="fg.muted" _hover={{ color: 'fg' }}>
+                <Link href="/events">Events</Link>
+              </ChakraLink>
+              <ChakraLink asChild color="fg.muted" _hover={{ color: 'fg' }}>
+                <Link href="/portal">Promoter portal</Link>
+              </ChakraLink>
+              <ChakraLink asChild color="fg.muted" _hover={{ color: 'fg' }}>
+                <Link href="/login">Sign in</Link>
+              </ChakraLink>
+            </Flex>
+          </Flex>
+        </Container>
+      </Box>
+      <Container as="main" maxW="6xl" py={8} px={6}>
+        {children}
+      </Container>
+    </Box>
   )
 }

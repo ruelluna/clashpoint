@@ -1,3 +1,4 @@
+import { Stack } from '@chakra-ui/react'
 import { notFound } from 'next/navigation'
 
 import { PublicEventNav } from '@/features/public/components/public-event-nav'
@@ -21,9 +22,9 @@ export default async function PublicStandingsPage({
   if (standings === null) notFound()
 
   return (
-    <div className="space-y-6">
+    <Stack gap={6}>
       <PublicEventNav event={event} />
       <PublicStandingsTable standings={standings} />
-    </div>
+    </Stack>
   )
 }

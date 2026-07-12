@@ -10,15 +10,18 @@ import {
   Stack,
   Text,
 } from '@chakra-ui/react'
-import { useActionState, useMemo, useState } from 'react'
+import { useActionState, useEffect, useMemo, useState } from 'react'
 
 import {
   ButtonGroup,
+  FormField,
   LAYOUT_GAP,
   PageHeader,
   PageStack,
   PanelCard,
 } from '@/components/dashboard'
+import { evaluateMatchCompatibilityAction } from '@/features/eligibility/actions'
+import type { MatchCompatibilityEvaluation } from '@/features/compatibility/types'
 import {
   createMatchAction,
   lockMatchListAction,
@@ -32,6 +35,8 @@ import {
 } from '@/features/matches/schema'
 import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
 import { FIGHT_QUEUE_TRANSITIONS } from '@/features/matches/utils'
+import { COMPATIBILITY_STATUS_LABELS } from '@/lib/derby/enums'
+import type { CompatibilityStatus } from '@/lib/derby/enums'
 
 type MatchingBoardClientProps = {
   eventId: string
@@ -105,6 +110,21 @@ function nextQueueStatus(
   if (!current) return 'scheduled'
   const options = FIGHT_QUEUE_TRANSITIONS[current]
   return options[0] ?? null
+}
+
+function compatibilityColor(
+  status: CompatibilityStatus
+): 'green' | 'orange' | 'red' | 'gray' {
+  switch (status) {
+    case 'compatible':
+      return 'green'
+    case 'approval_required':
+      return 'orange'
+    case 'prohibited':
+      return 'red'
+    default:
+      return 'gray'
+  }
 }
 
 function BetEditForm({
@@ -241,6 +261,11 @@ export function MatchingBoardClient({
 
   const [meronRoosterId, setMeronRoosterId] = useState('')
   const [walaRoosterId, setWalaRoosterId] = useState('')
+  const [compatibility, setCompatibility] = useState<MatchCompatibilityEvaluation | null>(
+    null
+  )
+  const [compatibilityLoading, setCompatibilityLoading] = useState(false)
+  const [compatibilityError, setCompatibilityError] = useState<string | null>(null)
 
   const roosterMap = useMemo(
     () => new Map(eligibleRoosters.map((rooster) => [rooster.rooster_id, rooster])),
@@ -249,6 +274,36 @@ export function MatchingBoardClient({
 
   const meronRooster = roosterMap.get(meronRoosterId)
   const walaRooster = roosterMap.get(walaRoosterId)
+
+  useEffect(() => {
+    if (!meronRoosterId || !walaRoosterId) {
+      setCompatibility(null)
+      setCompatibilityError(null)
+      return
+    }
+
+    let cancelled = false
+    setCompatibilityLoading(true)
+    setCompatibilityError(null)
+
+    evaluateMatchCompatibilityAction(eventId, meronRoosterId, walaRoosterId)
+      .then((result) => {
+        if (cancelled) return
+        if (result.error) {
+          setCompatibility(null)
+          setCompatibilityError(result.error)
+          return
+        }
+        setCompatibility(result.evaluation ?? null)
+      })
+      .finally(() => {
+        if (!cancelled) setCompatibilityLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [eventId, meronRoosterId, walaRoosterId])
 
   const hasLockableMatches = matches.some((match) =>
     ['draft', 'for_review', 'confirmed'].includes(match.status)
@@ -297,53 +352,98 @@ export function MatchingBoardClient({
               value={walaRooster?.entry_id ?? ''}
             />
             <Flex direction={{ base: 'column', md: 'row' }} gap={LAYOUT_GAP.form} mb={LAYOUT_GAP.form}>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Meron
-                </Text>
-                <NativeSelect.Root size="sm">
-                  <NativeSelect.Field
-                    name="meronRoosterId"
-                    value={meronRoosterId}
-                    onChange={(event) => setMeronRoosterId(event.currentTarget.value)}
-                  >
-                    <option value="">Select rooster</option>
-                    {eligibleRoosters.map((rooster) => (
-                      <option key={rooster.rooster_id} value={rooster.rooster_id}>
-                        {roosterLabel(rooster)} · {formatWeight(rooster.official_weight)}
-                      </option>
-                    ))}
-                  </NativeSelect.Field>
-                </NativeSelect.Root>
-                <Text fontSize="sm" fontWeight="medium" mb={1} mt={3}>
-                  Meron bet
-                </Text>
-                <Input name="meronBet" type="number" min={0} step="0.01" defaultValue="0" />
-              </Box>
-              <Box flex="1">
-                <Text fontSize="sm" fontWeight="medium" mb={1}>
-                  Wala
-                </Text>
-                <NativeSelect.Root size="sm">
-                  <NativeSelect.Field
-                    name="walaRoosterId"
-                    value={walaRoosterId}
-                    onChange={(event) => setWalaRoosterId(event.currentTarget.value)}
-                  >
-                    <option value="">Select rooster</option>
-                    {eligibleRoosters.map((rooster) => (
-                      <option key={rooster.rooster_id} value={rooster.rooster_id}>
-                        {roosterLabel(rooster)} · {formatWeight(rooster.official_weight)}
-                      </option>
-                    ))}
-                  </NativeSelect.Field>
-                </NativeSelect.Root>
-                <Text fontSize="sm" fontWeight="medium" mb={1} mt={3}>
-                  Wala bet
-                </Text>
-                <Input name="walaBet" type="number" min={0} step="0.01" defaultValue="0" />
-              </Box>
+              <Stack flex="1" gap={LAYOUT_GAP.form}>
+                <FormField label="Meron" required>
+                  <NativeSelect.Root size="sm">
+                    <NativeSelect.Field
+                      name="meronRoosterId"
+                      value={meronRoosterId}
+                      onChange={(event) => setMeronRoosterId(event.currentTarget.value)}
+                    >
+                      <option value="">Select rooster</option>
+                      {eligibleRoosters.map((rooster) => (
+                        <option key={rooster.rooster_id} value={rooster.rooster_id}>
+                          {roosterLabel(rooster)} · {formatWeight(rooster.official_weight)}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                  </NativeSelect.Root>
+                </FormField>
+                <FormField label="Meron bet">
+                  <Input name="meronBet" type="number" min={0} step="0.01" defaultValue="0" />
+                </FormField>
+              </Stack>
+              <Stack flex="1" gap={LAYOUT_GAP.form}>
+                <FormField label="Wala" required>
+                  <NativeSelect.Root size="sm">
+                    <NativeSelect.Field
+                      name="walaRoosterId"
+                      value={walaRoosterId}
+                      onChange={(event) => setWalaRoosterId(event.currentTarget.value)}
+                    >
+                      <option value="">Select rooster</option>
+                      {eligibleRoosters.map((rooster) => (
+                        <option key={rooster.rooster_id} value={rooster.rooster_id}>
+                          {roosterLabel(rooster)} · {formatWeight(rooster.official_weight)}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                  </NativeSelect.Root>
+                </FormField>
+                <FormField label="Wala bet">
+                  <Input name="walaBet" type="number" min={0} step="0.01" defaultValue="0" />
+                </FormField>
+              </Stack>
             </Flex>
+            {meronRoosterId && walaRoosterId ? (
+              <Box
+                mt={LAYOUT_GAP.form}
+                p={3}
+                rounded="md"
+                borderWidth="1px"
+                borderColor="border"
+                bg="bg.subtle"
+              >
+                {compatibilityLoading ? (
+                  <Text fontSize="sm" color="fg.muted">
+                    Checking compatibility…
+                  </Text>
+                ) : compatibilityError ? (
+                  <Text fontSize="sm" color="red.fg">
+                    {compatibilityError}
+                  </Text>
+                ) : compatibility ? (
+                  <Stack gap={2}>
+                    <Flex align="center" gap={2}>
+                      <Text fontSize="sm" fontWeight="medium">
+                        Match compatibility
+                      </Text>
+                      <Badge colorPalette={compatibilityColor(compatibility.status)} size="sm">
+                        {COMPATIBILITY_STATUS_LABELS[compatibility.status]}
+                      </Badge>
+                    </Flex>
+                    {compatibility.weightDifferenceGrams != null ? (
+                      <Text fontSize="sm" color="fg.muted">
+                        Weight difference: {compatibility.weightDifferenceGrams} g
+                      </Text>
+                    ) : null}
+                    {compatibility.reasons.length > 0 ? (
+                      <Stack gap={1}>
+                        {compatibility.reasons.map((reason) => (
+                          <Text key={reason} fontSize="sm" color="fg.muted">
+                            · {reason}
+                          </Text>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Text fontSize="sm" color="fg.muted">
+                        No compatibility issues detected.
+                      </Text>
+                    )}
+                  </Stack>
+                ) : null}
+              </Box>
+            ) : null}
             <Button
               type="submit"
               size="sm"

@@ -11,7 +11,20 @@ export type EventStatus =
   | 'cancelled'
   | 'archived'
 
-export type DerbyType = '2_cock' | '3_cock' | '4_cock' | '5_cock' | 'custom'
+export type DerbyFormat = '2_cock' | '3_cock' | '4_cock' | '5_cock' | 'custom'
+
+/** @deprecated Use DerbyFormat — kept for backward-compatible UI field names */
+export type DerbyType = DerbyFormat
+
+export type DerbyAgeType =
+  | 'stag_derby'
+  | 'bullstag_derby'
+  | 'cock_derby'
+  | 'stag_cock_derby'
+  | 'cock_bullstag_derby'
+  | 'stag_bullstag_cock_combo'
+  | 'open_derby'
+  | 'custom'
 
 export type ScoringSystem = 'win_loss' | 'points'
 
@@ -31,7 +44,15 @@ export type EventRow = {
   event_date: string
   registration_deadline: string | null
   event_type: EventType
-  derby_type: DerbyType | null
+  /** Derby format (2-cock, 3-cock, etc.) — DB column derby_format */
+  derby_type: DerbyFormat | null
+  derby_age_type: DerbyAgeType | null
+  require_rooster_entry_approval: boolean
+  eligibility_enforcement_enabled: boolean
+  classification_matching_enabled: boolean
+  min_weight_grams: number | null
+  max_weight_grams: number | null
+  match_weight_tolerance_grams: number | null
   entry_fee: number
   tax_per_fight: number
   min_entries: number | null
@@ -82,6 +103,7 @@ export type EventListItem = Pick<
   | 'event_date'
   | 'event_type'
   | 'derby_type'
+  | 'derby_age_type'
   | 'status'
   | 'entry_fee'
   | 'tax_per_fight'

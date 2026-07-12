@@ -14,7 +14,7 @@ export async function listWeighingStationItems(
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select(
       `
       id,
@@ -44,7 +44,7 @@ export async function listWeighingStationItems(
       : weighingRaw
 
     return {
-      rooster_record_id: row.id as string,
+      rooster_event_registration_id: row.id as string,
       entry_id: row.entry_id as string,
       entry_number: entry?.entry_number ?? '',
       entry_name: entry?.entry_name ?? '',
@@ -70,7 +70,7 @@ export async function getWeighingByRooster(
   const { data, error } = await supabase
     .from('weighings')
     .select('*')
-    .eq('rooster_record_id', roosterRecordId)
+    .eq('rooster_event_registration_id', roosterRecordId)
     .maybeSingle()
 
   if (error) throw error
@@ -97,7 +97,7 @@ export async function listWeighingReport(
       weight_status,
       verified_at,
       notes,
-      rooster_records (
+      rooster_event_registrations (
         cock_number,
         band_number,
         declared_weight,
@@ -111,7 +111,7 @@ export async function listWeighingReport(
   if (error) throw error
 
   return (data ?? []).map((row) => {
-    const rooster = row.rooster_records as {
+    const rooster = row.rooster_event_registrations as {
       cock_number: number
       band_number: string
       declared_weight: number | null
@@ -145,7 +145,7 @@ export async function countWeighingStats(eventId: string): Promise<{
   const supabase = await createClient()
 
   const { count: roosterCount, error: roosterError } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select('id', { count: 'exact', head: true })
     .eq('event_id', eventId)
 
@@ -195,7 +195,7 @@ export async function listWeighingEntrySummaries(
   if (entriesError) throw entriesError
 
   const { data: roosters, error: roostersError } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select('entry_id')
     .eq('event_id', eventId)
 

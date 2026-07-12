@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Grid, Text } from '@chakra-ui/react'
+import { Box, Grid, Link as ChakraLink, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
 import { EVENT_STATUS_LABELS } from '@/features/events/schema'
@@ -29,11 +29,11 @@ export function PortalEventSummaryClient({
   const { event, settlement } = summary
 
   return (
-    <Box className="space-y-6">
+    <Stack gap={6}>
       <Box>
-        <Link href="/portal/events" className="text-sm text-muted-foreground">
-          ← Back to events
-        </Link>
+        <ChakraLink asChild fontSize="sm" color="fg.muted">
+          <Link href="/portal/events">← Back to events</Link>
+        </ChakraLink>
         <Text fontSize="2xl" fontWeight="semibold" mt={2}>
           {event.name}
         </Text>
@@ -107,6 +107,6 @@ export function PortalEventSummaryClient({
       ) : null}
 
       <StandingsTableClient standings={summary.standings} />
-    </Box>
+    </Stack>
   )
 }

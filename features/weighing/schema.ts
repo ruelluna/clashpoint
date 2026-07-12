@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { entryRoosterPolicyFieldsSchema } from '@/features/entries/policy-validation'
 import type { WeightStatus } from '@/features/weighing/types'
 
 export const weightStatusSchema = z.enum([
@@ -49,6 +50,7 @@ export const createRoosterSchema = z.object({
     .optional()
     .or(z.literal(''))
     .transform((value) => value || undefined),
+  ...entryRoosterPolicyFieldsSchema,
 })
 
 export type RecordWeightInput = z.infer<typeof recordWeightSchema>

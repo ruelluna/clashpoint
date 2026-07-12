@@ -27,7 +27,7 @@ export async function submitLineup(
 
   const submittedBands = input.cocks.map((cock) => cock.bandNumber.trim())
   const { data: existingBands, error: bandError } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select('band_number, entry_id')
     .eq('event_id', input.eventId)
     .neq('entry_id', input.entryId)
@@ -47,7 +47,7 @@ export async function submitLineup(
   }
 
   const { error: deleteError } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .delete()
     .eq('entry_id', input.entryId)
 
@@ -65,7 +65,7 @@ export async function submitLineup(
   }))
 
   const { data: inserted, error: insertError } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .insert(rows)
     .select('id')
 

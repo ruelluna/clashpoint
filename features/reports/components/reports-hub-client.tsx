@@ -44,6 +44,27 @@ const EVENT_REPORTS: EventReportDefinition[] = [
     description: 'Fight outcomes and verification status.',
   },
   {
+    type: 'entry_approval',
+    label: 'Rooster entry approval',
+    description: 'Per-rooster registration, eligibility, and approval decisions.',
+    viewHref: 'registrations',
+  },
+  {
+    type: 'eligibility_summary',
+    label: 'Derby eligibility summary',
+    description: 'Counts by registration, eligibility, and approval status.',
+  },
+  {
+    type: 'band_verification',
+    label: 'Band verification',
+    description: 'Band records and verification status per rooster.',
+  },
+  {
+    type: 'classification_exceptions',
+    label: 'Classification exceptions',
+    description: 'Approved matchup overrides for cross-class pairings.',
+  },
+  {
     type: 'audit',
     label: 'Audit trail',
     description: 'Event-scoped audit log entries.',

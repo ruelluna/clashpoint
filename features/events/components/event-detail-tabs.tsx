@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 const EVENT_TABS = [
   { slug: '', label: 'Overview' },
   { slug: 'rooster-entries', label: 'Rooster Entries' },
+  { slug: 'registrations', label: 'Registrations' },
   { slug: 'matching', label: 'Matching' },
   { slug: 'results', label: 'Results' },
   { slug: 'standings', label: 'Standings' },
@@ -41,7 +42,9 @@ export function EventDetailTabs({ eventId, eventName }: EventDetailTabsProps) {
         <Flex gap={1} minW="max-content" pb={1}>
           {EVENT_TABS.map((tab) => {
             const href = tab.slug ? `${basePath}/${tab.slug}` : basePath
-            const isActive = pathname === href
+            const isActive = tab.slug
+              ? pathname === href || pathname.startsWith(`${href}/`)
+              : pathname === basePath
 
             return (
               <ChakraLink

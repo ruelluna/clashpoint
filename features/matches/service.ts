@@ -22,6 +22,7 @@ import {
   validateRoosterEligibility,
 } from '@/features/matches/utils'
 import type { Database } from '@/lib/supabase/database.types'
+import { evaluateMatchCompatibility } from '@/features/compatibility/service'
 import { createClient } from '@/lib/supabase/server'
 
 type MatchUpdate = Database['public']['Tables']['matches']['Update']
@@ -42,7 +43,7 @@ async function fetchRoosterContext(
 ): Promise<{ error?: string; context?: RoosterEligibilityContext & { official_weight: number | null; entry_id: string } }> {
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from('rooster_records')
+    .from('rooster_event_registrations')
     .select('id, entry_id, event_id, status, weighings ( weight_status, official_weight )')
     .eq('id', roosterId)
     .eq('event_id', eventId)
@@ -208,6 +209,27 @@ export async function createMatch(
 
   const walaUsedError = validateCockUsedOnce(input.walaRoosterId, usedRoosterIds)
   if (walaUsedError) return { error: walaUsedError }
+
+  const compatibility = await evaluateMatchCompatibility(
+    input.eventId,
+    input.meronRoosterId,
+    input.walaRoosterId
+  )
+
+  if (compatibility.status === 'prohibited') {
+    await writeAuditLog({
+      actorId,
+      action: 'match.prohibited_attempt',
+      entityType: 'match',
+      entityId: input.eventId,
+      newValues: {
+        meron_rooster_id: input.meronRoosterId,
+        wala_rooster_id: input.walaRoosterId,
+        reasons: compatibility.reasons,
+      },
+    })
+    return { error: compatibility.reasons[0] ?? 'Matchup is prohibited' }
+  }
 
   let fightNumber = input.fightNumber
   if (fightNumber == null) {

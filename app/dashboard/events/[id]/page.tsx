@@ -8,6 +8,14 @@ import {
   LAYOUT_GAP,
   PanelCard,
 } from '@/components/dashboard'
+import { listAssociations } from '@/features/associations/queries'
+import { EligibilityPolicySummaryPanel } from '@/features/eligibility/components/eligibility-policy-summary-panel'
+import { getDerbyEligibilityPolicy } from '@/features/eligibility/queries'
+import {
+  buildEligibilityPolicySummary,
+  hasEligibilityOptionsConfigured,
+} from '@/features/eligibility/policy-summary'
+import { getEntryFormEligibilityContext } from '@/features/eligibility/registration-bridge'
 import { getEventWithPrize } from '@/features/events/queries'
 import {
   DERBY_TYPE_LABELS,
@@ -49,6 +57,33 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
   const user = await getUser()
   const canManage = user ? await hasPermission(user.id, 'events.manage') : false
   const isDerby = event.event_type === 'derby'
+
+  const eligibilityContext = isDerby ? await getEntryFormEligibilityContext(id) : null
+  const eligibilityPolicy =
+    isDerby && hasEligibilityOptionsConfigured(eligibilityContext)
+      ? await getDerbyEligibilityPolicy(id)
+      : null
+  const associations =
+    eligibilityContext &&
+    eligibilityContext.enabledFields.includes('association')
+      ? await listAssociations()
+      : []
+  const approvedAssociationNames =
+    eligibilityPolicy?.approved_association_ids?.length
+      ? associations
+          .filter((association) =>
+            eligibilityPolicy.approved_association_ids.includes(association.id)
+          )
+          .map((association) => association.name)
+      : []
+  const eligibilitySummary =
+    eligibilityContext && hasEligibilityOptionsConfigured(eligibilityContext)
+      ? buildEligibilityPolicySummary(
+          eligibilityContext,
+          eligibilityPolicy,
+          approvedAssociationNames
+        )
+      : null
 
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>
@@ -118,7 +153,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
                   Registration rules
                 </Text>
                 <Box
-                  className="prose prose-sm max-w-none"
+                  className="rich-text-content text-sm"
                   dangerouslySetInnerHTML={{
                     __html: sanitizeHtml(event.registration_rules),
                   }}
@@ -127,6 +162,14 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             ) : null}
           </Stack>
         </PanelCard>
+
+        {eligibilitySummary ? (
+          <EligibilityPolicySummaryPanel
+            summary={eligibilitySummary}
+            requireRoosterEntryApproval={event.require_rooster_entry_approval}
+            classificationMatchingEnabled={event.classification_matching_enabled}
+          />
+        ) : null}
 
         {event.prize_structure ? (
           <PanelCard

@@ -1,5 +1,12 @@
 import { expect, type Page } from '@playwright/test'
 
+import {
+  canManageProfiles,
+  createEventOrganizerTestUser,
+  deleteTestUser,
+  hasServiceRoleCredentials,
+} from '../helpers/test-users'
+
 export const adminCredentials = {
   email: process.env.PLAYWRIGHT_ADMIN_EMAIL ?? '',
   password: process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? '',
@@ -44,6 +51,27 @@ export async function signInAsAdmin(page: Page) {
 
     throw new Error(`Sign-in did not reach dashboard (current URL: ${page.url()})`)
   }
+}
+
+export async function signInAsEventOrganizer(page: Page) {
+  const organizer = await createEventOrganizerTestUser()
+
+  try {
+    await signInWithCredentials(page, organizer.email, organizer.password)
+    await expect(page).toHaveURL(/\/dashboard(\?|$)/, { timeout: 15_000 })
+    return organizer
+  } catch (error) {
+    await deleteTestUser(organizer.id)
+    throw error
+  }
+}
+
+export function canRunAuthenticatedEventTests() {
+  return hasAdminCredentials() || hasServiceRoleCredentials()
+}
+
+export async function canRunSeededEventTests() {
+  return hasAdminCredentials() || (hasServiceRoleCredentials() && (await canManageProfiles()))
 }
 
 export async function expectLoginRedirect(page: Page) {

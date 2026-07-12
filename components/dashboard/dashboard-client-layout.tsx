@@ -1,7 +1,5 @@
 'use client'
 
-import { DashboardLayoutFallback } from '@/components/dashboard/dashboard-layout-fallback'
-import { ChakraClientRoot } from '@/components/chakra/client-root'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 type DashboardClientLayoutProps = {
   displayName: string
@@ -15,10 +13,8 @@ export function DashboardClientLayout({
   children,
 }: DashboardClientLayoutProps) {
   return (
-    <ChakraClientRoot fallback={<DashboardLayoutFallback />}>
-      <DashboardShell displayName={displayName} permissionIds={permissionIds}>
-        {children}
-      </DashboardShell>
-    </ChakraClientRoot>
+    <DashboardShell displayName={displayName} permissionIds={permissionIds}>
+      {children}
+    </DashboardShell>
   )
 }
