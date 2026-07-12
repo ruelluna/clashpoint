@@ -189,11 +189,14 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
               <Box borderTopWidth="1px" borderColor="border" pt={4}>
                 <Checkbox.Root
                   checked={giveLoginAccess}
-                  onCheckedChange={(details) =>
-                    setGiveLoginAccess(details.checked === true)
+                  onCheckedChange={(event) =>
+                    setGiveLoginAccess(Boolean(event.checked))
                   }
                 >
-                  <Checkbox.Control />
+                  <Checkbox.HiddenInput />
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
                   <Checkbox.Label>
                     Give this promoter portal login access
                   </Checkbox.Label>
@@ -203,6 +206,11 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 ) : null}
                 {giveLoginAccess ? (
                   <Stack gap={LAYOUT_GAP.form} mt={4}>
+                    <Text fontWeight="semibold">Grant login access</Text>
+                    <Text fontSize="sm" color="fg.muted">
+                      Set the portal login email and a temporary password for this
+                      promoter.
+                    </Text>
                     <FormField label="Login email" required>
                       <Input name="loginEmail" type="email" required />
                     </FormField>
