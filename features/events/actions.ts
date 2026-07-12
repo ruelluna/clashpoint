@@ -92,7 +92,6 @@ function parseEventFields(formData: FormData) {
       : null,
     eventType,
     derbyType,
-    entryFee: formData.get('entryFee')?.toString() ?? '0',
     taxPerFight: formData.get('taxPerFight')?.toString() ?? '0',
     cocksPerEntry: String(cocksPerEntry),
     registrationRules: isDerby

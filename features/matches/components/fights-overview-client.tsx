@@ -1,8 +1,9 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Text } from '@chakra-ui/react'
+import { Badge, Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
+import { LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import type { FightQueueSummary } from '@/features/matches/types'
 
 type FightsOverviewClientProps = {
@@ -11,30 +12,22 @@ type FightsOverviewClientProps = {
 
 export function FightsOverviewClient({ summaries }: FightsOverviewClientProps) {
   return (
-    <Box className="space-y-6">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Fights
-        </Text>
-        <Text color="fg.muted">
-          Live fight queues for ongoing events.
-        </Text>
-      </Box>
+    <PageStack>
+      <PageHeader
+        title="Fights"
+        description="Live fight queues for ongoing events."
+      />
 
       {summaries.length === 0 ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={8} textAlign="center">
-          <Text color="fg.muted">No ongoing events with a fight queue.</Text>
-        </Box>
+        <PanelCard>
+          <Text color="fg.muted" textAlign="center">
+            No ongoing events with a fight queue.
+          </Text>
+        </PanelCard>
       ) : (
-        <Flex direction="column" gap={4}>
+        <Stack gap={LAYOUT_GAP.form}>
           {summaries.map((summary) => (
-            <Box
-              key={summary.event_id}
-              borderWidth="1px"
-              borderColor="border"
-              rounded="lg"
-              p={4}
-            >
+            <PanelCard key={summary.event_id}>
               <Flex
                 justify="space-between"
                 align={{ base: 'stretch', md: 'center' }}
@@ -81,10 +74,10 @@ export function FightsOverviewClient({ summaries }: FightsOverviewClientProps) {
                   </Link>
                 </Button>
               </Flex>
-            </Box>
+            </PanelCard>
           ))}
-        </Flex>
+        </Stack>
       )}
-    </Box>
+    </PageStack>
   )
 }

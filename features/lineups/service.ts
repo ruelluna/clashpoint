@@ -1,7 +1,6 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
-import { canSubmitLineup } from '@/features/entries/service'
 import { getEntry } from '@/features/entries/queries'
 import { getEvent } from '@/features/events/queries'
 import type { SubmitLineupInput } from '@/features/lineups/schema'
@@ -16,11 +15,6 @@ export async function submitLineup(
   if (!entry) return { error: 'Entry not found' }
   if (entry.event_id !== input.eventId) {
     return { error: 'Entry does not belong to this event' }
-  }
-  if (!canSubmitLineup(entry)) {
-    return {
-      error: 'Only confirmed and fully paid entries can submit a lineup',
-    }
   }
 
   const event = await getEvent(input.eventId)

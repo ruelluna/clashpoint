@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
-import { Box } from '@chakra-ui/react'
 
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
+import { EventPageLayout } from '@/components/dashboard'
 import { getEventWithPrize } from '@/features/events/queries'
 import { PayoutsClient } from '@/features/payouts/components/payouts-client'
 import { listPayoutsByEvent } from '@/features/payouts/queries'
@@ -28,14 +27,13 @@ export default async function EventPayoutsPage({ params }: EventPayoutsPageProps
   const canManage = user ? await hasPermission(user.id, 'payouts.manage') : false
 
   return (
-    <Box className="space-y-6">
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
+    <EventPageLayout eventId={event.id} eventName={event.name}>
       <PayoutsClient
         eventId={event.id}
         payouts={payouts}
         prizePool={prizePool}
         canManage={canManage}
       />
-    </Box>
+    </EventPageLayout>
   )
 }

@@ -1,5 +1,20 @@
 # ClashPoint documentation sites
 
+## Investment agreement deliverables
+
+Contractual project documentation for investors and legal review lives in [`docs/investment/`](investment/). These files are separate from the Docusaurus admin/user guide sites below.
+
+| File | Purpose |
+|------|---------|
+| `SOFTWARE_ARCHITECTURE.md` | System design and module breakdown |
+| `DATABASE_DESIGN.md` | Logical PostgreSQL schema |
+| `DEVELOPMENT_TIMELINE.md` | 2-week development schedule |
+| `UI_CONCEPT.md` | Page-level UI specification |
+| `TECHNOLOGY_STACK.md` | Technology choices and rationale |
+| `MILESTONE_CHECKLIST.md` | Feature acceptance checklist |
+
+---
+
 Admin and user guides live in **separate git repositories** nested under this folder. They are gitignored in the main ClashPoint repo.
 
 ## Documentation structure (phases)

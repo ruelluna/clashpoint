@@ -9,6 +9,7 @@ import {
 } from '@chakra-ui/react'
 import { useActionState } from 'react'
 
+import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   updateFightQueueStatusAction,
   type MatchActionState,
@@ -151,15 +152,11 @@ export function FightQueueClient({
   const ongoing = matches.find((match) => match.queue_status === 'ongoing')
 
   return (
-    <Box className="space-y-6">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Fight queue
-        </Text>
-        <Text color="fg.muted">
-          Advance fights through scheduled → called → ready → ongoing for {eventName}.
-        </Text>
-      </Box>
+    <PageStack>
+      <PageHeader
+        title="Fight queue"
+        description={`Advance fights through scheduled → called → ready → ongoing for ${eventName}.`}
+      />
 
       {ongoing ? (
         <Box
@@ -178,7 +175,7 @@ export function FightQueueClient({
         </Box>
       ) : null}
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         {matches.length === 0 ? (
           <Box px={4} py={8} textAlign="center">
             <Text color="fg.muted">
@@ -195,7 +192,7 @@ export function FightQueueClient({
             />
           ))
         )}
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

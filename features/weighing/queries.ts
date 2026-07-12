@@ -1,6 +1,7 @@
 import 'server-only'
 
 import type {
+  WeighingEntrySummary,
   WeighingReportRow,
   WeighingRow,
   WeighingStationItem,
@@ -176,4 +177,45 @@ export async function countWeighingStats(eventId: string): Promise<{
     pending,
     verified,
   }
+}
+
+export async function listWeighingEntrySummaries(
+  eventId: string,
+  cocksPerEntry: number
+): Promise<WeighingEntrySummary[]> {
+  const supabase = await createClient()
+
+  const { data: entries, error: entriesError } = await supabase
+    .from('entries')
+    .select('id, entry_number, entry_name, owner_name')
+    .eq('event_id', eventId)
+    .is('deleted_at', null)
+    .order('entry_number', { ascending: true })
+
+  if (entriesError) throw entriesError
+
+  const { data: roosters, error: roostersError } = await supabase
+    .from('rooster_records')
+    .select('entry_id')
+    .eq('event_id', eventId)
+
+  if (roostersError) throw roostersError
+
+  const countByEntry = new Map<string, number>()
+  for (const row of roosters ?? []) {
+    const entryId = row.entry_id as string
+    countByEntry.set(entryId, (countByEntry.get(entryId) ?? 0) + 1)
+  }
+
+  return (entries ?? []).map((entry) => {
+    const roosterCount = countByEntry.get(entry.id as string) ?? 0
+    return {
+      entry_id: entry.id as string,
+      entry_number: entry.entry_number as string,
+      entry_name: entry.entry_name as string,
+      owner_name: entry.owner_name as string,
+      rooster_count: roosterCount,
+      can_add_rooster: roosterCount < cocksPerEntry,
+    }
+  })
 }

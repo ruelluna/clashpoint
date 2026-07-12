@@ -4,6 +4,7 @@ import { Badge, Box, Button, Flex, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 
+import { ButtonGroup, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import { downloadReportCsvAction } from '@/features/reports/actions'
 import type { PromoterReportRow } from '@/features/reports/types'
 
@@ -48,30 +49,21 @@ export function PromoterReportClient({ rows }: PromoterReportClientProps) {
   }
 
   return (
-    <Box className="space-y-6">
-      <Flex
-        justify="space-between"
-        align={{ base: 'stretch', sm: 'center' }}
-        direction={{ base: 'column', sm: 'row' }}
-        gap={3}
-      >
-        <Box>
-          <Text fontSize="2xl" fontWeight="semibold">
-            Promoter report
-          </Text>
-          <Text color="fg.muted">
-            Events hosted, entries referred, and collections by promoter.
-          </Text>
-        </Box>
-        <Flex gap={2}>
-          <Button asChild size="sm" variant="outline">
-            <Link href="/dashboard/reports">← Back to reports</Link>
-          </Button>
-          <Button size="sm" loading={isPending} onClick={handleDownload}>
-            Download CSV
-          </Button>
-        </Flex>
-      </Flex>
+    <PageStack>
+      <PageHeader
+        title="Promoter report"
+        description="Events hosted, entries referred, and collections by promoter."
+        actions={
+          <ButtonGroup>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/reports">← Back to reports</Link>
+            </Button>
+            <Button size="sm" loading={isPending} onClick={handleDownload}>
+              Download CSV
+            </Button>
+          </ButtonGroup>
+        }
+      />
 
       {error ? (
         <Box
@@ -88,7 +80,7 @@ export function PromoterReportClient({ rows }: PromoterReportClientProps) {
         </Box>
       ) : null}
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         {rows.length === 0 ? (
           <Box px={4} py={6} color="fg.muted">
             No promoters found.
@@ -159,7 +151,7 @@ export function PromoterReportClient({ rows }: PromoterReportClientProps) {
             </Box>
           </Box>
         )}
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

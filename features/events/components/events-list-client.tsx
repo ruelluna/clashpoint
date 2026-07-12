@@ -3,6 +3,7 @@
 import { Badge, Box, Button, Flex, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
+import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   DERBY_TYPE_LABELS,
   EVENT_STATUS_LABELS,
@@ -50,22 +51,20 @@ function statusColor(status: EventListItem['status']) {
 
 export function EventsListClient({ events, canManage }: EventsListClientProps) {
   return (
-    <Box className="space-y-6">
-      <Flex justify="space-between" align={{ base: 'stretch', sm: 'center' }} direction={{ base: 'column', sm: 'row' }} gap={3}>
-        <Box>
-          <Text fontSize="2xl" fontWeight="semibold">
-            Events
-          </Text>
-          <Text color="fg.muted">Manage derby events and lifecycle.</Text>
-        </Box>
-        {canManage ? (
-          <Button asChild alignSelf={{ base: 'flex-start', sm: 'auto' }}>
-            <Link href="/dashboard/events/new">New event</Link>
-          </Button>
-        ) : null}
-      </Flex>
+    <PageStack>
+      <PageHeader
+        title="Events"
+        description="Manage derby events and lifecycle."
+        actions={
+          canManage ? (
+            <Button asChild alignSelf={{ base: 'flex-start', sm: 'auto' }}>
+              <Link href="/dashboard/events/new">New event</Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         <Flex
           px={4}
           py={3}
@@ -79,7 +78,6 @@ export function EventsListClient({ events, canManage }: EventsListClientProps) {
           <Box flex="1">Date</Box>
           <Box flex="1">Type</Box>
           <Box flex="1">Status</Box>
-          <Box flex="1">Entry fee</Box>
         </Flex>
 
         {events.length === 0 ? (
@@ -134,14 +132,11 @@ export function EventsListClient({ events, canManage }: EventsListClientProps) {
                     </Badge>
                   ) : null}
                 </Box>
-                <Box flex="1">
-                  <Text fontSize="sm">{formatCurrency(event.entry_fee)}</Text>
-                </Box>
               </Link>
             </Flex>
           ))
         )}
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

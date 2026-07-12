@@ -1,6 +1,5 @@
 import 'server-only'
 
-import { canSubmitLineup } from '@/features/entries/service'
 import { listEntriesByEvent } from '@/features/entries/queries'
 import type {
   LineupEntrySummary,
@@ -40,7 +39,7 @@ export async function listLineupSummariesByEvent(
       entry_number: entry.entry_number,
       entry_name: entry.entry_name,
       owner_name: entry.owner_name,
-      can_submit: canSubmitLineup(entry),
+      can_submit: false,
       rooster_count: lineup?.count ?? 0,
       status: lineup?.status ?? null,
     }

@@ -6,12 +6,8 @@ import { usePathname } from 'next/navigation'
 
 const EVENT_TABS = [
   { slug: '', label: 'Overview' },
-  { slug: 'registrations', label: 'Registrations' },
-  { slug: 'payments', label: 'Payments' },
   { slug: 'rooster-entries', label: 'Rooster Entries' },
-  { slug: 'weighing', label: 'Weighing' },
   { slug: 'matching', label: 'Matching' },
-  { slug: 'fight-queue', label: 'Fight Queue' },
   { slug: 'results', label: 'Results' },
   { slug: 'standings', label: 'Standings' },
   { slug: 'winners', label: 'Winners' },

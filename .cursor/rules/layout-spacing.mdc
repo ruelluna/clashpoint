@@ -1,0 +1,71 @@
+﻿---
+description: Dashboard layout spacing — use shared Chakra primitives for consistent gaps between sections, cards, and buttons.
+globs: app/dashboard/**/*.tsx,features/**/components/*-client.tsx,components/dashboard/**
+alwaysApply: false
+---
+
+# Dashboard layout spacing
+
+Use Chakra `Stack` / `Flex` with `gap` from shared layout primitives. Do **not** use Tailwind `space-y-*` on dashboard pages.
+
+## Imports
+
+```ts
+import {
+  ButtonGroup,
+  EventPageLayout,
+  LAYOUT_GAP,
+  PageHeader,
+  PageStack,
+  PanelCard,
+} from '@/components/dashboard'
+```
+
+## Spacing scale (`LAYOUT_GAP`)
+
+| Token | Value | Use |
+|-------|-------|-----|
+| `page` | 6 | Major page blocks |
+| `section` | 6 | Between sibling cards |
+| `form` | 4 | Form fields / field groups |
+| `buttons` | 3 | Adjacent action buttons |
+| `cardPadding` | 6 | Inside `PanelCard` |
+| `cardTitle` | 4 | Below card titles |
+
+## Page wrappers
+
+| Route type | Wrapper |
+|------------|---------|
+| Event tab pages | `EventPageLayout` (tabs + content with `gap={6}`) |
+| All other dashboard pages | `PageStack` |
+
+```tsx
+// Event tab page
+return (
+  <EventPageLayout eventId={event.id} eventName={event.name}>
+    <FeatureClient ... />
+  </EventPageLayout>
+)
+
+// Standard dashboard page
+return (
+  <PageStack>
+    <PageHeader title="..." description="..." actions={...} />
+    <PanelCard title="...">...</PanelCard>
+  </PageStack>
+)
+```
+
+## Components
+
+- **`PageHeader`** — page title, optional description, optional actions slot
+- **`PanelCard`** — bordered card sections (replaces `Box borderWidth="1px"`)
+- **`ButtonGroup`** — two or more adjacent buttons
+- **`Stack gap={LAYOUT_GAP.form}`** — inside forms between fields
+
+## Do not
+
+- Raw `Box borderWidth="1px"` for dashboard sections — use `PanelCard`
+- `className="space-y-6"` on dashboard pages — use `PageStack`
+- Inline `style={{ marginTop: ... }}` for button spacing — use `ButtonGroup` or `mt={LAYOUT_GAP.form}`
+- Fragment (`<>`) between `EventDetailTabs` and page content — use `EventPageLayout`

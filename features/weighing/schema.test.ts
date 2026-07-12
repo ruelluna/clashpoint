@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  createRoosterSchema,
   evaluateWeightStatus,
   recordWeightSchema,
+  validateCockCount,
   verifyWeightSchema,
 } from '@/features/weighing/schema'
 
 const eventId = '00000000-0000-4000-8000-000000000001'
+const entryId = '00000000-0000-4000-8000-000000000002'
 const roosterId = '00000000-0000-4000-8000-000000000003'
 const weighingId = '00000000-0000-4000-8000-000000000004'
 
@@ -66,5 +69,55 @@ describe('verifyWeightSchema', () => {
     })
 
     expect(result.success).toBe(true)
+  })
+})
+
+describe('createRoosterSchema', () => {
+  it('accepts valid rooster create input', () => {
+    const result = createRoosterSchema.safeParse({
+      eventId,
+      entryId,
+      bandNumber: 'B-101',
+      weight: 2.15,
+      category: 'Stag',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects missing band number', () => {
+    const result = createRoosterSchema.safeParse({
+      eventId,
+      entryId,
+      bandNumber: '',
+      weight: 2.15,
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects non-positive weight', () => {
+    const result = createRoosterSchema.safeParse({
+      eventId,
+      entryId,
+      bandNumber: 'B-101',
+      weight: 0,
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('validateCockCount', () => {
+  it('allows count within event limit', () => {
+    expect(validateCockCount(2, 3)).toBeNull()
+  })
+
+  it('rejects zero cocks', () => {
+    expect(validateCockCount(0, 3)).toBe('At least one cock is required')
+  })
+
+  it('rejects count above event limit', () => {
+    expect(validateCockCount(4, 3)).toBe('This event allows at most 3 cock(s) per entry')
   })
 })

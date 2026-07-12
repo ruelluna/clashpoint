@@ -1,8 +1,9 @@
 'use client'
 
-import { Box, Button, Checkbox, Flex, Input, Text, Textarea } from '@chakra-ui/react'
+import { Box, Button, Checkbox, Input, Stack, Text, Textarea } from '@chakra-ui/react'
 import { useActionState } from 'react'
 
+import { LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   updateSettingsAction,
   type SettingsActionState,
@@ -13,17 +14,15 @@ export function SettingsPageClient({ settings }: { settings: SystemSettings }) {
   const [state, action, pending] = useActionState(updateSettingsAction, {} as SettingsActionState)
 
   return (
-    <Box className="space-y-6">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Settings
-        </Text>
-        <Text color="fg.muted">Organization and compliance settings.</Text>
-      </Box>
+    <PageStack maxW="xl">
+      <PageHeader
+        title="Settings"
+        description="Organization and compliance settings."
+      />
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4} maxW="xl">
+      <PanelCard>
         <form action={action}>
-          <Flex direction="column" gap={4}>
+          <Stack gap={LAYOUT_GAP.form}>
             <Box>
               <Text fontSize="sm" fontWeight="medium" mb={1}>
                 Organization name
@@ -68,9 +67,9 @@ export function SettingsPageClient({ settings }: { settings: SystemSettings }) {
                 {state.success}
               </Text>
             ) : null}
-          </Flex>
+          </Stack>
         </form>
-      </Box>
-    </Box>
+      </PanelCard>
+    </PageStack>
   )
 }

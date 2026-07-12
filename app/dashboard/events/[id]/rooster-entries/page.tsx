@@ -1,52 +1,31 @@
 import { notFound } from 'next/navigation'
-import { Box } from '@chakra-ui/react'
 
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
+import { EventPageLayout } from '@/components/dashboard'
+import { RoosterEntriesClient } from '@/features/entries/components/rooster-entries-client'
+import { listEntriesByEvent } from '@/features/entries/queries'
 import { getEvent } from '@/features/events/queries'
-import { LineupsClient } from '@/features/lineups/components/lineups-client'
-import {
-  listLineupSummariesByEvent,
-  listRoostersByEntry,
-} from '@/features/lineups/queries'
 import { requirePermission } from '@/lib/auth/permissions'
 
-type LineupsPageProps = {
+type RoosterEntriesPageProps = {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ entry?: string }>
 }
 
-export default async function LineupsPage({
-  params,
-  searchParams,
-}: LineupsPageProps) {
-  await requirePermission('lineups.manage')
-  const { id: eventId } = await params
-  const { entry: entryParam } = await searchParams
+export default async function RoosterEntriesPage({ params }: RoosterEntriesPageProps) {
+  await requirePermission('entries.manage')
+  const { id } = await params
+  const event = await getEvent(id)
 
-  const event = await getEvent(eventId)
   if (!event) notFound()
 
-  const summaries = await listLineupSummariesByEvent(eventId)
-  const selectedEntryId =
-    entryParam ??
-    summaries.find((entry) => entry.can_submit)?.entry_id ??
-    summaries[0]?.entry_id ??
-    null
-
-  const existingRoosters = selectedEntryId
-    ? await listRoostersByEntry(selectedEntryId)
-    : []
+  const entries = await listEntriesByEvent(id)
 
   return (
-    <Box className="space-y-6">
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
-      <LineupsClient
+    <EventPageLayout eventId={event.id} eventName={event.name}>
+      <RoosterEntriesClient
         eventId={event.id}
-        cocksPerEntry={event.cocks_per_entry}
-        summaries={summaries}
-        selectedEntryId={selectedEntryId}
-        existingRoosters={existingRoosters}
+        eventName={event.name}
+        entries={entries}
       />
-    </Box>
+    </EventPageLayout>
   )
 }

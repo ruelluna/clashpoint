@@ -5,6 +5,7 @@ import type {
   CreateMatchInput,
   LockMatchListInput,
   UpdateFightQueueStatusInput,
+  UpdateMatchBetInput,
 } from '@/features/matches/schema'
 import type {
   FightQueueStatus,
@@ -63,6 +64,82 @@ async function fetchRoosterContext(
       official_weight: weighing?.official_weight ?? null,
     },
   }
+}
+
+const EDITABLE_BET_STATUSES: MatchStatus[] = ['draft', 'for_review', 'confirmed']
+
+async function upsertMatchBets(
+  actorId: string,
+  matchId: string,
+  eventId: string,
+  meronBet: number,
+  walaBet: number
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const rows = [
+    { match_id: matchId, event_id: eventId, side: 'meron' as const, amount: meronBet, recorded_by: actorId },
+    { match_id: matchId, event_id: eventId, side: 'wala' as const, amount: walaBet, recorded_by: actorId },
+  ]
+
+  for (const row of rows) {
+    const { error } = await supabase.from('match_bets').upsert(row, {
+      onConflict: 'match_id,side',
+    })
+    if (error) return { error: error.message }
+  }
+
+  return {}
+}
+
+export async function updateMatchBet(
+  actorId: string,
+  input: UpdateMatchBetInput
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: match, error: fetchError } = await supabase
+    .from('matches')
+    .select('id, event_id, fight_number, status')
+    .eq('id', input.matchId)
+    .eq('event_id', input.eventId)
+    .maybeSingle()
+
+  if (fetchError) return { error: fetchError.message }
+  if (!match) return { error: 'Match not found' }
+
+  const status = match.status as MatchStatus
+  if (!EDITABLE_BET_STATUSES.includes(status)) {
+    return { error: 'Bets cannot be updated after the match list is locked' }
+  }
+
+  const { error } = await supabase.from('match_bets').upsert(
+    {
+      match_id: input.matchId,
+      event_id: input.eventId,
+      side: input.side,
+      amount: input.amount,
+      recorded_by: actorId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'match_id,side' }
+  )
+
+  if (error) return { error: error.message }
+
+  await writeAuditLog({
+    actorId,
+    action: 'match.bet.updated',
+    entityType: 'match',
+    entityId: input.matchId,
+    newValues: {
+      fight_number: match.fight_number,
+      side: input.side,
+      amount: input.amount,
+    },
+  })
+
+  return {}
 }
 
 export async function createMatch(
@@ -178,6 +255,15 @@ export async function createMatch(
       eventName: event.name,
     },
   })
+
+  const betResult = await upsertMatchBets(
+    actorId,
+    match.id,
+    input.eventId,
+    input.meronBet ?? 0,
+    input.walaBet ?? 0
+  )
+  if (betResult.error) return { error: betResult.error }
 
   return { matchId: match.id }
 }

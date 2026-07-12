@@ -3,19 +3,51 @@
 import { revalidatePath } from 'next/cache'
 
 import {
+  createRoosterSchema,
   recordWeightSchema,
   verifyWeightSchema,
 } from '@/features/weighing/schema'
-import { recordWeight, verifyWeight } from '@/features/weighing/service'
+import { createRoosterForEntry, recordWeight, verifyWeight } from '@/features/weighing/service'
 import { requirePermission } from '@/lib/auth/permissions'
 
 export type WeighingActionState = { error?: string; success?: string }
+
+export async function createRoosterAction(
+  _prev: WeighingActionState,
+  formData: FormData
+): Promise<WeighingActionState> {
+  const profile = await requirePermission('entries.manage')
+
+  const parsed = createRoosterSchema.safeParse({
+    eventId: formData.get('eventId'),
+    entryId: formData.get('entryId'),
+    bandNumber: formData.get('bandNumber'),
+    weight: formData.get('weight'),
+    category: formData.get('category')?.toString().trim() || undefined,
+    colorMarking: formData.get('colorMarking')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid rooster details' }
+  }
+
+  const result = await createRoosterForEntry(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  const eventId = parsed.data.eventId
+  revalidatePath(`/dashboard/events/${eventId}/rooster-entries`)
+  revalidatePath(`/dashboard/events/${eventId}/matching`)
+  revalidatePath(`/dashboard/events/${eventId}/reports/weighing`)
+  revalidatePath('/dashboard/audit')
+
+  return { success: 'Rooster added with weight' }
+}
 
 export async function recordWeightAction(
   _prev: WeighingActionState,
   formData: FormData
 ): Promise<WeighingActionState> {
-  const profile = await requirePermission('weighing.manage')
+  const profile = await requirePermission('entries.manage')
 
   const parsed = recordWeightSchema.safeParse({
     eventId: formData.get('eventId'),
@@ -32,7 +64,7 @@ export async function recordWeightAction(
   if (result.error) return { error: result.error }
 
   const eventId = parsed.data.eventId
-  revalidatePath(`/dashboard/events/${eventId}/weighing`)
+  revalidatePath(`/dashboard/events/${eventId}/rooster-entries`)
   revalidatePath(`/dashboard/events/${eventId}/reports/weighing`)
   revalidatePath('/dashboard/audit')
 
@@ -43,7 +75,7 @@ export async function verifyWeightAction(
   _prev: WeighingActionState,
   formData: FormData
 ): Promise<WeighingActionState> {
-  const profile = await requirePermission('weighing.manage')
+  const profile = await requirePermission('entries.manage')
 
   const parsed = verifyWeightSchema.safeParse({
     eventId: formData.get('eventId'),
@@ -59,7 +91,7 @@ export async function verifyWeightAction(
   if (result.error) return { error: result.error }
 
   const eventId = parsed.data.eventId
-  revalidatePath(`/dashboard/events/${eventId}/weighing`)
+  revalidatePath(`/dashboard/events/${eventId}/rooster-entries`)
   revalidatePath(`/dashboard/events/${eventId}/reports/weighing`)
   revalidatePath('/dashboard/audit')
 

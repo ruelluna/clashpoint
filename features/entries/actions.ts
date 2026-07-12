@@ -4,15 +4,19 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import {
-  approveEntrySchema,
   createEntrySchema,
-  rejectEntrySchema,
+  deleteEntrySchema,
+  updateEntryRosterItemSchema,
+  updateEntrySchema,
+  type UpdateEntryRosterItemInput,
 } from '@/features/entries/schema'
 import {
-  approveEntry,
-  createEntry,
-  rejectEntry,
+  createEntryWithRooster,
+  deleteEntry,
+  updateEntry,
+  updateEntryRoosters,
 } from '@/features/entries/service'
+import { getPairedRosterIdsForEntry } from '@/features/entries/queries'
 import { requirePermission } from '@/lib/auth/permissions'
 
 export type EntryActionState = { error?: string; success?: string }
@@ -20,6 +24,45 @@ export type EntryActionState = { error?: string; success?: string }
 function parseOptionalUuid(value: FormDataEntryValue | null): string | null {
   if (value == null || value.toString().trim() === '') return null
   return value.toString()
+}
+
+function parseRosterUpdates(
+  formData: FormData,
+  pairedIds: Set<string>
+): UpdateEntryRosterItemInput[] {
+  const roosterIds =
+    formData
+      .get('roosterIds')
+      ?.toString()
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean) ?? []
+
+  const updates: UpdateEntryRosterItemInput[] = []
+
+  for (const roosterId of roosterIds) {
+    if (pairedIds.has(roosterId)) continue
+
+    const parsed = updateEntryRosterItemSchema.safeParse({
+      roosterId,
+      bandNumber: formData.get(`bandNumber_${roosterId}`),
+      weight: formData.get(`weight_${roosterId}`),
+      category: formData.get(`category_${roosterId}`)?.toString().trim() || undefined,
+      colorMarking: formData.get(`colorMarking_${roosterId}`)?.toString().trim() || undefined,
+    })
+
+    if (parsed.success) {
+      updates.push(parsed.data)
+    }
+  }
+
+  return updates
+}
+
+function revalidateEntryPaths(eventId: string) {
+  revalidatePath(`/dashboard/events/${eventId}/rooster-entries`)
+  revalidatePath(`/dashboard/events/${eventId}/matching`)
+  revalidatePath(`/dashboard/events/${eventId}/reports/weighing`)
 }
 
 export async function createEntryAction(
@@ -39,63 +82,86 @@ export async function createEntryAction(
     address: formData.get('address')?.toString().trim() || undefined,
     entrySource: formData.get('entrySource')?.toString() ?? 'staff_encoded',
     notes: formData.get('notes')?.toString().trim() || undefined,
+    bandNumber: formData.get('bandNumber'),
+    weight: formData.get('weight'),
+    category: formData.get('category')?.toString().trim() || undefined,
+    colorMarking: formData.get('colorMarking')?.toString().trim() || undefined,
   })
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
   }
 
-  const result = await createEntry(profile.id, parsed.data)
+  const result = await createEntryWithRooster(profile.id, parsed.data)
   if (result.error) return { error: result.error }
 
-  revalidatePath(`/dashboard/events/${parsed.data.eventId}/registrations`)
-  redirect(`/dashboard/events/${parsed.data.eventId}/registrations`)
+  revalidateEntryPaths(parsed.data.eventId)
+  redirect(`/dashboard/events/${parsed.data.eventId}/rooster-entries`)
 }
 
-export async function approveEntryAction(
+export async function updateEntryAction(
   _prev: EntryActionState,
   formData: FormData
 ): Promise<EntryActionState> {
   const profile = await requirePermission('entries.manage')
 
-  const parsed = approveEntrySchema.safeParse({
-    entryId: formData.get('entryId'),
+  const parsed = updateEntrySchema.safeParse({
     eventId: formData.get('eventId'),
-    reason: formData.get('reason')?.toString().trim() || undefined,
+    entryId: formData.get('entryId'),
+    referredByPromoterId: parseOptionalUuid(formData.get('referredByPromoterId')),
+    entryName: formData.get('entryName'),
+    ownerName: formData.get('ownerName'),
+    handlerName: formData.get('handlerName')?.toString().trim() || undefined,
+    contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,
+    email: formData.get('email')?.toString().trim() || undefined,
+    address: formData.get('address')?.toString().trim() || undefined,
+    entrySource: formData.get('entrySource')?.toString() ?? 'staff_encoded',
+    notes: formData.get('notes')?.toString().trim() || undefined,
   })
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
   }
 
-  const result = await approveEntry(profile.id, parsed.data)
-  if (result.error) return { error: result.error }
+  const entryResult = await updateEntry(profile.id, parsed.data)
+  if (entryResult.error) return { error: entryResult.error }
 
-  revalidatePath(`/dashboard/events/${parsed.data.eventId}/registrations`)
-  revalidatePath('/dashboard/audit')
-  return { success: 'Entry approved' }
+  const pairedIds = await getPairedRosterIdsForEntry(parsed.data.eventId, parsed.data.entryId)
+  const rosterUpdates = parseRosterUpdates(formData, pairedIds)
+
+  const rosterResult = await updateEntryRoosters(
+    profile.id,
+    parsed.data.eventId,
+    parsed.data.entryId,
+    rosterUpdates
+  )
+  if (roosterResult.error) return { error: rosterResult.error }
+
+  revalidateEntryPaths(parsed.data.eventId)
+  revalidatePath(
+    `/dashboard/events/${parsed.data.eventId}/rooster-entries/${parsed.data.entryId}/edit`
+  )
+  redirect(`/dashboard/events/${parsed.data.eventId}/rooster-entries`)
 }
 
-export async function rejectEntryAction(
+export async function deleteEntryAction(
   _prev: EntryActionState,
   formData: FormData
 ): Promise<EntryActionState> {
   const profile = await requirePermission('entries.manage')
 
-  const parsed = rejectEntrySchema.safeParse({
-    entryId: formData.get('entryId'),
+  const parsed = deleteEntrySchema.safeParse({
     eventId: formData.get('eventId'),
-    reason: formData.get('reason'),
+    entryId: formData.get('entryId'),
   })
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
   }
 
-  const result = await rejectEntry(profile.id, parsed.data)
+  const result = await deleteEntry(profile.id, parsed.data)
   if (result.error) return { error: result.error }
 
-  revalidatePath(`/dashboard/events/${parsed.data.eventId}/registrations`)
-  revalidatePath('/dashboard/audit')
-  return { success: 'Entry rejected' }
+  revalidateEntryPaths(parsed.data.eventId)
+  redirect(`/dashboard/events/${parsed.data.eventId}/rooster-entries`)
 }

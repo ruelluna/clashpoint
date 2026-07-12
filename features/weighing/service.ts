@@ -4,11 +4,127 @@ import { writeAuditLog } from '@/features/audit/service'
 import { getEvent } from '@/features/events/queries'
 import {
   evaluateWeightStatus,
+  type CreateRoosterInput,
   type RecordWeightInput,
   type VerifyWeightInput,
+  validateCockCount,
 } from '@/features/weighing/schema'
 import type { WeightStatus } from '@/features/weighing/types'
 import { createClient } from '@/lib/supabase/server'
+
+export async function createRoosterForEntry(
+  actorId: string,
+  input: CreateRoosterInput
+): Promise<{ error?: string; roosterId?: string }> {
+  const supabase = await createClient()
+
+  const event = await getEvent(input.eventId)
+  if (!event) return { error: 'Event not found' }
+
+  const { data: entry, error: entryError } = await supabase
+    .from('entries')
+    .select('id, entry_number, entry_name')
+    .eq('id', input.entryId)
+    .eq('event_id', input.eventId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (entryError) return { error: entryError.message }
+  if (!entry) return { error: 'Entry not found for this event' }
+
+  const { data: existingRoosters, error: roosterError } = await supabase
+    .from('rooster_records')
+    .select('id, cock_number')
+    .eq('entry_id', input.entryId)
+
+  if (roosterError) return { error: roosterError.message }
+
+  const cockCount = existingRoosters?.length ?? 0
+  const countError = validateCockCount(cockCount + 1, event.cocks_per_entry)
+  if (countError) return { error: countError }
+
+  const nextCockNumber =
+    (existingRoosters ?? []).reduce(
+      (max, row) => Math.max(max, Number(row.cock_number)),
+      0
+    ) + 1
+
+  const band = input.bandNumber.trim()
+  const { data: bandConflict, error: bandError } = await supabase
+    .from('rooster_records')
+    .select('id')
+    .eq('event_id', input.eventId)
+    .ilike('band_number', band)
+    .maybeSingle()
+
+  if (bandError) return { error: bandError.message }
+  if (bandConflict) {
+    return { error: `Band number ${band} is already registered for this event` }
+  }
+
+  const weightStatus = evaluateWeightStatus(
+    input.weight,
+    event.min_weight,
+    event.max_weight
+  )
+  const verifiedAt = new Date().toISOString()
+
+  const { data: rooster, error: insertError } = await supabase
+    .from('rooster_records')
+    .insert({
+      entry_id: input.entryId,
+      event_id: input.eventId,
+      cock_number: nextCockNumber,
+      band_number: band,
+      declared_weight: input.weight,
+      category: input.category ?? null,
+      color_marking: input.colorMarking ?? null,
+      status: 'verified',
+    })
+    .select('id')
+    .single()
+
+  if (insertError || !rooster) {
+    return { error: insertError?.message ?? 'Failed to create rooster' }
+  }
+
+  const { data: weighing, error: weighingError } = await supabase
+    .from('weighings')
+    .insert({
+      rooster_record_id: rooster.id,
+      entry_id: input.entryId,
+      event_id: input.eventId,
+      official_weight: input.weight,
+      weight_status: weightStatus,
+      verified_by: actorId,
+      verified_at: verifiedAt,
+    })
+    .select('id')
+    .single()
+
+  if (weighingError || !weighing) {
+    await supabase.from('rooster_records').delete().eq('id', rooster.id)
+    return { error: weighingError?.message ?? 'Failed to record weight' }
+  }
+
+  await writeAuditLog({
+    actorId,
+    action: 'rooster.created',
+    entityType: 'rooster_record',
+    entityId: rooster.id,
+    newValues: {
+      event_id: input.eventId,
+      entry_id: input.entryId,
+      entry_number: entry.entry_number,
+      band_number: band,
+      cock_number: nextCockNumber,
+      weight: input.weight,
+      weight_status: weightStatus,
+    },
+  })
+
+  return { roosterId: rooster.id }
+}
 
 export async function recordWeight(
   actorId: string,

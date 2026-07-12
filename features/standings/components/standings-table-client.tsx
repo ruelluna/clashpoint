@@ -2,6 +2,7 @@
 
 import { Badge, Box, Flex, Text } from '@chakra-ui/react'
 
+import { LAYOUT_GAP, PanelCard } from '@/components/dashboard'
 import type { StandingListItem } from '@/features/standings/types'
 
 export function StandingsTableClient({
@@ -10,13 +11,10 @@ export function StandingsTableClient({
   standings: StandingListItem[]
 }) {
   return (
-    <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
-      <Box p={4} borderBottomWidth="1px" borderColor="border">
-        <Text fontWeight="medium">Event standings</Text>
-        <Text fontSize="sm" color="fg.muted">
-          Ranked by points, then wins. Win = 1 pt, draw = 0.5 pt, loss = 0 pt.
-        </Text>
-      </Box>
+    <PanelCard flush title="Event standings">
+      <Text fontSize="sm" color="fg.muted" px={LAYOUT_GAP.cardPadding} pb={LAYOUT_GAP.cardTitle}>
+        Ranked by points, then wins. Win = 1 pt, draw = 0.5 pt, loss = 0 pt.
+      </Text>
       {standings.length === 0 ? (
         <Box p={4}>
           <Text fontSize="sm" color="fg.muted">
@@ -94,6 +92,6 @@ export function StandingsTableClient({
           </Box>
         </Box>
       )}
-    </Box>
+    </PanelCard>
   )
 }

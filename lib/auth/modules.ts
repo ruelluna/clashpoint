@@ -10,24 +10,9 @@ export const ACCESS_MODULES = [
     permissions: ['events.manage', 'events.view'],
   },
   {
-    id: 'registrations',
-    label: 'Registrations',
-    permissions: ['entries.manage', 'events.view'],
-  },
-  {
-    id: 'payments',
-    label: 'Payments',
-    permissions: ['payments.manage', 'events.view'],
-  },
-  {
-    id: 'lineups',
-    label: 'Lineups',
-    permissions: ['lineups.manage', 'events.view'],
-  },
-  {
-    id: 'weighing',
-    label: 'Weighing',
-    permissions: ['weighing.manage', 'events.view'],
+    id: 'rooster-entries',
+    label: 'Rooster Entries',
+    permissions: ['entries.manage', 'weighing.manage', 'events.view'],
   },
   {
     id: 'matching',

@@ -7,10 +7,12 @@ import {
   Flex,
   Input,
   NativeSelect,
+  Stack,
   Text,
 } from '@chakra-ui/react'
 import { useActionState, useMemo, useState } from 'react'
 
+import { ButtonGroup, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   submitLineupAction,
   type LineupActionState,
@@ -64,18 +66,13 @@ export function LineupsClient({
   const eligibleEntries = summaries.filter((entry) => entry.can_submit)
 
   return (
-    <Box className="space-y-6">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          Rooster Entries
-        </Text>
-        <Text color="fg.muted">
-          Submit rooster entries for confirmed, fully paid entries ({cocksPerEntry}{' '}
-          cocks per entry).
-        </Text>
-      </Box>
+    <PageStack maxW="3xl">
+      <PageHeader
+        title="Rooster Entries"
+        description={`Submit rooster entries for fully paid entries (${cocksPerEntry} cocks per entry).`}
+      />
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
+      <PanelCard flush>
         <Box overflowX="auto">
           <Box as="table" width="100%" fontSize="sm">
             <Box as="thead" bg="bg.subtle">
@@ -139,10 +136,10 @@ export function LineupsClient({
             </Box>
           </Box>
         </Box>
-      </Box>
+      </PanelCard>
 
       {selectedSummary ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4} maxW="3xl">
+        <PanelCard>
           <Text fontWeight="medium" mb={1}>
             Submit lineup — #{selectedSummary.entry_number} {selectedSummary.entry_name}
           </Text>
@@ -152,7 +149,7 @@ export function LineupsClient({
 
           {!selectedSummary.can_submit ? (
             <Text color="fg.error" fontSize="sm">
-              This entry must be confirmed and fully paid before submitting a lineup.
+              This entry must be fully paid before submitting a lineup.
             </Text>
           ) : (
             <form action={action}>
@@ -160,23 +157,17 @@ export function LineupsClient({
               <input type="hidden" name="entryId" value={selectedSummary.entry_id} />
               <input type="hidden" name="cockCount" value={cocksPerEntry} />
 
-              <Flex direction="column" gap={4}>
+              <Stack gap={LAYOUT_GAP.form}>
                 {Array.from({ length: cocksPerEntry }, (_, index) => {
                   const cockNumber = index + 1
                   const existing = roosterDefaults.get(cockNumber)
 
                   return (
-                    <Box
-                      key={cockNumber}
-                      borderWidth="1px"
-                      borderColor="border"
-                      rounded="md"
-                      p={3}
-                    >
+                    <PanelCard key={cockNumber}>
                       <Text fontSize="sm" fontWeight="medium" mb={3}>
                         Cock #{cockNumber}
                       </Text>
-                      <Flex gap={3} wrap="wrap">
+                      <Flex gap={LAYOUT_GAP.form} wrap="wrap">
                         <Box flex="1" minW="140px">
                           <Text fontSize="xs" mb={1}>
                             Band number
@@ -222,11 +213,11 @@ export function LineupsClient({
                           />
                         </Box>
                       </Flex>
-                    </Box>
+                    </PanelCard>
                   )
                 })}
 
-                <Flex align="center" gap={3} wrap="wrap">
+                <ButtonGroup wrap="wrap" align="center">
                   <Button type="submit" loading={pending}>
                     Submit lineup
                   </Button>
@@ -246,7 +237,7 @@ export function LineupsClient({
                       </NativeSelect.Field>
                     </NativeSelect.Root>
                   ) : null}
-                </Flex>
+                </ButtonGroup>
 
                 {state.error ? (
                   <Text color="fg.error" fontSize="sm">
@@ -258,11 +249,11 @@ export function LineupsClient({
                     {state.success}
                   </Text>
                 ) : null}
-              </Flex>
+              </Stack>
             </form>
           )}
-        </Box>
+        </PanelCard>
       ) : null}
-    </Box>
+    </PageStack>
   )
 }

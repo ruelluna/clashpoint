@@ -48,23 +48,50 @@ const entryFieldsSchema = {
   notes: optionalText(2000),
 }
 
-export const createEntrySchema = z.object(entryFieldsSchema)
+const roosterFieldsSchema = {
+  bandNumber: z.string().min(1, 'Band number is required').max(50),
+  weight: z.coerce.number().positive('Weight must be greater than zero'),
+  category: optionalText(100),
+  colorMarking: optionalText(200),
+}
 
-export const approveEntrySchema = z.object({
-  entryId: z.string().uuid(),
-  eventId: z.string().uuid(),
-  reason: z.string().min(3).max(500).optional(),
-})
-
-export const rejectEntrySchema = z.object({
-  entryId: z.string().uuid(),
-  eventId: z.string().uuid(),
-  reason: z.string().min(3, 'Reason must be at least 3 characters').max(500),
+export const createEntrySchema = z.object({
+  ...entryFieldsSchema,
+  ...roosterFieldsSchema,
 })
 
 export type CreateEntryInput = z.infer<typeof createEntrySchema>
-export type ApproveEntryInput = z.infer<typeof approveEntrySchema>
-export type RejectEntryInput = z.infer<typeof rejectEntrySchema>
+
+export const updateEntrySchema = z.object({
+  eventId: z.string().uuid(),
+  entryId: z.string().uuid(),
+  referredByPromoterId: z.string().uuid().nullable().optional(),
+  entryName: z.string().min(1, 'Entry name is required').max(200),
+  ownerName: z.string().min(1, 'Owner name is required').max(200),
+  handlerName: optionalText(200),
+  contactNumber: optionalText(50),
+  email: optionalEmail,
+  address: optionalText(500),
+  entrySource: entrySourceSchema.default('staff_encoded'),
+  notes: optionalText(2000),
+})
+
+export const updateEntryRosterItemSchema = z.object({
+  roosterId: z.string().uuid(),
+  bandNumber: z.string().min(1, 'Band number is required').max(50),
+  weight: z.coerce.number().positive('Weight must be greater than zero'),
+  category: optionalText(100),
+  colorMarking: optionalText(200),
+})
+
+export const deleteEntrySchema = z.object({
+  eventId: z.string().uuid(),
+  entryId: z.string().uuid(),
+})
+
+export type UpdateEntryInput = z.infer<typeof updateEntrySchema>
+export type UpdateEntryRosterItemInput = z.infer<typeof updateEntryRosterItemSchema>
+export type DeleteEntryInput = z.infer<typeof deleteEntrySchema>
 
 export const REGISTRATION_STATUS_LABELS: Record<RegistrationStatus, string> = {
   submitted: 'Submitted',
@@ -118,11 +145,4 @@ export function getNextEntryNumber(existingNumbers: string[]): string {
   }
 
   return formatEntryNumber(max + 1)
-}
-
-export function canSubmitLineup(entry: {
-  registration_status: RegistrationStatus
-  payment_status: z.infer<typeof paymentStatusSchema>
-}): boolean {
-  return entry.registration_status === 'confirmed' && entry.payment_status === 'paid'
 }

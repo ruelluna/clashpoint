@@ -10,7 +10,6 @@ const basePrizeStructure = {
 const baseEvent = {
   name: 'Summer Derby',
   eventDate: '2026-08-01T10:00:00.000Z',
-  entryFee: 1000,
   taxPerFight: 50,
 }
 

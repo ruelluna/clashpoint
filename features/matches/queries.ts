@@ -58,7 +58,11 @@ type RoosterQueryRow = {
   } | null
 }
 
-function mapMatchRow(row: MatchQueryRow): MatchListItem {
+function mapMatchRow(
+  row: MatchQueryRow,
+  betsByMatch: Map<string, { meron: number; wala: number }>
+): MatchListItem {
+  const bets = betsByMatch.get(row.id) ?? { meron: 0, wala: 0 }
   return {
     id: row.id,
     event_id: row.event_id,
@@ -74,6 +78,7 @@ function mapMatchRow(row: MatchQueryRow): MatchListItem {
       cock_number: Number(row.meron_rooster?.cock_number ?? 0),
       band_number: row.meron_rooster?.band_number ?? '—',
       weight: row.meron_weight != null ? Number(row.meron_weight) : null,
+      bet_amount: bets.meron,
     },
     wala: {
       entry_id: row.wala_entry?.id ?? '',
@@ -83,8 +88,34 @@ function mapMatchRow(row: MatchQueryRow): MatchListItem {
       cock_number: Number(row.wala_rooster?.cock_number ?? 0),
       band_number: row.wala_rooster?.band_number ?? '—',
       weight: row.wala_weight != null ? Number(row.wala_weight) : null,
+      bet_amount: bets.wala,
     },
   }
+}
+
+async function loadBetsByMatchIds(
+  matchIds: string[]
+): Promise<Map<string, { meron: number; wala: number }>> {
+  const map = new Map<string, { meron: number; wala: number }>()
+  if (matchIds.length === 0) return map
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('match_bets')
+    .select('match_id, side, amount')
+    .in('match_id', matchIds)
+
+  if (error) throw error
+
+  for (const row of data ?? []) {
+    const matchId = row.match_id as string
+    const current = map.get(matchId) ?? { meron: 0, wala: 0 }
+    if (row.side === 'meron') current.meron = Number(row.amount)
+    if (row.side === 'wala') current.wala = Number(row.amount)
+    map.set(matchId, current)
+  }
+
+  return map
 }
 
 const MATCH_SELECT = `
@@ -111,7 +142,9 @@ export async function listMatchesByEvent(eventId: string): Promise<MatchListItem
     .order('fight_number', { ascending: true })
 
   if (error) throw error
-  return ((data ?? []) as unknown as MatchQueryRow[]).map(mapMatchRow)
+  const rows = (data ?? []) as unknown as MatchQueryRow[]
+  const betsByMatch = await loadBetsByMatchIds(rows.map((row) => row.id))
+  return rows.map((row) => mapMatchRow(row, betsByMatch))
 }
 
 export async function listFightQueueByEvent(eventId: string): Promise<MatchListItem[]> {
@@ -124,7 +157,9 @@ export async function listFightQueueByEvent(eventId: string): Promise<MatchListI
     .order('fight_number', { ascending: true })
 
   if (error) throw error
-  return ((data ?? []) as unknown as MatchQueryRow[]).map(mapMatchRow)
+  const rows = (data ?? []) as unknown as MatchQueryRow[]
+  const betsByMatch = await loadBetsByMatchIds(rows.map((row) => row.id))
+  return rows.map((row) => mapMatchRow(row, betsByMatch))
 }
 
 export async function getEligibleRoostersForMatching(

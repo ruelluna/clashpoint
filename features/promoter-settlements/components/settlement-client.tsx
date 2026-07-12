@@ -5,11 +5,13 @@ import {
   Box,
   Button,
   Flex,
+  Stack,
   Text,
   Textarea,
 } from '@chakra-ui/react'
 import { useActionState } from 'react'
 
+import { ButtonGroup, LAYOUT_GAP, PageStack, PanelCard } from '@/components/dashboard'
 import {
   computeSettlementAction,
   markSettledAction,
@@ -69,16 +71,13 @@ export function SettlementClient({
   )
 
   return (
-    <Box className="space-y-6">
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-        <Text fontWeight="medium">Promoter</Text>
-        <Text fontSize="sm" mt={1}>
-          {promoterName ?? 'No promoter assigned'}
-        </Text>
-      </Box>
+    <PageStack>
+      <PanelCard title="Promoter">
+        <Text fontSize="sm">{promoterName ?? 'No promoter assigned'}</Text>
+      </PanelCard>
 
       {!settlement ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
+        <PanelCard>
           <Text fontSize="sm" color="fg.muted" mb={3}>
             Compute settlement from entry fees, deductions, prize pool, and promoter
             commission.
@@ -101,10 +100,10 @@ export function SettlementClient({
               ) : null}
             </form>
           ) : null}
-        </Box>
+        </PanelCard>
       ) : (
         <>
-          <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
+          <PanelCard>
             <Flex align="center" gap={2} mb={3}>
               <Text fontWeight="medium">{settlement.settlementReference}</Text>
               <Badge colorPalette={statusColor(settlement.settlementStatus)}>
@@ -128,31 +127,32 @@ export function SettlementClient({
                 </Box>
               ))}
             </Flex>
-          </Box>
+          </PanelCard>
 
           {canManage && settlement.settlementStatus !== 'settled' ? (
-            <Box borderWidth="1px" borderColor="border" rounded="lg" p={4}>
-              <Flex gap={3} wrap="wrap">
+            <PanelCard>
+              <ButtonGroup wrap="wrap">
                 <form action={computeAction}>
                   <input type="hidden" name="eventId" value={eventId} />
                   <Button type="submit" variant="outline" loading={computePending}>
                     Recompute
                   </Button>
                 </form>
-                <form action={settleAction} className="flex-1 min-w-[240px]">
+                <form action={settleAction} style={{ flex: 1, minWidth: '240px' }}>
                   <input type="hidden" name="settlementId" value={settlement.id} />
                   <input type="hidden" name="eventId" value={eventId} />
-                  <Textarea
-                    name="notes"
-                    placeholder="Settlement notes (optional)"
-                    rows={2}
-                    mb={2}
-                  />
-                  <Button type="submit" colorPalette="green" loading={settlePending}>
-                    Mark as settled
-                  </Button>
+                  <Stack gap={LAYOUT_GAP.form}>
+                    <Textarea
+                      name="notes"
+                      placeholder="Settlement notes (optional)"
+                      rows={2}
+                    />
+                    <Button type="submit" colorPalette="green" loading={settlePending} alignSelf="flex-start">
+                      Mark as settled
+                    </Button>
+                  </Stack>
                 </form>
-              </Flex>
+              </ButtonGroup>
               {computeState.error || settleState.error ? (
                 <Text fontSize="sm" color="red.500" mt={2}>
                   {computeState.error ?? settleState.error}
@@ -163,7 +163,7 @@ export function SettlementClient({
                   {computeState.success ?? settleState.success}
                 </Text>
               ) : null}
-            </Box>
+            </PanelCard>
           ) : null}
 
           {settlement.settledAt ? (
@@ -173,6 +173,6 @@ export function SettlementClient({
           ) : null}
         </>
       )}
-    </Box>
+    </PageStack>
   )
 }

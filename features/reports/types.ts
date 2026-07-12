@@ -4,7 +4,6 @@ export type EventReportType =
   | 'weighing'
   | 'match'
   | 'result'
-  | 'financial'
   | 'audit'
 
 export type GlobalReportType = 'promoter' | 'audit'
@@ -20,15 +19,11 @@ export type EventSummaryReportRow = {
   status: string
   event_type: string
   derby_type: string
-  entry_fee: number
   total_entries: number
-  confirmed_entries: number
   total_matches: number
   completed_matches: number
   total_roosters: number
   verified_weighings: number
-  total_collected: number
-  total_outstanding: number
 }
 
 export type RegistrationReportRow = {
@@ -38,8 +33,6 @@ export type RegistrationReportRow = {
   handler_name: string | null
   contact_number: string | null
   entry_source: string
-  registration_status: string
-  payment_status: string
   promoter_name: string | null
   registered_at: string
 }

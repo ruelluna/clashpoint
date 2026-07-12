@@ -8,12 +8,14 @@ import {
   Flex,
   Input,
   NativeSelect,
+  Stack,
   Text,
   Textarea,
 } from '@chakra-ui/react'
 import Link from 'next/link'
 import { useActionState, useState } from 'react'
 
+import { ButtonGroup, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
   changePromoterStatusAction,
   createPromoterAction,
@@ -85,24 +87,22 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
     commissionType === 'fixed' || commissionType === 'percentage'
 
   return (
-    <Box className="space-y-8">
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          {isCreate ? 'Add promoter' : promoter?.name}
-        </Text>
-        <Text color="fg.muted">
-          {isCreate
+    <PageStack maxW="2xl">
+      <PageHeader
+        title={isCreate ? 'Add promoter' : promoter?.name ?? 'Edit promoter'}
+        description={
+          isCreate
             ? 'Create a promoter profile and optionally grant dashboard login access.'
-            : 'Update promoter details, commission, and status.'}
-        </Text>
-      </Box>
+            : 'Update promoter details, commission, and status.'
+        }
+      />
 
-      <Box borderWidth="1px" borderColor="border" rounded="lg" p={4} maxW="2xl">
+      <PanelCard>
         <form action={action}>
           {promoter ? (
             <input type="hidden" name="promoterId" value={promoter.id} />
           ) : null}
-          <Flex direction="column" gap={4}>
+          <Stack gap={LAYOUT_GAP.form}>
             <Box>
               <Text fontSize="sm" fontWeight="medium" mb={1}>
                 Name
@@ -122,7 +122,7 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 defaultValue={promoter?.contact_person ?? ''}
               />
             </Box>
-            <Flex gap={4} direction={{ base: 'column', md: 'row' }}>
+            <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
               <Box flex="1">
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
                   Email
@@ -150,7 +150,7 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 defaultValue={promoter?.address ?? ''}
               />
             </Box>
-            <Flex gap={4} direction={{ base: 'column', md: 'row' }}>
+            <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
               <Box flex="1">
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
                   Commission type
@@ -229,7 +229,7 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                   <input type="hidden" name="giveLoginAccess" value="on" />
                 ) : null}
                 {giveLoginAccess ? (
-                  <Flex direction="column" gap={3} mt={4}>
+                  <Stack gap={LAYOUT_GAP.form} mt={4}>
                     <Input
                       name="loginEmail"
                       type="email"
@@ -242,19 +242,19 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                       placeholder="Temporary password"
                       required
                     />
-                  </Flex>
+                  </Stack>
                 ) : null}
               </Box>
             ) : null}
 
-            <Flex gap={3}>
+            <ButtonGroup>
               <Button type="submit" loading={pending}>
                 {isCreate ? 'Create promoter' : 'Save changes'}
               </Button>
               <Button asChild variant="outline">
                 <Link href="/dashboard/promoters">Back to list</Link>
               </Button>
-            </Flex>
+            </ButtonGroup>
 
             {state.error ? (
               <Text color="fg.error" fontSize="sm">
@@ -266,21 +266,18 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 {state.success}
               </Text>
             ) : null}
-          </Flex>
+          </Stack>
         </form>
-      </Box>
+      </PanelCard>
 
       {!isCreate && promoter && !promoter.user_id ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4} maxW="2xl">
-          <Text fontWeight="medium" mb={1}>
-            Grant login access
-          </Text>
+        <PanelCard title="Grant login access">
           <Text fontSize="sm" color="fg.muted" mb={4}>
             This promoter does not have a linked account yet.
           </Text>
           <form action={linkAction}>
             <input type="hidden" name="promoterId" value={promoter.id} />
-            <Flex direction="column" gap={3} maxW="md">
+            <Stack gap={LAYOUT_GAP.form} maxW="md">
               <Input name="loginEmail" type="email" placeholder="Login email" required />
               <Input
                 name="loginPassword"
@@ -301,25 +298,22 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                   {linkState.success}
                 </Text>
               ) : null}
-            </Flex>
+            </Stack>
           </form>
-        </Box>
+        </PanelCard>
       ) : null}
 
       {!isCreate && promoter?.user_id ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4} maxW="2xl">
+        <PanelCard>
           <Badge colorPalette="green">Login access enabled</Badge>
-        </Box>
+        </PanelCard>
       ) : null}
 
       {!isCreate ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" p={4} maxW="2xl">
-          <Text fontWeight="medium" mb={4}>
-            Quick status change
-          </Text>
+        <PanelCard title="Quick status change">
           <form action={statusAction}>
             <input type="hidden" name="promoterId" value={promoter?.id ?? ''} />
-            <Flex gap={3} wrap="wrap" align="flex-end">
+            <Flex gap={LAYOUT_GAP.form} wrap="wrap" align="flex-end">
               <Box minW="48">
                 <Text fontSize="sm" fontWeight="medium" mb={1}>
                   New status
@@ -355,14 +349,11 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
               </Text>
             ) : null}
           </form>
-        </Box>
+        </PanelCard>
       ) : null}
 
       {!isCreate && eventHistory.length > 0 ? (
-        <Box borderWidth="1px" borderColor="border" rounded="lg" overflow="hidden">
-          <Box px={4} py={3} borderBottomWidth="1px" borderColor="border">
-            <Text fontWeight="medium">Event history</Text>
-          </Box>
+        <PanelCard flush title="Event history">
           {eventHistory.map((event) => (
             <Flex
               key={event.id}
@@ -389,8 +380,8 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
               </Box>
             </Flex>
           ))}
-        </Box>
+        </PanelCard>
       ) : null}
-    </Box>
+    </PageStack>
   )
 }

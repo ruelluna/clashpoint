@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 
-import { EventDetailTabs } from '@/features/events/components/event-detail-tabs'
+import { EventPageLayout } from '@/components/dashboard'
 import { getEventWithPrize } from '@/features/events/queries'
 import { StandingsTableClient } from '@/features/standings/components/standings-table-client'
 import { listStandingsForEvent } from '@/features/standings/queries'
@@ -22,9 +22,8 @@ export default async function EventStandingsPage({
   const standings = await listStandingsForEvent(id)
 
   return (
-    <div className="space-y-6">
-      <EventDetailTabs eventId={event.id} eventName={event.name} />
+    <EventPageLayout eventId={event.id} eventName={event.name}>
       <StandingsTableClient standings={standings} />
-    </div>
+    </EventPageLayout>
   )
 }
