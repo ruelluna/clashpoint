@@ -132,7 +132,11 @@ export async function recordResult(
 
   await supabase
     .from('matches')
-    .update({ status: 'completed', updated_at: new Date().toISOString() })
+    .update({
+      status: 'completed',
+      queue_status: null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', input.matchId)
 
   await writeAuditLog({

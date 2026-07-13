@@ -1,4 +1,17 @@
+import {
+  FIGHT_QUEUE_STATUS_LABELS,
+  MATCH_STATUS_LABELS,
+} from '@/features/matches/schema'
 import type { FightQueueStatus, MatchStatus, RoosterEligibilityContext } from '@/features/matches/types'
+
+const TERMINAL_MATCH_STATUSES: MatchStatus[] = ['completed', 'cancelled']
+
+export type DisplayMatchStatus = {
+  label: string
+  source: 'lifecycle' | 'queue'
+  lifecycleStatus: MatchStatus
+  queueStatus: FightQueueStatus | null
+}
 
 const ACTIVE_MATCH_STATUSES: MatchStatus[] = [
   'draft',
@@ -102,6 +115,36 @@ export function matchStatusForQueueStatus(
   if (queueStatus === 'ready') return 'ready'
   if (queueStatus === 'ongoing') return 'ongoing'
   return null
+}
+
+export function getDisplayMatchStatus(input: {
+  status: MatchStatus
+  queue_status: FightQueueStatus | null
+}): DisplayMatchStatus {
+  if (TERMINAL_MATCH_STATUSES.includes(input.status)) {
+    return {
+      label: MATCH_STATUS_LABELS[input.status],
+      source: 'lifecycle',
+      lifecycleStatus: input.status,
+      queueStatus: input.queue_status,
+    }
+  }
+
+  if (input.queue_status) {
+    return {
+      label: FIGHT_QUEUE_STATUS_LABELS[input.queue_status],
+      source: 'queue',
+      lifecycleStatus: input.status,
+      queueStatus: input.queue_status,
+    }
+  }
+
+  return {
+    label: MATCH_STATUS_LABELS[input.status],
+    source: 'lifecycle',
+    lifecycleStatus: input.status,
+    queueStatus: null,
+  }
 }
 
 export function collectUsedRoosterIds(

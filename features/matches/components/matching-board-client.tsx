@@ -31,10 +31,9 @@ import {
 } from '@/features/matches/actions'
 import {
   FIGHT_QUEUE_STATUS_LABELS,
-  MATCH_STATUS_LABELS,
 } from '@/features/matches/schema'
 import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
-import { FIGHT_QUEUE_TRANSITIONS } from '@/features/matches/utils'
+import { FIGHT_QUEUE_TRANSITIONS, getDisplayMatchStatus } from '@/features/matches/utils'
 import { COMPATIBILITY_STATUS_LABELS } from '@/lib/derby/enums'
 import type { CompatibilityStatus } from '@/lib/derby/enums'
 
@@ -64,6 +63,8 @@ function statusColor(
     case 'ready':
     case 'ongoing':
       return 'green'
+    case 'completed':
+      return 'gray'
     case 'cancelled':
       return 'red'
     default:
@@ -544,14 +545,24 @@ export function MatchingBoardClient({
                   ) : null}
                 </Box>
                 <Flex flex="0 0 6rem" align="center" gap={2}>
-                  <Badge colorPalette={statusColor(match.status)} size="sm">
-                    {MATCH_STATUS_LABELS[match.status]}
-                  </Badge>
-                  {match.queue_status ? (
-                    <Badge variant="subtle" size="sm">
-                      {FIGHT_QUEUE_STATUS_LABELS[match.queue_status]}
-                    </Badge>
-                  ) : null}
+                  {(() => {
+                    const display = getDisplayMatchStatus({
+                      status: match.status,
+                      queue_status: match.queue_status,
+                    })
+                    return (
+                      <Badge
+                        colorPalette={
+                          display.source === 'queue'
+                            ? queueColor(display.queueStatus)
+                            : statusColor(display.lifecycleStatus)
+                        }
+                        size="sm"
+                      >
+                        {display.label}
+                      </Badge>
+                    )
+                  })()}
                 </Flex>
               </Flex>
             )

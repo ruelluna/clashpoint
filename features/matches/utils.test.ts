@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   canLockMatchList,
   collectUsedRoosterIds,
+  getDisplayMatchStatus,
   isRoosterEligibleForMatching,
   isValidFightQueueTransition,
   validateCockUsedOnce,
@@ -127,6 +128,44 @@ describe('fight queue status transitions', () => {
     expect(isValidFightQueueTransition('scheduled', 'ready')).toBe(false)
     expect(isValidFightQueueTransition('ongoing', 'ready')).toBe(false)
     expect(isValidFightQueueTransition('called', 'scheduled')).toBe(false)
+  })
+})
+
+describe('getDisplayMatchStatus', () => {
+  it('prefers lifecycle status when match is completed with stale queue', () => {
+    const display = getDisplayMatchStatus({
+      status: 'completed',
+      queue_status: 'ongoing',
+    })
+    expect(display.label).toBe('Completed')
+    expect(display.source).toBe('lifecycle')
+  })
+
+  it('shows queue status while match is locked in the pit queue', () => {
+    const display = getDisplayMatchStatus({
+      status: 'locked',
+      queue_status: 'called',
+    })
+    expect(display.label).toBe('Called')
+    expect(display.source).toBe('queue')
+  })
+
+  it('shows lifecycle status when queue is unset', () => {
+    const display = getDisplayMatchStatus({
+      status: 'confirmed',
+      queue_status: null,
+    })
+    expect(display.label).toBe('Confirmed')
+    expect(display.source).toBe('lifecycle')
+  })
+
+  it('shows cancelled lifecycle status over queue', () => {
+    const display = getDisplayMatchStatus({
+      status: 'cancelled',
+      queue_status: 'scheduled',
+    })
+    expect(display.label).toBe('Cancelled')
+    expect(display.source).toBe('lifecycle')
   })
 })
 
