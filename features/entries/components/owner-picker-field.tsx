@@ -67,11 +67,7 @@ export function OwnerPickerField({
 
   useEffect(() => {
     const trimmed = inputValue.trim()
-    if (!trimmed) {
-      setSearchResults([])
-      setSearchError(null)
-      return
-    }
+    const debounceMs = trimmed ? SEARCH_DEBOUNCE_MS : 0
 
     const timeout = window.setTimeout(async () => {
       const result = await searchCompetitorsAction(trimmed)
@@ -83,7 +79,7 @@ export function OwnerPickerField({
 
       setSearchError(null)
       setSearchResults(result.results ?? [])
-    }, SEARCH_DEBOUNCE_MS)
+    }, debounceMs)
 
     return () => window.clearTimeout(timeout)
   }, [inputValue])
