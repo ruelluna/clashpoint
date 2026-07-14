@@ -19,6 +19,8 @@ import { searchCompetitorsAction } from '@/features/competitors/actions'
 import type { CompetitorSearchResult } from '@/features/competitors/types'
 
 export type OwnerProfileValues = {
+  contactFullName: string
+  contactDesignation: string
   contactNumber: string
   email: string
   address: string
@@ -58,6 +60,8 @@ export function OwnerPickerField({
   const applyOwnerProfile = useCallback(
     (owner: CompetitorSearchResult) => {
       onOwnerProfileChange({
+        contactFullName: owner.contactFullName ?? '',
+        contactDesignation: owner.contactDesignation ?? '',
         contactNumber: owner.contactNumber ?? '',
         email: owner.email ?? '',
         address: owner.address ?? '',
@@ -193,7 +197,7 @@ export function OwnerPickerField({
           <Link href="/dashboard/owners" style={{ textDecoration: 'underline' }}>
             Manage owners
           </Link>
-          . Handler is recorded per entry only.
+          . Handler is recorded per rooster entry.
         </Field.HelperText>
       </Field.Root>
 

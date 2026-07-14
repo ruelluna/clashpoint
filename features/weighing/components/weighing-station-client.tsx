@@ -80,6 +80,9 @@ function CreateRoosterForm({
               <Input name="weight" type="number" step="0.01" min="0" required />
             </FormField>
           </Flex>
+          <FormField label="Handler name">
+            <Input name="handlerName" maxLength={200} />
+          </FormField>
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
             <FormField label="Category" flex="1">
               <Input name="category" maxLength={100} />

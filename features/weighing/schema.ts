@@ -54,6 +54,7 @@ export const createRoosterSchema = z
       weightGramsSchema.optional()
     ),
     colorMarking: optionalText(200),
+    handlerName: optionalText(200),
     notes: optionalText(2000),
   })
   .extend(entryRoosterRegistryFieldsSchema)

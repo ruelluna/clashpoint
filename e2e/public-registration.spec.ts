@@ -35,13 +35,30 @@ async function createOpenDerbyEvent(page: Page, name: string) {
   return eventId
 }
 
+async function fillPublicRegistration(
+  page: Page,
+  ownerName: string,
+  contactFullName: string,
+  handlerName: string,
+  suffix: string
+) {
+  await page.locator('input[name="ownerName"]').fill(ownerName)
+  await page.locator('input[name="contactFullName"]').fill(contactFullName)
+  await page.locator('input[name="contactDesignation"]').fill('Manager')
+  await page.locator('input[name="handlerName_rooster_1"]').fill(handlerName)
+  await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
+  await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
+  await page.locator('input[name="rooster_1_weight"]').fill('2000')
+}
+
 test.describe('Public derby registration @auth', () => {
-  test('submits online entry and blocks duplicate owner+handler', async ({ page }) => {
+  test('submits online entry and blocks duplicate owner', async ({ page }) => {
     test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
 
     const suffix = uniqueSuffix()
     const eventName = `E2E Public Register ${suffix}`
     const ownerName = `Owner ${suffix}`
+    const contactFullName = `Contact ${suffix}`
     const handlerName = `Handler ${suffix}`
 
     await signInAsAdmin(page)
@@ -50,18 +67,39 @@ test.describe('Public derby registration @auth', () => {
     await page.goto(`/events/${eventId}/register`)
     await expect(page.getByRole('heading', { name: /Register for/i })).toBeVisible()
 
-    await page.locator('input[name="ownerName"]').fill(ownerName)
-    await page.locator('input[name="handlerName"]').fill(handlerName)
-    await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
-    await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
-    await page.locator('input[name="rooster_1_weight"]').fill('2000')
+    await fillPublicRegistration(page, ownerName, contactFullName, handlerName, suffix)
     await page.getByRole('button', { name: 'Submit registration' }).click()
 
     await expect(page.getByText('Registration submitted')).toBeVisible({ timeout: 15_000 })
 
     await page.goto(`/events/${eventId}/register`)
+    await fillPublicRegistration(page, ownerName, contactFullName, handlerName, `B-${suffix}`)
+    await page.getByRole('button', { name: 'Submit registration' }).click()
+
+    await expect(
+      page.getByText('already registered for this event', { exact: false })
+    ).toBeVisible()
+  })
+
+  test('blocks same owner with a different rooster handler', async ({ page }) => {
+    test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
+
+    const suffix = uniqueSuffix()
+    const eventName = `E2E Public Owner Dup ${suffix}`
+    const ownerName = `Owner ${suffix}`
+
+    await signInAsAdmin(page)
+    const eventId = await createOpenDerbyEvent(page, eventName)
+
+    await page.goto(`/events/${eventId}/register`)
+    await fillPublicRegistration(page, ownerName, `Contact A ${suffix}`, `Handler A ${suffix}`, suffix)
+    await page.getByRole('button', { name: 'Submit registration' }).click()
+    await expect(page.getByText('Registration submitted')).toBeVisible({ timeout: 15_000 })
+
+    await page.goto(`/events/${eventId}/register`)
     await page.locator('input[name="ownerName"]').fill(ownerName)
-    await page.locator('input[name="handlerName"]').fill(handlerName)
+    await page.locator('input[name="contactFullName"]').fill(`Contact B ${suffix}`)
+    await page.locator('input[name="handlerName_rooster_1"]').fill(`Handler B ${suffix}`)
     await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster B ${suffix}`)
     await page.locator('input[name="rooster_1_bandNumber"]').fill(`B2-${suffix}`)
     await page.locator('input[name="rooster_1_weight"]').fill('2100')

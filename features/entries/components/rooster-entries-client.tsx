@@ -62,7 +62,7 @@ export function RoosterEntriesClient({
     <PageStack>
       <PageHeader
         title="Rooster Entries"
-        description={`${eventName} · ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}. Register game farm / handler first, then add roosters per event format.`}
+        description={`${eventName} · ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}. Register owners first, then add roosters per event format.`}
         actions={
           <Button asChild alignSelf={{ base: 'flex-start', sm: 'auto' }}>
             <Link href={`/dashboard/events/${eventId}/rooster-entries/new`}>New entry</Link>
@@ -119,7 +119,7 @@ export function RoosterEntriesClient({
                   <Text fontSize="sm" color="fg.muted">
                     {ENTRY_SOURCE_LABELS[entry.entry_source]}
                     {entry.promoter_name ? ` · ${entry.promoter_name}` : ''}
-                    {entry.handler_name ? ` · Handler: ${entry.handler_name}` : ''}
+                    {entry.contact_full_name ? ` · ${entry.contact_full_name}` : ''}
                   </Text>
                 </Box>
                 <Box flex="0.8">

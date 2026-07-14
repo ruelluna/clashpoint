@@ -31,6 +31,28 @@ export function OwnerProfileFields({
         />
       </FormField>
 
+      <FormField label="Full name">
+        <Input
+          name="contactFullName"
+          value={values.contactFullName ?? ''}
+          maxLength={200}
+          onChange={(event) =>
+            onChange({ ...values, contactFullName: event.target.value })
+          }
+        />
+      </FormField>
+
+      <FormField label="Designation">
+        <Input
+          name="contactDesignation"
+          value={values.contactDesignation ?? ''}
+          maxLength={200}
+          onChange={(event) =>
+            onChange({ ...values, contactDesignation: event.target.value })
+          }
+        />
+      </FormField>
+
       <ContactNumberField
         value={values.contactNumber ?? ''}
         onChange={(contactNumber) => onChange({ ...values, contactNumber })}

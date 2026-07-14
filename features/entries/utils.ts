@@ -7,17 +7,24 @@ export function normalizeEntryIdentity(
   return collapsed.toLowerCase()
 }
 
-export function isSameEntryIdentity(
-  ownerA: string,
-  handlerA: string | null | undefined,
-  ownerB: string,
-  handlerB: string | null | undefined
+export function isSameOwnerIdentity(ownerA: string, ownerB: string): boolean {
+  return normalizeEntryIdentity(ownerA) === normalizeEntryIdentity(ownerB)
+}
+
+export function isDuplicateOwnerForEvent(
+  ownerName: string,
+  competitorId: string | null | undefined,
+  existing: {
+    id: string
+    owner_name: string
+    competitor_id: string | null
+  },
+  excludeEntryId?: string
 ): boolean {
-  return (
-    normalizeEntryIdentity(ownerA) === normalizeEntryIdentity(ownerB) &&
-    normalizeEntryIdentity(handlerA) === normalizeEntryIdentity(handlerB)
-  )
+  if (excludeEntryId && existing.id === excludeEntryId) return false
+  if (competitorId && existing.competitor_id === competitorId) return true
+  return isSameOwnerIdentity(ownerName, existing.owner_name)
 }
 
 export const DUPLICATE_ENTRY_ERROR =
-  'An entry for this owner and handler is already registered for this event.'
+  'This owner is already registered for this event.'

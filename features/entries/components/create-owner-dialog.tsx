@@ -29,6 +29,8 @@ export function CreateOwnerDialog({
 }: CreateOwnerDialogProps) {
   const [profile, setProfile] = useState({
     displayName: '',
+    contactFullName: '',
+    contactDesignation: '',
     contactNumber: '',
     email: '',
     address: '',
@@ -39,6 +41,8 @@ export function CreateOwnerDialog({
   function resetForm() {
     setProfile({
       displayName: '',
+      contactFullName: '',
+      contactDesignation: '',
       contactNumber: '',
       email: '',
       address: '',
@@ -53,6 +57,8 @@ export function CreateOwnerDialog({
 
     const result = await createCompetitorAction({
       displayName: profile.displayName.trim(),
+      contactFullName: profile.contactFullName.trim() || undefined,
+      contactDesignation: profile.contactDesignation.trim() || undefined,
       contactNumber: profile.contactNumber || undefined,
       email: profile.email.trim() || undefined,
       address: profile.address.trim() || undefined,
@@ -66,6 +72,8 @@ export function CreateOwnerDialog({
     }
 
     onCreated(result.competitor, {
+      contactFullName: result.competitor.contactFullName ?? '',
+      contactDesignation: result.competitor.contactDesignation ?? '',
       contactNumber: result.competitor.contactNumber ?? '',
       email: result.competitor.email ?? '',
       address: result.competitor.address ?? '',
@@ -97,6 +105,8 @@ export function CreateOwnerDialog({
                     onChange={(values) =>
                       setProfile({
                         displayName: values.displayName,
+                        contactFullName: values.contactFullName ?? '',
+                        contactDesignation: values.contactDesignation ?? '',
                         contactNumber: values.contactNumber ?? '',
                         email: values.email ?? '',
                         address: values.address ?? '',

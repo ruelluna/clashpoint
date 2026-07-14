@@ -34,8 +34,10 @@ export type RegistrationReportRow = {
   entry_number: string
   entry_name: string
   owner_name: string
-  handler_name: string | null
+  contact_full_name: string | null
+  contact_designation: string | null
   contact_number: string | null
+  email: string | null
   entry_source: string
   promoter_name: string | null
   registered_at: string

@@ -34,7 +34,8 @@ export default async function OwnerPrintPage({ params }: OwnerPrintPageProps) {
           eventName={event.name}
           entryNumber={entry.entry_number}
           ownerName={entry.owner_name}
-          handlerName={entry.handler_name}
+          contactFullName={entry.contact_full_name}
+          contactDesignation={entry.contact_designation}
           ownerBarcode={entry.owner_barcode}
           feeSettings={feeSettings}
         />

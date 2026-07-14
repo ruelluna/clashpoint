@@ -1,29 +1,44 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import { EventPageLayout } from '@/components/dashboard/event-page-layout'
-import { listEntriesByEvent } from '@/features/entries/queries'
+import { listEntriesByEvent, getEntryIdByOwnerBarcode } from '@/features/entries/queries'
 import { getEvent } from '@/features/events/queries'
 import { eventFeeSettingsFromRow } from '@/features/events/fee-utils'
 import { OwnersListClient } from '@/features/entries/components/owners-list-client'
 import {
-  ButtonGroup,
   PageHeader,
   PageStack,
   PanelCard,
 } from '@/components/dashboard'
 import { Button } from '@chakra-ui/react'
 import { requireAnyPermission } from '@/lib/auth/permissions'
+import {
+  isOwnerBarcodeForEvent,
+  normalizeOwnerBarcodeInput,
+} from '@/features/entries/schema'
 
 type OwnersListPageProps = {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ barcode?: string }>
 }
 
-export default async function OwnersListPage({ params }: OwnersListPageProps) {
+export default async function OwnersListPage({ params, searchParams }: OwnersListPageProps) {
   await requireAnyPermission(['owner_registration.manage', 'entries.manage', 'events.view'])
   const { id } = await params
+  const { barcode: rawBarcode } = await searchParams
   const event = await getEvent(id)
   if (!event) notFound()
+
+  if (rawBarcode && event.event_type === 'derby') {
+    const barcode = normalizeOwnerBarcodeInput(rawBarcode)
+    if (barcode && isOwnerBarcodeForEvent(barcode, id)) {
+      const entryId = await getEntryIdByOwnerBarcode(id, barcode)
+      if (entryId) {
+        redirect(`/dashboard/events/${id}/owners/${entryId}`)
+      }
+    }
+  }
 
   const entries = await listEntriesByEvent(id, event.cocks_per_entry)
   const eventFeeSettings = eventFeeSettingsFromRow(event)

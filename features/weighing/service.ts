@@ -231,6 +231,7 @@ export async function createRoosterForEntry(
       official_weight_grams: null,
       category: null,
       color_marking: cataloged.colorMarking,
+      handler_name: input.handlerName ?? null,
       notes: input.notes ?? null,
       status: 'submitted',
       registration_status: 'pending_inspection',

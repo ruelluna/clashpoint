@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  isSameEntryIdentity,
-  normalizeEntryIdentity,
-} from '@/features/entries/utils'
+import { normalizeEntryIdentity } from '@/features/entries/utils'
 import {
   getRegistrationClosedReason,
   isRegistrationOpen,
@@ -19,20 +16,6 @@ describe('normalizeEntryIdentity', () => {
     expect(normalizeEntryIdentity('')).toBeNull()
     expect(normalizeEntryIdentity('   ')).toBeNull()
     expect(normalizeEntryIdentity(null)).toBeNull()
-  })
-})
-
-describe('isSameEntryIdentity', () => {
-  it('matches owner and handler pairs case-insensitively', () => {
-    expect(isSameEntryIdentity('Farm A', 'Juan', 'farm a', 'juan')).toBe(true)
-  })
-
-  it('allows same owner with different handler', () => {
-    expect(isSameEntryIdentity('Farm A', 'Juan', 'Farm A', 'Pedro')).toBe(false)
-  })
-
-  it('treats missing handlers as matching null pair', () => {
-    expect(isSameEntryIdentity('Farm A', '', 'Farm A', undefined)).toBe(true)
   })
 })
 
@@ -67,17 +50,19 @@ describe('getRegistrationClosedReason', () => {
 })
 
 describe('createPublicEntrySchema', () => {
-  it('forces online entry source', () => {
+  it('forces online entry source with contact and per-rooster handler', () => {
     const parsed = createPublicEntrySchema.safeParse({
       eventId: '00000000-0000-4000-8000-000000000099',
       ownerName: 'Farm Alpha',
-      handlerName: 'Juan',
+      contactFullName: 'Juan Dela Cruz',
+      contactDesignation: 'Manager',
       entrySource: 'online',
       roosters: [
         {
           entryName: 'Thunder',
           bandNumber: 'B-001',
           weight: 2000,
+          handlerName: 'Pedro',
         },
       ],
     })
@@ -85,6 +70,8 @@ describe('createPublicEntrySchema', () => {
     expect(parsed.success).toBe(true)
     if (parsed.success) {
       expect(parsed.data.entrySource).toBe('online')
+      expect(parsed.data.contactFullName).toBe('Juan Dela Cruz')
+      expect(parsed.data.roosters[0]?.handlerName).toBe('Pedro')
     }
   })
 

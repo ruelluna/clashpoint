@@ -21,7 +21,7 @@ import type {
 } from '@/features/entries/schema'
 import {
   DUPLICATE_ENTRY_ERROR,
-  isSameEntryIdentity,
+  isDuplicateOwnerForEvent,
 } from '@/features/entries/utils'
 import { getEvent } from '@/features/events/queries'
 import { eventFeeSettingsFromRow, snapshotFromSettings } from '@/features/events/fee-utils'
@@ -53,28 +53,32 @@ async function resolveWriteClient(options?: EntryWriteOptions) {
   }
 }
 
-export async function assertOwnerHandlerNotAlreadyRegistered(
+export async function assertOwnerNotAlreadyRegistered(
   eventId: string,
   ownerName: string,
-  handlerName: string | null | undefined,
-  options?: EntryWriteOptions
+  competitorId: string | null | undefined,
+  options?: EntryWriteOptions & { excludeEntryId?: string }
 ): Promise<{ error?: string }> {
   const { supabase } = await resolveWriteClient(options)
 
   const { data, error } = await supabase
     .from('entries')
-    .select('owner_name, handler_name')
+    .select('id, owner_name, competitor_id')
     .eq('event_id', eventId)
     .is('deleted_at', null)
 
   if (error) return { error: error.message }
 
   const duplicate = (data ?? []).some((row) =>
-    isSameEntryIdentity(
+    isDuplicateOwnerForEvent(
       ownerName,
-      handlerName,
-      row.owner_name as string,
-      row.handler_name as string | null
+      competitorId,
+      {
+        id: row.id as string,
+        owner_name: row.owner_name as string,
+        competitor_id: row.competitor_id as string | null,
+      },
+      options?.excludeEntryId
     )
   )
 
@@ -85,10 +89,48 @@ export async function assertOwnerHandlerNotAlreadyRegistered(
   return {}
 }
 
+/** @deprecated Use assertOwnerNotAlreadyRegistered */
+export async function assertOwnerHandlerNotAlreadyRegistered(
+  eventId: string,
+  ownerName: string,
+  _handlerName: string | null | undefined,
+  options?: EntryWriteOptions
+): Promise<{ error?: string }> {
+  return assertOwnerNotAlreadyRegistered(eventId, ownerName, undefined, options)
+}
+
 type EntryOwnerFields = Pick<
   CreateEntryInput,
-  'competitorId' | 'ownerName' | 'contactNumber' | 'email'
+  | 'competitorId'
+  | 'ownerName'
+  | 'contactFullName'
+  | 'contactDesignation'
+  | 'contactNumber'
+  | 'email'
 >
+
+async function syncCompetitorContactFields(
+  actorId: string,
+  competitorId: string,
+  input: EntryOwnerFields
+): Promise<{ error?: string }> {
+  const supabase = await createExtendedClient()
+  const { error } = await supabase
+    .from('competitors')
+    .update({
+      contact_full_name: input.contactFullName ?? null,
+      contact_designation: input.contactDesignation ?? null,
+      contact_number: input.contactNumber ?? null,
+      email: input.email ?? null,
+      updated_by: actorId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', competitorId)
+    .is('deleted_at', null)
+
+  if (error) return { error: error.message }
+  return {}
+}
 
 export async function resolveEntryCompetitor(
   actorId: string,
@@ -98,6 +140,11 @@ export async function resolveEntryCompetitor(
     const competitor = await getCompetitor(input.competitorId)
     if (!competitor) {
       return { error: 'Selected owner was not found' }
+    }
+
+    const syncResult = await syncCompetitorContactFields(actorId, competitor.id, input)
+    if (syncResult.error) {
+      return { error: syncResult.error }
     }
 
     return { competitorId: competitor.id }
@@ -128,10 +175,17 @@ export async function createEntry(
     return { error: 'Registrations are only accepted while the event is open' }
   }
 
-  const duplicateResult = await assertOwnerHandlerNotAlreadyRegistered(
+  const competitorResult = actorId
+    ? await resolveEntryCompetitor(actorId, input)
+    : { competitorId: null as string | null }
+  if (competitorResult.error) {
+    return { error: competitorResult.error }
+  }
+
+  const duplicateResult = await assertOwnerNotAlreadyRegistered(
     input.eventId,
     input.ownerName,
-    input.handlerName,
+    competitorResult.competitorId,
     options
   )
   if (duplicateResult.error) {
@@ -155,13 +209,6 @@ export async function createEntry(
   const existingNumbers = await listEntryNumbersForEvent(input.eventId, options)
   const entryNumber = getNextEntryNumber(existingNumbers)
 
-  const competitorResult = actorId
-    ? await resolveEntryCompetitor(actorId, input)
-    : { competitorId: null as string | null }
-  if (competitorResult.error) {
-    return { error: competitorResult.error }
-  }
-
   const isDerby = event.event_type === 'derby'
   let ownerBarcode: string | null = null
   let feeSnapshot: Record<string, unknown> | null = null
@@ -184,7 +231,8 @@ export async function createEntry(
       entry_number: entryNumber,
       entry_name: input.ownerName,
       owner_name: input.ownerName,
-      handler_name: input.handlerName ?? null,
+      contact_full_name: input.contactFullName ?? null,
+      contact_designation: input.contactDesignation ?? null,
       contact_number: input.contactNumber ?? null,
       email: input.email ?? null,
       address: null,
@@ -238,6 +286,7 @@ function toCreateRoosterInput(
     entryName: rooster.entryName,
     bandNumber: rooster.bandNumber,
     weight: rooster.weight,
+    handlerName: rooster.handlerName,
     colorMarking: rooster.colorMarking,
     notes: rooster.notes,
     ageClass: 'ageClass' in rooster ? rooster.ageClass : undefined,
@@ -385,6 +434,16 @@ export async function updateEntry(
     return { error: competitorResult.error }
   }
 
+  const duplicateResult = await assertOwnerNotAlreadyRegistered(
+    input.eventId,
+    input.ownerName,
+    competitorResult.competitorId,
+    { excludeEntryId: input.entryId }
+  )
+  if (duplicateResult.error) {
+    return { error: duplicateResult.error }
+  }
+
   const extendedSupabase = await createExtendedClient()
   const { error } = await extendedSupabase
     .from('entries')
@@ -393,7 +452,8 @@ export async function updateEntry(
       competitor_id: competitorResult.competitorId ?? null,
       entry_name: input.ownerName,
       owner_name: input.ownerName,
-      handler_name: input.handlerName ?? null,
+      contact_full_name: input.contactFullName ?? null,
+      contact_designation: input.contactDesignation ?? null,
       contact_number: input.contactNumber ?? null,
       email: input.email ?? null,
       entry_source: input.entrySource,
@@ -492,6 +552,7 @@ export async function updateEntryRoosters(
         declared_weight_grams: weightGrams,
         official_weight_grams: weightGrams,
         color_marking: cataloged.colorMarking,
+        handler_name: rooster.handlerName ?? null,
         notes: rooster.notes ?? null,
         weight_verification_status: weightStatus,
         updated_at: new Date().toISOString(),

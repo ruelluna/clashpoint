@@ -121,13 +121,18 @@ export function OwnerDetailClient({
               <DetailRow label="Owner / game farm">
                 <Text fontWeight="medium">{entry.owner_name}</Text>
               </DetailRow>
-              {entry.handler_name ? (
-                <DetailRow label="Handler">
-                  <Text>{entry.handler_name}</Text>
+              {entry.contact_full_name ? (
+                <DetailRow label="Full name">
+                  <Text>{entry.contact_full_name}</Text>
+                </DetailRow>
+              ) : null}
+              {entry.contact_designation ? (
+                <DetailRow label="Designation">
+                  <Text>{entry.contact_designation}</Text>
                 </DetailRow>
               ) : null}
               {entry.contact_number ? (
-                <DetailRow label="Contact">
+                <DetailRow label="Phone">
                   <Text>{entry.contact_number}</Text>
                 </DetailRow>
               ) : null}
@@ -239,6 +244,9 @@ export function OwnerDetailClient({
                 <Box>
                   <Text fontWeight="semibold">Cock #{registration.cock_number}</Text>
                   <Text color="fg.muted">Band {registration.band_number}</Text>
+                  {registration.handler_name ? (
+                    <Text color="fg.muted">Handler: {registration.handler_name}</Text>
+                  ) : null}
                   {registration.official_weight_grams != null ? (
                     <Text color="fg.muted">
                       Weight {gramsToKg(registration.official_weight_grams)} kg

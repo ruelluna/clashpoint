@@ -23,6 +23,8 @@ export type CompetitorActionState = { error?: string; success?: string }
 function parseOwnerProfileFields(formData: FormData) {
   return {
     displayName: formData.get('displayName'),
+    contactFullName: formData.get('contactFullName')?.toString().trim() || undefined,
+    contactDesignation: formData.get('contactDesignation')?.toString().trim() || undefined,
     contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,
     email: formData.get('email')?.toString().trim() || undefined,
     address: formData.get('address')?.toString().trim() || undefined,
@@ -46,6 +48,8 @@ export async function searchCompetitorsAction(
 
 export async function createCompetitorAction(input: {
   displayName: string
+  contactFullName?: string
+  contactDesignation?: string
   contactNumber?: string
   email?: string
   address?: string
@@ -67,6 +71,8 @@ export async function createCompetitorAction(input: {
     competitor: {
       id: result.competitorId,
       displayName: parsed.data.displayName,
+      contactFullName: parsed.data.contactFullName ?? null,
+      contactDesignation: parsed.data.contactDesignation ?? null,
       contactNumber: parsed.data.contactNumber ?? null,
       email: parsed.data.email ?? null,
       address: parsed.data.address ?? null,

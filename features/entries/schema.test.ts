@@ -7,9 +7,14 @@ import {
   deleteEntrySchema,
   entryMetadataSchema,
   formatEntryNumber,
+  formatOwnerBarcode,
   getNextEntryNumber,
+  getNextOwnerBarcode,
+  isOwnerBarcodeForEvent,
+  normalizeOwnerBarcodeInput,
   parseCreateEntryFromFormData,
   parseEntryNumber,
+  parseOwnerBarcodeSequence,
   roosterEntryItemSchema,
   updateEntrySchema,
   validateEntryRosterCount,
@@ -44,6 +49,33 @@ describe('contactNumberSchema', () => {
       contactNumber: '',
     })
     expect(result.success).toBe(true)
+  })
+
+  it('accepts optional contact fields on owner metadata', () => {
+    const result = entryMetadataSchema.safeParse({
+      eventId,
+      ownerName: 'Farm A',
+      contactFullName: 'Juan Dela Cruz',
+      contactDesignation: 'Manager',
+      contactNumber: '+639171234567',
+      email: 'juan@example.com',
+    })
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('roosterEntryItemSchema', () => {
+  it('accepts optional handler name per rooster', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 2150,
+      handlerName: 'Pedro',
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.handlerName).toBe('Pedro')
+    }
   })
 })
 
@@ -135,6 +167,7 @@ describe('parseCreateEntryFromFormData', () => {
     formData.set('rooster_1_entryName', 'Thunder')
     formData.set('rooster_1_bandNumber', 'B-1')
     formData.set('rooster_1_weight', '2100')
+    formData.set('handlerName_rooster_1', 'Pedro')
     formData.set('notes_rooster_1', 'Handler prefers morning weigh-in')
     formData.set('rooster_2_entryName', 'Lightning')
     formData.set('rooster_2_bandNumber', 'B-2')
@@ -144,6 +177,7 @@ describe('parseCreateEntryFromFormData', () => {
     expect(parsed.parseErrors).toHaveLength(0)
     expect(parsed.roosters).toHaveLength(2)
     expect(parsed.roosters[0]?.entryName).toBe('Thunder')
+    expect(parsed.roosters[0]?.handlerName).toBe('Pedro')
     expect(parsed.roosters[0]?.notes).toBe('Handler prefers morning weigh-in')
   })
 
@@ -222,5 +256,28 @@ describe('entry number helpers', () => {
   it('matches contact number pattern', () => {
     expect(CONTACT_NUMBER_PATTERN.test('+639171234567')).toBe(true)
     expect(CONTACT_NUMBER_PREFIX).toBe('+63')
+  })
+})
+
+describe('owner barcode helpers', () => {
+  it('formats and parses owner barcodes for an event', () => {
+    const barcode = formatOwnerBarcode(eventId, 1)
+    expect(barcode).toBe('OWN-00000000-0001')
+    expect(parseOwnerBarcodeSequence(barcode, eventId)).toBe(1)
+  })
+
+  it('normalizes barcode input', () => {
+    expect(normalizeOwnerBarcodeInput(' own-abc-0001 ')).toBe('OWN-ABC-0001')
+  })
+
+  it('validates barcode belongs to event', () => {
+    const barcode = formatOwnerBarcode(eventId, 2)
+    expect(isOwnerBarcodeForEvent(barcode, eventId)).toBe(true)
+    expect(isOwnerBarcodeForEvent('OWN-FFFFFFFF-0001', eventId)).toBe(false)
+  })
+
+  it('returns the next owner barcode sequence', () => {
+    const existing = [formatOwnerBarcode(eventId, 1), formatOwnerBarcode(eventId, 3)]
+    expect(getNextOwnerBarcode(eventId, existing)).toBe(formatOwnerBarcode(eventId, 4))
   })
 })

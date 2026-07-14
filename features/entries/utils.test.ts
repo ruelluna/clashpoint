@@ -2,34 +2,46 @@ import { describe, expect, it } from 'vitest'
 
 import {
   DUPLICATE_ENTRY_ERROR,
-  isSameEntryIdentity,
+  isDuplicateOwnerForEvent,
+  isSameOwnerIdentity,
 } from '@/features/entries/utils'
 
-describe('duplicate entry identity', () => {
-  it('flags duplicate owner and handler pairs', () => {
-    const existing = [
-      { owner_name: 'Farm Alpha', handler_name: 'Juan' },
-      { owner_name: 'Farm Beta', handler_name: null },
-    ]
+const competitorId = '00000000-0000-4000-8000-000000000003'
+const entryId = '00000000-0000-4000-8000-000000000002'
 
-    const duplicate = existing.some((row) =>
-      isSameEntryIdentity('farm alpha', 'juan', row.owner_name, row.handler_name)
-    )
-
-    expect(duplicate).toBe(true)
+describe('owner duplicate detection', () => {
+  it('flags duplicate owner names case-insensitively', () => {
+    expect(isSameOwnerIdentity('farm alpha', 'Farm Alpha')).toBe(true)
   })
 
-  it('allows same owner with different handler', () => {
-    const existing = [{ owner_name: 'Farm Alpha', handler_name: 'Juan' }]
+  it('blocks duplicate owner for event', () => {
+    const existing = {
+      id: entryId,
+      owner_name: 'Farm Alpha',
+      competitor_id: null,
+    }
 
-    const duplicate = existing.some((row) =>
-      isSameEntryIdentity('Farm Alpha', 'Pedro', row.owner_name, row.handler_name)
-    )
+    expect(
+      isDuplicateOwnerForEvent('Farm Alpha', null, existing)
+    ).toBe(true)
+    expect(
+      isDuplicateOwnerForEvent('Farm Alpha', null, existing, entryId)
+    ).toBe(false)
+  })
 
-    expect(duplicate).toBe(false)
+  it('blocks duplicate linked competitor regardless of display name', () => {
+    const existing = {
+      id: entryId,
+      owner_name: 'Farm Alpha',
+      competitor_id: competitorId,
+    }
+
+    expect(
+      isDuplicateOwnerForEvent('Different Label', competitorId, existing)
+    ).toBe(true)
   })
 
   it('uses stable duplicate error copy', () => {
-    expect(DUPLICATE_ENTRY_ERROR).toMatch(/owner and handler/i)
+    expect(DUPLICATE_ENTRY_ERROR).toMatch(/already registered for this event/i)
   })
 })

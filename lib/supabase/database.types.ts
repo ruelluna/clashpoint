@@ -405,6 +405,8 @@ export type Database = {
         Row: {
           id: string
           display_name: string
+          contact_full_name: string | null
+          contact_designation: string | null
           contact_number: string | null
           email: string | null
           address: string | null
@@ -423,6 +425,8 @@ export type Database = {
         Insert: {
           id?: string
           display_name: string
+          contact_full_name?: string | null
+          contact_designation?: string | null
           contact_number?: string | null
           email?: string | null
           address?: string | null
@@ -441,6 +445,8 @@ export type Database = {
         Update: {
           id?: string
           display_name?: string
+          contact_full_name?: string | null
+          contact_designation?: string | null
           contact_number?: string | null
           email?: string | null
           address?: string | null
@@ -467,7 +473,8 @@ export type Database = {
           entry_number: string
           entry_name: string
           owner_name: string
-          handler_name: string | null
+          contact_full_name: string | null
+          contact_designation: string | null
           contact_number: string | null
           email: string | null
           address: string | null
@@ -490,7 +497,8 @@ export type Database = {
           entry_number: string
           entry_name: string
           owner_name: string
-          handler_name?: string | null
+          contact_full_name?: string | null
+          contact_designation?: string | null
           contact_number?: string | null
           email?: string | null
           address?: string | null
@@ -513,7 +521,8 @@ export type Database = {
           entry_number?: string
           entry_name?: string
           owner_name?: string
-          handler_name?: string | null
+          contact_full_name?: string | null
+          contact_designation?: string | null
           contact_number?: string | null
           email?: string | null
           address?: string | null
@@ -797,6 +806,7 @@ export type Database = {
           weight_verification_status: Database['public']['Enums']['weight_status'] | null
           weight_notes: string | null
           cock_entry_barcode: string | null
+          handler_name: string | null
           notes: string | null
           created_at: string
           updated_at: string
@@ -852,6 +862,7 @@ export type Database = {
           weight_verification_status?: Database['public']['Enums']['weight_status'] | null
           weight_notes?: string | null
           cock_entry_barcode?: string | null
+          handler_name?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -906,6 +917,7 @@ export type Database = {
           weight_verification_status?: Database['public']['Enums']['weight_status'] | null
           weight_notes?: string | null
           cock_entry_barcode?: string | null
+          handler_name?: string | null
           created_at?: string
           updated_at?: string
         }

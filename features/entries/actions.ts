@@ -29,11 +29,40 @@ import {
   updateEntry,
   updateEntryRoosters,
 } from '@/features/entries/service'
-import { getPairedRosterIdsForEntry } from '@/features/entries/queries'
+import { getEntryIdByOwnerBarcode, getPairedRosterIdsForEntry } from '@/features/entries/queries'
 import { getEvent } from '@/features/events/queries'
 import { requireAnyPermission, requirePermission } from '@/lib/auth/permissions'
+import {
+  isOwnerBarcodeForEvent,
+  normalizeOwnerBarcodeInput,
+} from '@/features/entries/schema'
 
 export type EntryActionState = { error?: string; success?: string }
+
+export type OwnerBarcodeLookupResult = { entryId?: string; error?: string }
+
+export async function lookupOwnerEntryByBarcodeAction(
+  eventId: string,
+  rawBarcode: string
+): Promise<OwnerBarcodeLookupResult> {
+  await requireAnyPermission(['owner_registration.manage', 'entries.manage', 'events.view'])
+
+  const barcode = normalizeOwnerBarcodeInput(rawBarcode)
+  if (!barcode) {
+    return { error: 'Enter a barcode to scan' }
+  }
+
+  if (!isOwnerBarcodeForEvent(barcode, eventId)) {
+    return { error: 'This barcode does not belong to this event' }
+  }
+
+  const entryId = await getEntryIdByOwnerBarcode(eventId, barcode)
+  if (!entryId) {
+    return { error: `No owner found for barcode ${barcode}` }
+  }
+
+  return { entryId }
+}
 
 function parseOptionalUuid(value: FormDataEntryValue | null): string | null {
   if (value == null || value.toString().trim() === '') return null
@@ -146,7 +175,8 @@ function parseOwnerEntryFromFormData(formData: FormData) {
     referredByPromoterId: formData.get('referredByPromoterId')?.toString().trim() || undefined,
     competitorId: formData.get('competitorId')?.toString().trim() || undefined,
     ownerName: formData.get('ownerName'),
-    handlerName: formData.get('handlerName')?.toString().trim() || undefined,
+    contactFullName: formData.get('contactFullName')?.toString().trim() || undefined,
+    contactDesignation: formData.get('contactDesignation')?.toString().trim() || undefined,
     contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,
     email: formData.get('email')?.toString().trim() || undefined,
     entrySource: formData.get('entrySource')?.toString() ?? 'staff_encoded',
@@ -204,7 +234,8 @@ export async function updateEntryAction(
     referredByPromoterId: parseOptionalUuid(formData.get('referredByPromoterId')),
     competitorId: parseOptionalUuid(formData.get('competitorId')),
     ownerName: formData.get('ownerName'),
-    handlerName: formData.get('handlerName')?.toString().trim() || undefined,
+    contactFullName: formData.get('contactFullName')?.toString().trim() || undefined,
+    contactDesignation: formData.get('contactDesignation')?.toString().trim() || undefined,
     contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,
     email: formData.get('email')?.toString().trim() || undefined,
     entrySource: formData.get('entrySource')?.toString() ?? 'staff_encoded',

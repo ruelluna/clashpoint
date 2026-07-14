@@ -11,11 +11,19 @@ import { createExtendedClient } from '@/lib/supabase/extended'
 
 function toSearchResult(row: Pick<
   CompetitorRow,
-  'id' | 'display_name' | 'contact_number' | 'email' | 'address'
+  | 'id'
+  | 'display_name'
+  | 'contact_full_name'
+  | 'contact_designation'
+  | 'contact_number'
+  | 'email'
+  | 'address'
 >): CompetitorSearchResult {
   return {
     id: row.id,
     displayName: row.display_name,
+    contactFullName: row.contact_full_name,
+    contactDesignation: row.contact_designation,
     contactNumber: row.contact_number,
     email: row.email,
     address: row.address,
@@ -27,6 +35,8 @@ function toListItem(
     CompetitorRow,
     | 'id'
     | 'display_name'
+    | 'contact_full_name'
+    | 'contact_designation'
     | 'contact_number'
     | 'email'
     | 'address'
@@ -37,6 +47,8 @@ function toListItem(
   return {
     id: row.id,
     displayName: row.display_name,
+    contactFullName: row.contact_full_name,
+    contactDesignation: row.contact_designation,
     contactNumber: row.contact_number,
     email: row.email,
     address: row.address,
@@ -58,7 +70,7 @@ export async function searchCompetitors(
 
   let builder = supabase
     .from('competitors')
-    .select('id, display_name, contact_number, email, address')
+    .select('id, display_name, contact_full_name, contact_designation, contact_number, email, address')
     .is('deleted_at', null)
     .order('display_name', { ascending: true })
     .limit(limit)
@@ -73,7 +85,13 @@ export async function searchCompetitors(
 
   return ((data ?? []) as Pick<
     CompetitorRow,
-    'id' | 'display_name' | 'contact_number' | 'email' | 'address'
+    | 'id'
+    | 'display_name'
+    | 'contact_full_name'
+    | 'contact_designation'
+    | 'contact_number'
+    | 'email'
+    | 'address'
   >[]).map(toSearchResult)
 }
 
@@ -85,7 +103,7 @@ export async function listCompetitors(
 
   let builder = supabase
     .from('competitors')
-    .select('id, display_name, contact_number, email, address, notes, created_at')
+    .select('id, display_name, contact_full_name, contact_designation, contact_number, email, address, notes, created_at')
     .is('deleted_at', null)
     .order('display_name', { ascending: true })
     .range(input.offset, input.offset + input.limit - 1)
@@ -102,6 +120,8 @@ export async function listCompetitors(
     CompetitorRow,
     | 'id'
     | 'display_name'
+    | 'contact_full_name'
+    | 'contact_designation'
     | 'contact_number'
     | 'email'
     | 'address'
@@ -115,7 +135,7 @@ export async function getCompetitorDetail(id: string): Promise<CompetitorDetail 
   const { data, error } = await supabase
     .from('competitors')
     .select(
-      'id, display_name, contact_number, email, address, notes, competitor_level, created_at, updated_at, deleted_at'
+      'id, display_name, contact_full_name, contact_designation, contact_number, email, address, notes, competitor_level, created_at, updated_at, deleted_at'
     )
     .eq('id', id)
     .is('deleted_at', null)
@@ -143,7 +163,7 @@ export async function getCompetitor(id: string): Promise<CompetitorSearchResult 
   const supabase = await createExtendedClient()
   const { data, error } = await supabase
     .from('competitors')
-    .select('id, display_name, contact_number, email, address')
+    .select('id, display_name, contact_full_name, contact_designation, contact_number, email, address')
     .eq('id', id)
     .is('deleted_at', null)
     .maybeSingle()
@@ -154,7 +174,13 @@ export async function getCompetitor(id: string): Promise<CompetitorSearchResult 
   return toSearchResult(
     data as Pick<
       CompetitorRow,
-      'id' | 'display_name' | 'contact_number' | 'email' | 'address'
+      | 'id'
+      | 'display_name'
+      | 'contact_full_name'
+      | 'contact_designation'
+      | 'contact_number'
+      | 'email'
+      | 'address'
     >
   )
 }
@@ -168,7 +194,7 @@ export async function findCompetitorByDisplayName(
 
   const { data, error } = await supabase
     .from('competitors')
-    .select('id, display_name, contact_number, email, address')
+    .select('id, display_name, contact_full_name, contact_designation, contact_number, email, address')
     .is('deleted_at', null)
     .ilike('display_name', trimmed)
     .maybeSingle()
@@ -179,7 +205,13 @@ export async function findCompetitorByDisplayName(
   return toSearchResult(
     data as Pick<
       CompetitorRow,
-      'id' | 'display_name' | 'contact_number' | 'email' | 'address'
+      | 'id'
+      | 'display_name'
+      | 'contact_full_name'
+      | 'contact_designation'
+      | 'contact_number'
+      | 'email'
+      | 'address'
     >
   )
 }

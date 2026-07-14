@@ -19,6 +19,7 @@ export type RoosterEventRegistrationRow = {
   declared_weight: number | null
   category: string | null
   color_marking: string | null
+  handler_name: string | null
   status: string
   entry_rooster_role: EntryRoosterRole
   registration_status: RegistrationWorkflowStatus

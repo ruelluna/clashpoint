@@ -160,8 +160,7 @@ export default async function PublicRegisterPage({ params }: PublicRegisterPageP
               </Box>
             ) : null}
             <Text color="fg.muted" fontSize="xs">
-              One registration per owner and handler pair. You cannot submit twice with the
-              same names.
+              One registration per owner. You cannot submit twice with the same owner name.
             </Text>
           </Stack>
 

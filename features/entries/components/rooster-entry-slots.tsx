@@ -46,6 +46,13 @@ function notesFieldName(mode: 'create' | 'edit', slotKey: string) {
   return `notes_${slotKey}`
 }
 
+function handlerFieldName(mode: 'create' | 'edit', slotKey: string) {
+  if (mode === 'create') {
+    return `handlerName_rooster_${slotKey}`
+  }
+  return `handlerName_${slotKey}`
+}
+
 type RoosterSlotFieldsProps = {
   mode: 'create' | 'edit'
   prefix: string
@@ -123,6 +130,14 @@ function RoosterSlotFields({
           />
         </FormField>
       </Flex>
+      <FormField label="Handler name">
+        <Input
+          name={handlerFieldName(mode, slotKey)}
+          maxLength={200}
+          defaultValue={defaults?.handler_name ?? ''}
+          disabled={disabled}
+        />
+      </FormField>
       <ReferenceValueCombobox
         kind="color_marking"
         name={colorMarkingFieldName(mode, slotKey)}

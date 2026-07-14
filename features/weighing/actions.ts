@@ -30,6 +30,7 @@ export async function createRoosterAction(
     entryName: formData.get('entryName')?.toString().trim() || formData.get('bandNumber'),
     bandNumber: formData.get('bandNumber'),
     weight: formData.get('weight'),
+    handlerName: formData.get('handlerName')?.toString().trim() || undefined,
     category: formData.get('category')?.toString().trim() || undefined,
     colorMarking: formData.get('colorMarking')?.toString().trim() || undefined,
   })

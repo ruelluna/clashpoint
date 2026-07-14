@@ -82,9 +82,10 @@ export function EntriesListClient({
                 </Box>
                 <Box flex="1">
                   <Text fontSize="sm">{entry.owner_name}</Text>
-                  {entry.handler_name ? (
+                  {entry.contact_full_name ? (
                     <Text fontSize="xs" color="fg.muted">
-                      Handler: {entry.handler_name}
+                      {entry.contact_full_name}
+                      {entry.contact_designation ? ` · ${entry.contact_designation}` : ''}
                     </Text>
                   ) : null}
                 </Box>

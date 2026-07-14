@@ -33,7 +33,8 @@ export function parsePublicEntryFromFormData(formData: FormData) {
     .safeParse({
       eventId: formData.get('eventId'),
       ownerName: formData.get('ownerName'),
-      handlerName: formData.get('handlerName')?.toString().trim() || undefined,
+      contactFullName: formData.get('contactFullName')?.toString().trim() || undefined,
+      contactDesignation: formData.get('contactDesignation')?.toString().trim() || undefined,
       contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,
       email: formData.get('email')?.toString().trim() || undefined,
       entrySource: 'online',

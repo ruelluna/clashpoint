@@ -11,7 +11,8 @@ type OwnerBarcodeSlipProps = {
   eventName: string
   entryNumber: string
   ownerName: string
-  handlerName?: string | null
+  contactFullName?: string | null
+  contactDesignation?: string | null
   ownerBarcode: string
   feeSettings: EventFeeSettings
 }
@@ -19,18 +20,21 @@ type OwnerBarcodeSlipProps = {
 function OwnerBarcodeContent({
   entryNumber,
   ownerName,
-  handlerName,
+  contactFullName,
+  contactDesignation,
   ownerBarcode,
   registrationDue,
 }: {
   entryNumber: string
   ownerName: string
-  handlerName?: string | null
+  contactFullName?: string | null
+  contactDesignation?: string | null
   ownerBarcode: string
   registrationDue: number
 }) {
   const printFormat = usePrintFormat()
   const barcodeSize = printFormat === 'sticker' ? 'sticker' : 'default'
+  const contactLine = [contactFullName, contactDesignation].filter(Boolean).join(' · ')
 
   return (
     <>
@@ -40,9 +44,9 @@ function OwnerBarcodeContent({
         </Text>
         <Text fontSize="sm">Entry #{entryNumber}</Text>
         <Text fontWeight="semibold">{ownerName}</Text>
-        {handlerName ? (
+        {contactLine ? (
           <Text fontSize="sm" color="fg.muted">
-            Handler: {handlerName}
+            {contactLine}
           </Text>
         ) : null}
         {registrationDue > 0 ? (
@@ -54,9 +58,9 @@ function OwnerBarcodeContent({
         <Text className="print-sticker-line" fontWeight="semibold">
           #{entryNumber} · {ownerName}
         </Text>
-        {handlerName ? (
+        {contactLine ? (
           <Text className="print-sticker-line" color="fg.muted">
-            {handlerName}
+            {contactLine}
           </Text>
         ) : null}
       </Stack>
@@ -70,7 +74,8 @@ export function OwnerBarcodeSlip({
   eventName,
   entryNumber,
   ownerName,
-  handlerName,
+  contactFullName,
+  contactDesignation,
   ownerBarcode,
   feeSettings,
 }: OwnerBarcodeSlipProps) {
@@ -81,7 +86,8 @@ export function OwnerBarcodeSlip({
       <OwnerBarcodeContent
         entryNumber={entryNumber}
         ownerName={ownerName}
-        handlerName={handlerName}
+        contactFullName={contactFullName}
+        contactDesignation={contactDesignation}
         ownerBarcode={ownerBarcode}
         registrationDue={registrationDue}
       />

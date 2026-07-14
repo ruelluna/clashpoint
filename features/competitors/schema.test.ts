@@ -8,9 +8,11 @@ import {
 } from '@/features/competitors/schema'
 
 describe('createCompetitorSchema', () => {
-  it('accepts a valid owner profile', () => {
+  it('accepts a valid owner profile with contact fields', () => {
     const parsed = createCompetitorSchema.parse({
       displayName: 'Blue Ridge Farm',
+      contactFullName: 'Juan Dela Cruz',
+      contactDesignation: 'Manager',
       contactNumber: '+639171234567',
       email: 'farm@example.com',
       address: 'Cebu',
@@ -18,6 +20,8 @@ describe('createCompetitorSchema', () => {
     })
 
     expect(parsed.displayName).toBe('Blue Ridge Farm')
+    expect(parsed.contactFullName).toBe('Juan Dela Cruz')
+    expect(parsed.contactDesignation).toBe('Manager')
     expect(parsed.notes).toBe('Regular entrant')
   })
 

@@ -19,6 +19,7 @@ export type EntryRoosterEditItem = {
   rooster_name: string | null
   band_number: string
   weight: number | null
+  handler_name: string | null
   color_marking: string | null
   notes: string | null
   is_paired: boolean
@@ -61,12 +62,15 @@ export async function listEntriesByEvent(
       entry_number,
       entry_name,
       owner_name,
-      handler_name,
+      contact_full_name,
+      contact_designation,
       contact_number,
+      email,
       entry_source,
       registration_status,
       payment_status,
       fee_snapshot,
+      owner_barcode,
       created_at,
       promoters ( name )
     `
@@ -100,12 +104,15 @@ export async function listEntriesByEvent(
     entry_number: row.entry_number,
     entry_name: row.entry_name,
     owner_name: row.owner_name,
-    handler_name: row.handler_name,
+    contact_full_name: row.contact_full_name,
+    contact_designation: row.contact_designation,
     contact_number: row.contact_number,
+    email: row.email,
     entry_source: row.entry_source,
     registration_status: row.registration_status,
     payment_status: row.payment_status,
     fee_snapshot: row.fee_snapshot as Record<string, unknown> | null,
+    owner_barcode: row.owner_barcode as string | null,
     created_at: row.created_at,
     promoter_name: row.promoters?.name ?? null,
     rooster_count: countByEntry.get(row.id) ?? 0,
@@ -191,6 +198,23 @@ export async function listOwnerBarcodesForEvent(
   return (data ?? [])
     .map((row) => row.owner_barcode as string | null)
     .filter((value): value is string => value != null)
+}
+
+export async function getEntryIdByOwnerBarcode(
+  eventId: string,
+  barcode: string
+): Promise<string | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id')
+    .eq('event_id', eventId)
+    .eq('owner_barcode', barcode)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error) throw error
+  return data?.id ?? null
 }
 
 export async function listCockEntryBarcodesForEvent(eventId: string): Promise<string[]> {
@@ -287,6 +311,7 @@ export async function listEntryRoostersForEdit(
       id,
       cock_number,
       band_number,
+      handler_name,
       color_marking,
       notes,
       eligibility_status,
@@ -409,6 +434,7 @@ export async function listEntryRoostersForEdit(
         weighing?.official_weight_grams != null
           ? Number(weighing.official_weight_grams)
           : null,
+      handler_name: (row.handler_name as string | null) ?? null,
       color_marking: (row.color_marking as string | null) ?? null,
       notes: (row.notes as string | null) ?? null,
       is_paired: pairedIds.has(roosterId),

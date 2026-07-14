@@ -69,7 +69,8 @@ export const entryMetadataSchema = z.object({
   referredByPromoterId: z.string().uuid().nullable().optional(),
   competitorId: competitorIdField,
   ownerName: z.string().min(1, 'Owner Name/Game Farm is required').max(200),
-  handlerName: optionalText(200),
+  contactFullName: optionalText(200),
+  contactDesignation: optionalText(200),
   contactNumber: contactNumberSchema,
   email: optionalEmail,
   entrySource: entrySourceSchema.default('staff_encoded'),
@@ -86,6 +87,7 @@ export const roosterEntryItemSchema = z.object({
   entryName: z.string().min(1, 'Entry name is required').max(200),
   bandNumber: z.string().min(1, 'Band number is required').max(50),
   weight: weightGramsSchema,
+  handlerName: optionalText(200),
   colorMarking: optionalText(200),
   notes: optionalText(2000),
 })
@@ -121,6 +123,14 @@ export type CreateOwnerEntryInput = z.infer<typeof createOwnerEntrySchema>
 export function formatOwnerBarcode(eventId: string, sequence: number): string {
   const prefix = eventId.replace(/-/g, '').slice(0, 8).toUpperCase()
   return `OWN-${prefix}-${String(sequence).padStart(4, '0')}`
+}
+
+export function normalizeOwnerBarcodeInput(value: string): string {
+  return value.trim().toUpperCase()
+}
+
+export function isOwnerBarcodeForEvent(value: string, eventId: string): boolean {
+  return parseOwnerBarcodeSequence(normalizeOwnerBarcodeInput(value), eventId) != null
 }
 
 export function parseOwnerBarcodeSequence(value: string, eventId: string): number | null {
@@ -244,6 +254,21 @@ function parseRoosterRegistryFieldsFromForm(
   }
 }
 
+function handlerFieldName(mode: 'create' | 'edit', slotKey: string) {
+  if (mode === 'create') {
+    return `handlerName_rooster_${slotKey}`
+  }
+  return `handlerName_${slotKey}`
+}
+
+function parseRoosterHandlerFromForm(
+  formData: FormData,
+  mode: 'create' | 'edit',
+  slotKey: string
+): string | undefined {
+  return formData.get(handlerFieldName(mode, slotKey))?.toString().trim() || undefined
+}
+
 function notesFieldName(mode: 'create' | 'edit', slotKey: string) {
   if (mode === 'create') {
     return `notes_rooster_${slotKey}`
@@ -290,6 +315,11 @@ function parseRoosterSlotFromForm(
     entryName: formData.get(`${prefix}entryName`),
     bandNumber: formData.get(`${prefix}bandNumber`),
     weight: formData.get(`${prefix}weight`),
+    handlerName: parseRoosterHandlerFromForm(
+      formData,
+      mode === 'create' ? 'create' : 'edit',
+      policyPrefix
+    ),
     colorMarking:
       formData.get(`colorMarking_${policyPrefix}`)?.toString().trim() || undefined,
     notes: parseRoosterNotesFromForm(formData, mode === 'create' ? 'create' : 'edit', policyPrefix),
@@ -308,6 +338,7 @@ export function parseUpdateEntryRosterFromForm(
     entryName: formData.get(`entryName_${roosterId}`),
     bandNumber: formData.get(`bandNumber_${roosterId}`),
     weight: formData.get(`weight_${roosterId}`),
+    handlerName: parseRoosterHandlerFromForm(formData, 'edit', roosterId),
     colorMarking: formData.get(`colorMarking_${roosterId}`)?.toString().trim() || undefined,
     notes: parseRoosterNotesFromForm(formData, 'edit', roosterId),
     ...parseRoosterRegistryFieldsFromForm(formData, roosterId),
@@ -344,6 +375,7 @@ export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEn
       entryName,
       bandNumber,
       weight,
+      handlerName: parseRoosterHandlerFromForm(formData, 'create', String(index)),
       colorMarking:
         formData.get(`colorMarking_rooster_${index}`)?.toString().trim() || undefined,
       notes: parseRoosterNotesFromForm(formData, 'create', String(index)),
@@ -361,7 +393,8 @@ export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEn
     referredByPromoterId: formData.get('referredByPromoterId')?.toString().trim() || undefined,
     competitorId: formData.get('competitorId')?.toString().trim() || undefined,
     ownerName: formData.get('ownerName'),
-    handlerName: formData.get('handlerName')?.toString().trim() || undefined,
+    contactFullName: formData.get('contactFullName')?.toString().trim() || undefined,
+    contactDesignation: formData.get('contactDesignation')?.toString().trim() || undefined,
     contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,
     email: formData.get('email')?.toString().trim() || undefined,
     entrySource: formData.get('entrySource')?.toString() ?? 'staff_encoded',

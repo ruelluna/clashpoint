@@ -39,6 +39,8 @@ export function OwnerFormClient(props: OwnerFormClientProps) {
 
   const [profile, setProfile] = useState({
     displayName: owner?.displayName ?? '',
+    contactFullName: owner?.contactFullName ?? '',
+    contactDesignation: owner?.contactDesignation ?? '',
     contactNumber: owner?.contactNumber ?? '',
     email: owner?.email ?? '',
     address: owner?.address ?? '',
@@ -86,6 +88,8 @@ export function OwnerFormClient(props: OwnerFormClientProps) {
               onChange={(values) =>
                 setProfile({
                   displayName: values.displayName,
+                  contactFullName: values.contactFullName ?? '',
+                  contactDesignation: values.contactDesignation ?? '',
                   contactNumber: values.contactNumber ?? '',
                   email: values.email ?? '',
                   address: values.address ?? '',

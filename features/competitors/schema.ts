@@ -24,6 +24,8 @@ export const searchCompetitorsSchema = z.object({
 
 const competitorProfileFields = {
   displayName: z.string().min(1, 'Display name is required').max(200),
+  contactFullName: optionalText(200),
+  contactDesignation: optionalText(200),
   contactNumber: contactNumberSchema,
   email: optionalEmail,
   address: optionalText(500),

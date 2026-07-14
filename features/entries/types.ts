@@ -22,7 +22,8 @@ export type EntryRow = {
   entry_number: string
   entry_name: string
   owner_name: string
-  handler_name: string | null
+  contact_full_name: string | null
+  contact_designation: string | null
   contact_number: string | null
   email: string | null
   address: string | null
@@ -44,12 +45,15 @@ export type EntryListItem = Pick<
   | 'entry_number'
   | 'entry_name'
   | 'owner_name'
-  | 'handler_name'
+  | 'contact_full_name'
+  | 'contact_designation'
   | 'contact_number'
+  | 'email'
   | 'entry_source'
   | 'registration_status'
   | 'payment_status'
   | 'fee_snapshot'
+  | 'owner_barcode'
   | 'created_at'
 > & {
   promoter_name: string | null

@@ -91,6 +91,9 @@ function AddRoosterForm({
               <Input name="weight" type="number" step="1" min="1" />
             </FormField>
           </Flex>
+          <FormField label="Handler name">
+            <Input name="handlerName" maxLength={200} />
+          </FormField>
           {state.error ? (
             <Text fontSize="sm" color="red.500">
               {state.error}

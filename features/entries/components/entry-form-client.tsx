@@ -23,7 +23,7 @@ import {
   createEntryAction,
   type EntryActionState,
 } from '@/features/entries/actions'
-import { ContactNumberField } from '@/features/entries/components/contact-number-field'
+import { OwnerContactFields } from '@/features/entries/components/owner-contact-fields'
 import {
   OwnerPickerField,
   type OwnerProfileValues,
@@ -60,9 +60,9 @@ function formatDescription(
 ) {
   const weightText = formatWeightRange(minWeightGrams, maxWeightGrams)
   if (eventType === 'classic') {
-    return `${eventName} · Register game farm / handler and one rooster. Weight limits: ${weightText}`
+    return `${eventName} · Register game farm and one rooster. Weight limits: ${weightText}`
   }
-  return `${eventName} · Register game farm / handler, then add up to ${cocksPerEntry} cocks (at least one required). Weight limits: ${weightText}`
+  return `${eventName} · Register game farm, then add up to ${cocksPerEntry} cocks (at least one required). Weight limits: ${weightText}`
 }
 
 export function EntryFormClient({
@@ -80,6 +80,8 @@ export function EntryFormClient({
     initialState
   )
   const [ownerProfile, setOwnerProfile] = useState<OwnerProfileValues>({
+    contactFullName: '',
+    contactDesignation: '',
     contactNumber: '',
     email: '',
     address: '',
@@ -110,38 +112,31 @@ export function EntryFormClient({
             color="fg.muted"
             textTransform="uppercase"
           >
-            Owner / handler
+            Owner
           </Text>
 
           <OwnerPickerField onOwnerProfileChange={setOwnerProfile} />
 
-          <FormField label="Handler name">
-            <Input name="handlerName" maxLength={200} />
-          </FormField>
+          <Text
+            fontSize="sm"
+            fontWeight="semibold"
+            color="fg.muted"
+            textTransform="uppercase"
+          >
+            Contact information
+          </Text>
 
-          <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <ContactNumberField
-              flex="1"
-              value={ownerProfile.contactNumber}
-              onChange={(contactNumber) =>
-                setOwnerProfile((current) => ({ ...current, contactNumber }))
-              }
-            />
-            <FormField label="Email" flex="1">
-              <Input
-                name="email"
-                type="email"
-                maxLength={200}
-                value={ownerProfile.email}
-                onChange={(event) =>
-                  setOwnerProfile((current) => ({
-                    ...current,
-                    email: event.target.value,
-                  }))
-                }
-              />
-            </FormField>
-          </Flex>
+          <OwnerContactFields
+            values={{
+              contactFullName: ownerProfile.contactFullName,
+              contactDesignation: ownerProfile.contactDesignation,
+              contactNumber: ownerProfile.contactNumber,
+              email: ownerProfile.email,
+            }}
+            onChange={(contact) =>
+              setOwnerProfile((current) => ({ ...current, ...contact }))
+            }
+          />
 
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
             <FormField label="Entry source" flex="1">

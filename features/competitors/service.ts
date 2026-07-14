@@ -22,6 +22,8 @@ export async function createCompetitor(
     .from('competitors')
     .insert({
       display_name: input.displayName.trim(),
+      contact_full_name: input.contactFullName ?? null,
+      contact_designation: input.contactDesignation ?? null,
       contact_number: input.contactNumber ?? null,
       email: input.email ?? null,
       address: input.address ?? null,
@@ -71,6 +73,8 @@ export async function updateCompetitor(
     .from('competitors')
     .update({
       display_name: input.displayName.trim(),
+      contact_full_name: input.contactFullName ?? null,
+      contact_designation: input.contactDesignation ?? null,
       contact_number: input.contactNumber ?? null,
       email: input.email ?? null,
       address: input.address ?? null,

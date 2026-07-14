@@ -24,7 +24,7 @@ import {
   updateEntryAction,
   type EntryActionState,
 } from '@/features/entries/actions'
-import { ContactNumberField } from '@/features/entries/components/contact-number-field'
+import { OwnerContactFields } from '@/features/entries/components/owner-contact-fields'
 import {
   OwnerPickerField,
   type OwnerProfileValues,
@@ -72,6 +72,8 @@ export function EntryEditClient({
 }: EntryEditClientProps) {
   const [formState, formAction, pending] = useActionState(updateEntryAction, initialState)
   const [ownerProfile, setOwnerProfile] = useState<OwnerProfileValues>({
+    contactFullName: entry.contact_full_name ?? '',
+    contactDesignation: entry.contact_designation ?? '',
     contactNumber: entry.contact_number ?? '',
     email: entry.email ?? '',
     address: '',
@@ -102,7 +104,7 @@ export function EntryEditClient({
             color="fg.muted"
             textTransform="uppercase"
           >
-            Owner / handler
+            Owner
           </Text>
 
           <OwnerPickerField
@@ -111,37 +113,26 @@ export function EntryEditClient({
             onOwnerProfileChange={setOwnerProfile}
           />
 
-          <FormField label="Handler name">
-            <Input
-              name="handlerName"
-              maxLength={200}
-              defaultValue={entry.handler_name ?? ''}
-            />
-          </FormField>
+          <Text
+            fontSize="sm"
+            fontWeight="semibold"
+            color="fg.muted"
+            textTransform="uppercase"
+          >
+            Contact information
+          </Text>
 
-          <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <ContactNumberField
-              flex="1"
-              value={ownerProfile.contactNumber}
-              onChange={(contactNumber) =>
-                setOwnerProfile((current) => ({ ...current, contactNumber }))
-              }
-            />
-            <FormField label="Email" flex="1">
-              <Input
-                name="email"
-                type="email"
-                maxLength={200}
-                value={ownerProfile.email}
-                onChange={(event) =>
-                  setOwnerProfile((current) => ({
-                    ...current,
-                    email: event.target.value,
-                  }))
-                }
-              />
-            </FormField>
-          </Flex>
+          <OwnerContactFields
+            values={{
+              contactFullName: ownerProfile.contactFullName,
+              contactDesignation: ownerProfile.contactDesignation,
+              contactNumber: ownerProfile.contactNumber,
+              email: ownerProfile.email,
+            }}
+            onChange={(contact) =>
+              setOwnerProfile((current) => ({ ...current, ...contact }))
+            }
+          />
 
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
             <FormField label="Entry source" flex="1">

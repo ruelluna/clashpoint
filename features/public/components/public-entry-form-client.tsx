@@ -11,7 +11,7 @@ import {
 import Link from 'next/link'
 import { useActionState, useState } from 'react'
 
-import { ContactNumberField } from '@/features/entries/components/contact-number-field'
+import { OwnerContactFields } from '@/features/entries/components/owner-contact-fields'
 import { RoosterEntrySlots } from '@/features/entries/components/rooster-entry-slots'
 import {
   createPublicEntryAction,
@@ -47,7 +47,12 @@ export function PublicEntryFormClient({
     createPublicEntryAction,
     initialState
   )
-  const [contactNumber, setContactNumber] = useState('')
+  const [contact, setContact] = useState({
+    contactFullName: '',
+    contactDesignation: '',
+    contactNumber: '',
+    email: '',
+  })
 
   if (formState.success) {
     return (
@@ -102,7 +107,7 @@ export function PublicEntryFormClient({
           ) : null}
 
           <Text fontSize="sm" fontWeight="semibold" color="fg.muted" textTransform="uppercase">
-            Owner / handler
+            Owner
           </Text>
 
           <Stack gap={1}>
@@ -112,26 +117,11 @@ export function PublicEntryFormClient({
             <Input name="ownerName" maxLength={200} required />
           </Stack>
 
-          <Stack gap={1}>
-            <Text fontSize="sm" fontWeight="medium">
-              Handler name
-            </Text>
-            <Input name="handlerName" maxLength={200} />
-          </Stack>
+          <Text fontSize="sm" fontWeight="semibold" color="fg.muted" textTransform="uppercase">
+            Contact information
+          </Text>
 
-          <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
-            <ContactNumberField
-              flex="1"
-              value={contactNumber}
-              onChange={setContactNumber}
-            />
-            <Stack gap={1} flex="1">
-              <Text fontSize="sm" fontWeight="medium">
-                Email
-              </Text>
-              <Input name="email" type="email" maxLength={200} />
-            </Stack>
-          </Flex>
+          <OwnerContactFields values={contact} onChange={setContact} />
 
           <Stack gap={1}>
             <Text fontSize="sm" fontWeight="medium">
@@ -139,6 +129,10 @@ export function PublicEntryFormClient({
             </Text>
             <Textarea name="notes" rows={3} maxLength={2000} />
           </Stack>
+
+          <Text fontSize="sm" fontWeight="semibold" color="fg.muted" textTransform="uppercase">
+            Roosters
+          </Text>
 
           <RoosterEntrySlots
             mode="create"
