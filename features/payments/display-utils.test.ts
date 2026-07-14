@@ -25,11 +25,8 @@ const feesDisabled: EventFeeSettings = {
 }
 
 describe('getOwnerRegistrationPaymentDisplay', () => {
-  it('returns Not required when registration fee is disabled', () => {
-    expect(getOwnerRegistrationPaymentDisplay('unpaid', feesDisabled)).toEqual({
-      label: 'Not required',
-      colorPalette: 'gray',
-    })
+  it('returns null when registration fee is disabled', () => {
+    expect(getOwnerRegistrationPaymentDisplay('unpaid', feesDisabled)).toBeNull()
   })
 
   it('returns Unpaid when registration fee is enabled', () => {
@@ -41,11 +38,8 @@ describe('getOwnerRegistrationPaymentDisplay', () => {
 })
 
 describe('getRoosterEntryPaymentDisplay', () => {
-  it('returns Not required when rooster entry fee is disabled', () => {
-    expect(getRoosterEntryPaymentDisplay('unpaid', feesDisabled)).toEqual({
-      label: 'Not required',
-      colorPalette: 'gray',
-    })
+  it('returns null when rooster entry fee is disabled', () => {
+    expect(getRoosterEntryPaymentDisplay('unpaid', feesDisabled)).toBeNull()
   })
 
   it('returns Unpaid when rooster entry fee is enabled', () => {

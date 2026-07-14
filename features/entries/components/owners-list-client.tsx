@@ -49,11 +49,18 @@ export function OwnersListClient({
             borderColor="border"
             rounded="md"
             p={3}
+            _hover={{ borderColor: 'border.emphasized', bg: 'bg.subtle' }}
+            transition="border-color 0.15s, background 0.15s"
           >
-            <Flex direction="column" gap={1}>
-              <Text fontWeight="semibold">
-                #{entry.entry_number} {entry.owner_name}
-              </Text>
+            <Flex direction="column" gap={1} flex="1" minW={0}>
+              <Link href={`/dashboard/events/${eventId}/owners/${entry.id}`}>
+                <Text
+                  fontWeight="semibold"
+                  _hover={{ textDecoration: 'underline' }}
+                >
+                  #{entry.entry_number} {entry.owner_name}
+                </Text>
+              </Link>
               {entry.handler_name ? (
                 <Text fontSize="sm" color="fg.muted">
                   Handler: {entry.handler_name}
@@ -61,12 +68,17 @@ export function OwnersListClient({
               ) : null}
               <Flex gap={2}>
                 <Badge>{entry.rooster_count} cock(s)</Badge>
-                <Badge colorPalette={paymentDisplay.colorPalette}>
-                  {paymentDisplay.label}
-                </Badge>
+                {paymentDisplay ? (
+                  <Badge colorPalette={paymentDisplay.colorPalette}>
+                    {paymentDisplay.label}
+                  </Badge>
+                ) : null}
               </Flex>
             </Flex>
             <ButtonGroup>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/dashboard/events/${eventId}/owners/${entry.id}`}>View</Link>
+              </Button>
               {eventType === 'derby' ? (
                 <Button asChild size="sm" variant="outline">
                   <Link href={`/dashboard/events/${eventId}/owners/${entry.id}/print`}>

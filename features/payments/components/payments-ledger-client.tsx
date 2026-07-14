@@ -229,7 +229,8 @@ export function PaymentsLedgerClient({
                   )
                   return (
                     <option key={entry.id} value={entry.id}>
-                      #{entry.entry_number} {entry.entry_name} · {paymentDisplay.label}
+                      #{entry.entry_number} {entry.entry_name}
+                      {paymentDisplay ? ` · ${paymentDisplay.label}` : ''}
                     </option>
                   )
                 })}
@@ -409,9 +410,11 @@ export function PaymentsLedgerClient({
                 <Text>
                   #{entry.entry_number} {entry.entry_name}
                 </Text>
-                <Badge colorPalette={paymentDisplay.colorPalette}>
-                  {paymentDisplay.label}
-                </Badge>
+                {paymentDisplay ? (
+                  <Badge colorPalette={paymentDisplay.colorPalette}>
+                    {paymentDisplay.label}
+                  </Badge>
+                ) : null}
               </Flex>
             )
           })}

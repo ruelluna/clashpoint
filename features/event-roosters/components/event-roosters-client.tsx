@@ -217,11 +217,11 @@ export function EventRoostersClient({
                       registration.reg_payment_status,
                       feeSettings
                     )
-                    return (
+                    return paymentDisplay ? (
                       <Badge size="sm" colorPalette={paymentDisplay.colorPalette}>
                         {paymentDisplay.label}
                       </Badge>
-                    )
+                    ) : null
                   })()}
                 </Box>
                 <Box flex="0.9">

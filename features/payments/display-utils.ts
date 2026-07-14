@@ -11,9 +11,9 @@ export type PaymentDisplayBadge = {
 export function getOwnerRegistrationPaymentDisplay(
   paymentStatus: PaymentStatus,
   settings: EventFeeSettings
-): PaymentDisplayBadge {
+): PaymentDisplayBadge | null {
   if (!settings.registrationFeeEnabled) {
-    return { label: 'Not required', colorPalette: 'gray' }
+    return null
   }
 
   return getEntryPaymentDisplay(paymentStatus)
@@ -35,9 +35,9 @@ export function getEntryPaymentDisplay(paymentStatus: PaymentStatus): PaymentDis
 export function getRoosterEntryPaymentDisplay(
   regPaymentStatus: RegistrationPaymentStatus,
   settings: EventFeeSettings
-): PaymentDisplayBadge {
+): PaymentDisplayBadge | null {
   if (!settings.roosterEntryFeeEnabled || regPaymentStatus === 'not_required') {
-    return { label: 'Not required', colorPalette: 'gray' }
+    return null
   }
 
   if (regPaymentStatus === 'paid') {
