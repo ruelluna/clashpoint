@@ -1,6 +1,14 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
+import {
+  computeFeeAdjustmentLines,
+  eventFeeSettingsFromRow,
+  snapshotFromSettings,
+  summarizeFeeAdjustments,
+  type EntryFeeSnapshot,
+  type EventFeeSettings,
+} from '@/features/events/fee-utils'
 import type {
   CreateEventInput,
   TransitionStatusInput,
@@ -20,6 +28,14 @@ import { createClient } from '@/lib/supabase/server'
 async function toEventInsert(input: CreateEventInput | UpdateEventInput) {
   const settings = await getSystemSettings()
   const isClassic = input.eventType === 'classic'
+  const isDerby = input.eventType === 'derby'
+
+  const registrationFeeEnabled = isDerby ? input.registrationFeeEnabled : false
+  const registrationFeeAmount = isDerby ? input.registrationFeeAmount : 0
+  const roosterEntryFeeEnabled = isDerby ? input.roosterEntryFeeEnabled : false
+  const roosterEntryFeeAmount = isDerby ? input.roosterEntryFeeAmount : 0
+  const cashBondEnabled = isDerby ? input.cashBondEnabled : false
+  const cashBondAmount = isDerby ? input.cashBondAmount : 0
 
   return {
     promoter_id: isClassic ? null : (input.promoterId ?? null),
@@ -33,7 +49,13 @@ async function toEventInsert(input: CreateEventInput | UpdateEventInput) {
     require_rooster_entry_approval: !isClassic,
     eligibility_enforcement_enabled: false,
     classification_matching_enabled: false,
-    entry_fee: input.entryFee ?? 0,
+    entry_fee: registrationFeeEnabled ? registrationFeeAmount : 0,
+    registration_fee_enabled: registrationFeeEnabled,
+    registration_fee_amount: registrationFeeAmount,
+    rooster_entry_fee_enabled: roosterEntryFeeEnabled,
+    rooster_entry_fee_amount: roosterEntryFeeAmount,
+    cash_bond_enabled: cashBondEnabled,
+    cash_bond_amount: cashBondAmount,
     tax_per_fight: input.taxPerFight,
     min_entries: null,
     max_entries: null,
@@ -110,6 +132,117 @@ export async function createEvent(
   return { eventId: event.id }
 }
 
+function settingsFromInput(input: CreateEventInput | UpdateEventInput): EventFeeSettings {
+  return snapshotFromSettings({
+    registrationFeeEnabled: input.registrationFeeEnabled,
+    registrationFeeAmount: input.registrationFeeAmount,
+    roosterEntryFeeEnabled: input.roosterEntryFeeEnabled,
+    roosterEntryFeeAmount: input.roosterEntryFeeAmount,
+    cashBondEnabled: input.cashBondEnabled,
+    cashBondAmount: input.cashBondAmount,
+  })
+}
+
+async function recordFeeAdjustmentsIfNeeded(
+  actorId: string,
+  eventId: string,
+  previousSettings: EventFeeSettings,
+  newSettings: EventFeeSettings
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: payments, error: paymentsError } = await supabase
+    .from('payments')
+    .select('entry_id, amount_paid, payment_status')
+    .eq('event_id', eventId)
+    .gt('amount_paid', 0)
+    .neq('payment_status', 'refunded')
+
+  if (paymentsError) return { error: paymentsError.message }
+  if (!payments || payments.length === 0) return {}
+
+  const amountPaidByEntry = new Map<string, number>()
+  for (const row of payments) {
+    const entryId = row.entry_id as string
+    const paid = Number(row.amount_paid)
+    amountPaidByEntry.set(entryId, (amountPaidByEntry.get(entryId) ?? 0) + paid)
+  }
+
+  const entryIds = [...amountPaidByEntry.keys()]
+  if (entryIds.length === 0) return {}
+
+  const { data: entries, error: entriesError } = await supabase
+    .from('entries')
+    .select('id, fee_snapshot')
+    .eq('event_id', eventId)
+    .in('id', entryIds)
+    .is('deleted_at', null)
+
+  if (entriesError) return { error: entriesError.message }
+
+  const { data: roosterCounts, error: roosterError } = await supabase
+    .from('rooster_event_registrations')
+    .select('entry_id')
+    .eq('event_id', eventId)
+    .in('entry_id', entryIds)
+
+  if (roosterError) return { error: roosterError.message }
+
+  const countByEntry = new Map<string, number>()
+  for (const row of roosterCounts ?? []) {
+    const entryId = row.entry_id as string
+    countByEntry.set(entryId, (countByEntry.get(entryId) ?? 0) + 1)
+  }
+
+  const lines = computeFeeAdjustmentLines(
+    (entries ?? []).map((entry) => ({
+      id: entry.id as string,
+      feeSnapshot: (entry.fee_snapshot as EntryFeeSnapshot | null) ?? null,
+      roosterCount: countByEntry.get(entry.id as string) ?? 0,
+    })),
+    previousSettings,
+    newSettings,
+    amountPaidByEntry
+  )
+
+  if (lines.length === 0) return {}
+
+  const summary = summarizeFeeAdjustments(lines)
+
+  const { data: adjustment, error: adjustmentError } = await supabase
+    .from('event_fee_adjustments')
+    .insert({
+      event_id: eventId,
+      changed_by: actorId,
+      previous_settings: previousSettings as unknown as Json,
+      new_settings: newSettings as unknown as Json,
+      entries_with_payments_count: summary.entriesWithPaymentsCount,
+      total_refund_due: summary.totalRefundDue,
+      total_collect_due: summary.totalCollectDue,
+    })
+    .select('id')
+    .single()
+
+  if (adjustmentError || !adjustment) {
+    return { error: adjustmentError?.message ?? 'Failed to record fee adjustment' }
+  }
+
+  const { error: linesError } = await supabase.from('entry_fee_adjustment_lines').insert(
+    lines.map((line) => ({
+      adjustment_id: adjustment.id,
+      entry_id: line.entryId,
+      previous_amount_due: line.previousAmountDue,
+      new_amount_due: line.newAmountDue,
+      amount_paid: line.amountPaid,
+      delta: line.delta,
+    }))
+  )
+
+  if (linesError) return { error: linesError.message }
+
+  return {}
+}
+
 export async function updateEvent(
   actorId: string,
   input: UpdateEventInput
@@ -118,7 +251,7 @@ export async function updateEvent(
 
   const { data: existing, error: fetchError } = await supabase
     .from('events')
-    .select('status, name')
+    .select('*')
     .eq('id', input.eventId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -129,12 +262,23 @@ export async function updateEvent(
     return { error: 'Event details cannot be edited in the current status' }
   }
 
+  const previousSettings = eventFeeSettingsFromRow(existing)
+  const newSettings = settingsFromInput(input)
+
   const { error } = await supabase
     .from('events')
     .update(await toEventInsert(input))
     .eq('id', input.eventId)
 
   if (error) return { error: error.message }
+
+  const adjustmentResult = await recordFeeAdjustmentsIfNeeded(
+    actorId,
+    input.eventId,
+    previousSettings,
+    newSettings
+  )
+  if (adjustmentResult.error) return adjustmentResult
 
   if (input.prizeStructure) {
     const { data: existingPrize } = await supabase
@@ -160,7 +304,7 @@ export async function updateEvent(
     action: 'event.updated',
     entityType: 'event',
     entityId: input.eventId,
-    oldValues: { name: existing.name, status: existing.status },
+    oldValues: { name: existing.name as string, status: existing.status },
     newValues: { name: input.name },
   })
 

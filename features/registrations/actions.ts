@@ -25,11 +25,10 @@ import { requirePermission } from '@/lib/auth/permissions'
 export type RegistrationActionState = { error?: string; success?: string }
 
 function revalidateRegistrationPaths(eventId: string, registrationId?: string) {
-  revalidatePath(`/dashboard/events/${eventId}/registrations`)
-  revalidatePath(`/dashboard/events/${eventId}/rooster-entries`)
+  revalidatePath(`/dashboard/events/${eventId}/roosters`)
   revalidatePath(`/dashboard/events/${eventId}/matching`)
   if (registrationId) {
-    revalidatePath(`/dashboard/events/${eventId}/registrations/${registrationId}`)
+    revalidatePath(`/dashboard/events/${eventId}/roosters`)
   }
 }
 

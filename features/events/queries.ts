@@ -136,6 +136,12 @@ function mapEventRow(data: Record<string, unknown>): EventRow {
         ? Number(data.match_weight_tolerance_grams)
         : null,
     entry_fee: Number(data.entry_fee),
+    registration_fee_enabled: Boolean(data.registration_fee_enabled),
+    registration_fee_amount: Number(data.registration_fee_amount ?? 0),
+    rooster_entry_fee_enabled: Boolean(data.rooster_entry_fee_enabled),
+    rooster_entry_fee_amount: Number(data.rooster_entry_fee_amount ?? 0),
+    cash_bond_enabled: Boolean(data.cash_bond_enabled),
+    cash_bond_amount: Number(data.cash_bond_amount ?? 0),
     tax_per_fight: data.tax_per_fight != null ? Number(data.tax_per_fight) : 0,
     min_entries: data.min_entries != null ? Number(data.min_entries) : null,
     max_entries: data.max_entries != null ? Number(data.max_entries) : null,

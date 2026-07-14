@@ -1,6 +1,13 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
+import type { EntryFeeSnapshot } from '@/features/events/fee-utils'
+import {
+  computeCategoryAmountDue,
+  computeEntryTotalDue,
+  resolveEntryFeeSettings,
+  type PaymentCategory,
+} from '@/features/payments/fee-calc'
 import {
   calculateBalance,
   getNextPaymentReference,
@@ -23,6 +30,7 @@ type PaymentLedgerRow = {
   payment_method: string | null
   receipt_number: string | null
   payment_status: PaymentStatus
+  payment_category: PaymentCategory
   paid_at: string | null
   notes: string | null
   created_at: string
@@ -50,6 +58,7 @@ export async function listPaymentsByEvent(eventId: string): Promise<PaymentLedge
       payment_method,
       receipt_number,
       payment_status,
+      payment_category,
       paid_at,
       notes,
       created_at,
@@ -74,6 +83,7 @@ export async function listPaymentsByEvent(eventId: string): Promise<PaymentLedge
     paymentMethod: row.payment_method,
     receiptNumber: row.receipt_number,
     paymentStatus: row.payment_status,
+    paymentCategory: row.payment_category,
     paidAt: row.paid_at,
     notes: row.notes,
     createdAt: row.created_at,
@@ -132,6 +142,97 @@ export async function updateEntryPaymentStatus(
   return { paymentStatus }
 }
 
+async function syncRegistrationPaymentStatus(
+  entryId: string,
+  paymentStatus: PaymentStatus
+): Promise<void> {
+  const supabase = await createClient()
+  const regPaymentStatus =
+    paymentStatus === 'paid'
+      ? 'paid'
+      : paymentStatus === 'partial'
+        ? 'partial'
+        : paymentStatus === 'refunded'
+          ? 'refunded'
+          : 'unpaid'
+
+  await supabase
+    .from('rooster_event_registrations')
+    .update({ reg_payment_status: regPaymentStatus })
+    .eq('entry_id', entryId)
+}
+
+async function getEntryAmountDue(
+  entryId: string,
+  eventId: string,
+  category: PaymentCategory = 'legacy'
+): Promise<{ error?: string; amountDue?: number }> {
+  const supabase = await createClient()
+
+  const { data: entry, error: entryError } = await supabase
+    .from('entries')
+    .select('fee_snapshot')
+    .eq('id', entryId)
+    .eq('event_id', eventId)
+    .maybeSingle()
+
+  if (entryError) return { error: entryError.message }
+  if (!entry) return { error: 'Entry not found' }
+
+  const { data: event, error: eventError } = await supabase
+    .from('events')
+    .select(
+      'entry_fee, registration_fee_enabled, registration_fee_amount, rooster_entry_fee_enabled, rooster_entry_fee_amount, cash_bond_enabled, cash_bond_amount'
+    )
+    .eq('id', eventId)
+    .maybeSingle()
+
+  if (eventError) return { error: eventError.message }
+  if (!event) return { error: 'Event not found' }
+
+  const { count, error: countError } = await supabase
+    .from('rooster_event_registrations')
+    .select('id', { count: 'exact', head: true })
+    .eq('entry_id', entryId)
+
+  if (countError) return { error: countError.message }
+
+  const settings = resolveEntryFeeSettings(
+    event,
+    entry.fee_snapshot as EntryFeeSnapshot | null
+  )
+
+  const roosterCount = count ?? 0
+  const amountDue =
+    category === 'legacy'
+      ? computeEntryTotalDue(settings, roosterCount)
+      : computeCategoryAmountDue(category, settings, roosterCount)
+
+  return { amountDue }
+}
+
+async function getEntryCategoryPaid(
+  entryId: string,
+  category: PaymentCategory
+): Promise<{ totalPaid: number; error?: string }> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('payments')
+    .select('amount_paid, payment_status')
+    .eq('entry_id', entryId)
+    .eq('payment_category', category)
+    .neq('payment_status', 'refunded')
+
+  if (error) return { totalPaid: 0, error: error.message }
+
+  const totalPaid = (data ?? []).reduce(
+    (sum, row) => sum + Number(row.amount_paid),
+    0
+  )
+
+  return { totalPaid }
+}
+
 export async function recordPayment(
   actorId: string,
   input: RecordPaymentInput
@@ -151,7 +252,7 @@ export async function recordPayment(
 
   const { data: event, error: eventError } = await supabase
     .from('events')
-    .select('entry_fee')
+    .select('id')
     .eq('id', input.eventId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -159,10 +260,15 @@ export async function recordPayment(
   if (eventError) return { error: eventError.message }
   if (!event) return { error: 'Event not found' }
 
-  const amountDue = Number(event.entry_fee)
-  const { totalPaid: existingPaid, error: totalsError } = await getEntryPaymentTotals(
-    input.entryId
-  )
+  const category = input.paymentCategory ?? 'legacy'
+  const dueResult = await getEntryAmountDue(input.entryId, input.eventId, category)
+  if (dueResult.error) return { error: dueResult.error }
+
+  const amountDue = dueResult.amountDue ?? 0
+  const { totalPaid: existingPaid, error: totalsError } =
+    category === 'legacy'
+      ? await getEntryPaymentTotals(input.entryId)
+      : await getEntryCategoryPaid(input.entryId, category)
 
   if (totalsError) return { error: totalsError }
 
@@ -170,7 +276,7 @@ export async function recordPayment(
   const { balance, paymentStatus } = calculateBalance(amountDue, projectedTotal)
 
   if (projectedTotal > amountDue) {
-    return { error: 'Payment exceeds the entry fee due' }
+    return { error: 'Payment exceeds the amount due for this category' }
   }
 
   const references = await listPaymentReferencesForEvent(input.eventId)
@@ -188,6 +294,7 @@ export async function recordPayment(
       payment_method: input.paymentMethod,
       receipt_number: input.receiptNumber ?? null,
       payment_status: paymentStatus,
+      payment_category: category,
       received_by: actorId,
       paid_at: new Date().toISOString(),
       notes: input.notes ?? null,
@@ -199,8 +306,15 @@ export async function recordPayment(
     return { error: error?.message ?? 'Failed to record payment' }
   }
 
-  const statusResult = await updateEntryPaymentStatus(input.entryId, amountDue)
+  const statusResult = await updateEntryPaymentStatus(
+    input.entryId,
+    (await getEntryAmountDue(input.entryId, input.eventId, 'legacy')).amountDue ?? 0
+  )
   if (statusResult.error) return { error: statusResult.error }
+
+  if (statusResult.paymentStatus) {
+    await syncRegistrationPaymentStatus(input.entryId, statusResult.paymentStatus)
+  }
 
   await writeAuditLog({
     actorId,
@@ -219,6 +333,59 @@ export async function recordPayment(
   })
 
   return { paymentId: data.id }
+}
+
+export async function getPaymentForEvent(
+  eventId: string,
+  paymentId: string
+): Promise<PaymentLedgerItem | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('payments')
+    .select(
+      `
+      id,
+      payment_reference,
+      entry_id,
+      amount_due,
+      amount_paid,
+      balance,
+      payment_method,
+      receipt_number,
+      payment_status,
+      payment_category,
+      paid_at,
+      notes,
+      created_at,
+      entries ( entry_number, entry_name, owner_name )
+    `
+    )
+    .eq('event_id', eventId)
+    .eq('id', paymentId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  const row = data as unknown as PaymentLedgerRow
+  return {
+    id: row.id,
+    paymentReference: row.payment_reference,
+    entryId: row.entry_id,
+    entryNumber: row.entries?.entry_number ?? '—',
+    entryName: row.entries?.entry_name ?? '—',
+    ownerName: row.entries?.owner_name ?? '—',
+    amountDue: Number(row.amount_due),
+    amountPaid: Number(row.amount_paid),
+    balance: Number(row.balance),
+    paymentMethod: row.payment_method,
+    receiptNumber: row.receipt_number,
+    paymentStatus: row.payment_status,
+    paymentCategory: row.payment_category,
+    paidAt: row.paid_at,
+    notes: row.notes,
+    createdAt: row.created_at,
+  }
 }
 
 export async function refundPayment(
@@ -255,9 +422,13 @@ export async function refundPayment(
 
   const statusResult = await updateEntryPaymentStatus(
     payment.entry_id,
-    Number(payment.amount_due)
+    (await getEntryAmountDue(payment.entry_id, input.eventId, 'legacy')).amountDue ?? 0
   )
   if (statusResult.error) return { error: statusResult.error }
+
+  if (statusResult.paymentStatus) {
+    await syncRegistrationPaymentStatus(payment.entry_id, statusResult.paymentStatus)
+  }
 
   await writeAuditLog({
     actorId,

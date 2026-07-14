@@ -1,6 +1,6 @@
+import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { notFound } from 'next/navigation'
 
-import { EventPageLayout } from '@/components/dashboard'
 import { getEvent } from '@/features/events/queries'
 import { MatchingBoardClient } from '@/features/matches/components/matching-board-client'
 import {

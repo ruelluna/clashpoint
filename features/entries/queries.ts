@@ -66,6 +66,7 @@ export async function listEntriesByEvent(
       entry_source,
       registration_status,
       payment_status,
+      fee_snapshot,
       created_at,
       promoters ( name )
     `
@@ -104,6 +105,7 @@ export async function listEntriesByEvent(
     entry_source: row.entry_source,
     registration_status: row.registration_status,
     payment_status: row.payment_status,
+    fee_snapshot: row.fee_snapshot as Record<string, unknown> | null,
     created_at: row.created_at,
     promoter_name: row.promoters?.name ?? null,
     rooster_count: countByEntry.get(row.id) ?? 0,
@@ -169,6 +171,40 @@ export async function listEntryNumbersForEvent(
 
   if (error) throw error
   return (data ?? []).map((row) => row.entry_number as string)
+}
+
+export async function listOwnerBarcodesForEvent(
+  eventId: string,
+  options?: EntryQueryOptions
+): Promise<string[]> {
+  const supabase = options?.useAdminClient
+    ? createAdminClient()
+    : await createClient()
+  const { data, error } = await supabase
+    .from('entries')
+    .select('owner_barcode')
+    .eq('event_id', eventId)
+    .is('deleted_at', null)
+    .not('owner_barcode', 'is', null)
+
+  if (error) throw error
+  return (data ?? [])
+    .map((row) => row.owner_barcode as string | null)
+    .filter((value): value is string => value != null)
+}
+
+export async function listCockEntryBarcodesForEvent(eventId: string): Promise<string[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('rooster_event_registrations')
+    .select('cock_entry_barcode')
+    .eq('event_id', eventId)
+    .not('cock_entry_barcode', 'is', null)
+
+  if (error) throw error
+  return (data ?? [])
+    .map((row) => row.cock_entry_barcode as string | null)
+    .filter((value): value is string => value != null)
 }
 
 export async function getPairedRosterIdsForEntry(

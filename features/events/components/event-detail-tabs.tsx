@@ -4,10 +4,17 @@ import { Box, Flex, Link as ChakraLink, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-const EVENT_TABS = [
+export type EventTabItem = {
+  slug: string
+  label: string
+}
+
+const DEFAULT_TABS: EventTabItem[] = [
   { slug: '', label: 'Overview' },
-  { slug: 'rooster-entries', label: 'Rooster Entries' },
-  { slug: 'registrations', label: 'Registrations' },
+  { slug: 'owners', label: 'Owners' },
+  { slug: 'roosters', label: 'Roosters' },
+  { slug: 'inspection', label: 'Inspection' },
+  { slug: 'payments', label: 'Payments' },
   { slug: 'matching', label: 'Matching' },
   { slug: 'results', label: 'Results' },
   { slug: 'standings', label: 'Standings' },
@@ -16,14 +23,19 @@ const EVENT_TABS = [
   { slug: 'promoter-settlement', label: 'Promoter Settlement' },
   { slug: 'announcement', label: 'Announcement' },
   { slug: 'reports', label: 'Reports' },
-] as const
+]
 
 type EventDetailTabsProps = {
   eventId: string
   eventName: string
+  visibleTabs?: EventTabItem[]
 }
 
-export function EventDetailTabs({ eventId, eventName }: EventDetailTabsProps) {
+export function EventDetailTabs({
+  eventId,
+  eventName,
+  visibleTabs = DEFAULT_TABS,
+}: EventDetailTabsProps) {
   const pathname = usePathname()
   const basePath = `/dashboard/events/${eventId}`
 
@@ -40,7 +52,7 @@ export function EventDetailTabs({ eventId, eventName }: EventDetailTabsProps) {
 
       <Box overflowX="auto" borderBottomWidth="1px" borderColor="border">
         <Flex gap={1} minW="max-content" pb={1}>
-          {EVENT_TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const href = tab.slug ? `${basePath}/${tab.slug}` : basePath
             const isActive = tab.slug
               ? pathname === href || pathname.startsWith(`${href}/`)

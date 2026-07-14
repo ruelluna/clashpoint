@@ -1,10 +1,10 @@
+import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Badge, Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
 
 import {
   ButtonGroup,
-  EventPageLayout,
   LAYOUT_GAP,
   PanelCard,
 } from '@/components/dashboard'

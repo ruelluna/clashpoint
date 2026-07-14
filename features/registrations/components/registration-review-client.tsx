@@ -226,7 +226,7 @@ export function RegistrationReviewClient({
                   <Flex justify={{ base: 'flex-start', lg: 'flex-end' }}>
                     <Button asChild size="sm" variant="outline">
                       <Link
-                        href={`/dashboard/events/${eventId}/registrations/${registration.id}`}
+                        href={`/dashboard/events/${eventId}/roosters?highlight=${registration.id}`}
                       >
                         Open
                       </Link>

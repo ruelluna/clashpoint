@@ -2,6 +2,8 @@ import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
 import { applyRegistrationEligibility } from '@/features/eligibility/registration-bridge'
+import { listCockEntryBarcodesForEvent } from '@/features/entries/queries'
+import { getNextCockEntryBarcode } from '@/features/entries/schema'
 import { getEvent } from '@/features/events/queries'
 import { createRooster } from '@/features/roosters/service'
 import { createRoosterSchema as registryRoosterSchema } from '@/features/roosters/schema'
@@ -94,7 +96,7 @@ export async function createRoosterForEntry(
   actorId: string | null,
   input: CreateRoosterInput,
   options?: WriteClientOptions
-): Promise<{ error?: string; roosterId?: string }> {
+): Promise<{ error?: string; roosterId?: string; cockEntryBarcode?: string }> {
   const { supabase, extended } = await resolveWriteClient(options)
 
   const event = await getEvent(input.eventId)
@@ -141,14 +143,6 @@ export async function createRoosterForEntry(
     return { error: `Band number ${band} is already registered for this event` }
   }
 
-  const weightGrams = Math.round(input.weight)
-  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
-  const weightStatus = evaluateWeightStatusGrams(
-    weightGrams,
-    minWeightGrams,
-    maxWeightGrams
-  )
-  const verifiedAt = new Date().toISOString()
   const ageClass = resolveAgeClass(input)
 
   const cataloged = await catalogReferenceValues({
@@ -200,37 +194,56 @@ export async function createRoosterForEntry(
 
   const { data: eventFlags } = await extended
     .from('events')
-    .select('require_rooster_entry_approval, eligibility_enforcement_enabled, event_type')
+    .select(
+      'require_rooster_entry_approval, eligibility_enforcement_enabled, event_type, rooster_entry_fee_enabled'
+    )
     .eq('id', input.eventId)
     .maybeSingle()
 
   const requiresApproval = Boolean(eventFlags?.require_rooster_entry_approval)
   const isDerby = eventFlags?.event_type === 'derby'
+  const roosterEntryFeeEnabled = Boolean(eventFlags?.rooster_entry_fee_enabled)
+  const regPaymentStatus = roosterEntryFeeEnabled ? 'unpaid' : 'not_required'
+
+  const declaredWeightGrams =
+    input.weight != null && input.weight > 0 ? Math.round(input.weight) : null
+
+  let cockEntryBarcode: string | null = null
+  if (isDerby) {
+    const existingBarcodes = await listCockEntryBarcodesForEvent(input.eventId)
+    cockEntryBarcode = getNextCockEntryBarcode(input.eventId, existingBarcodes)
+  }
+
+  const submittedAt = new Date().toISOString()
 
   const { data: rooster, error: insertError } = await supabase
     .from('rooster_event_registrations')
     .insert({
       entry_id: input.entryId,
       event_id: input.eventId,
+      cock_entry_barcode: cockEntryBarcode,
       registry_rooster_id: registryResult.roosterId,
       cock_number: nextCockNumber,
       band_number: band,
-      declared_weight: weightGrams / 1000,
-      declared_weight_grams: weightGrams,
-      official_weight_grams: weightGrams,
+      declared_weight:
+        declaredWeightGrams != null ? declaredWeightGrams / 1000 : null,
+      declared_weight_grams: declaredWeightGrams,
+      official_weight_grams: null,
       category: null,
       color_marking: cataloged.colorMarking,
       notes: input.notes ?? null,
-      status: requiresApproval ? 'submitted' : 'submitted',
-      registration_status: 'submitted',
-      approval_status: 'pending',
+      status: 'submitted',
+      registration_status: 'pending_inspection',
+      approval_status: requiresApproval ? 'pending' : 'pending',
       eligibility_status: 'pending_review',
-      weight_verified: !requiresApproval,
-      weight_verification_status: weightStatus,
-      weighed_at: verifiedAt,
-      weighed_by: actorId,
+      inspection_status: 'pending',
+      reg_payment_status: regPaymentStatus,
+      weight_verified: false,
+      weight_verification_status: 'pending',
+      weighed_at: null,
+      weighed_by: null,
       submitted_by: actorId,
-      submitted_at: verifiedAt,
+      submitted_at: submittedAt,
     })
     .select('id')
     .single()
@@ -244,50 +257,13 @@ export async function createRoosterForEntry(
     return { error: insertError?.message ?? 'Failed to create rooster' }
   }
 
-  const { data: weighing, error: weighingError } = await supabase
-    .from('weighings')
-    .insert({
-      rooster_event_registration_id: rooster.id,
-      entry_id: input.entryId,
-      event_id: input.eventId,
-      official_weight: weightGrams / 1000,
-      official_weight_grams: weightGrams,
-      weight_status: weightStatus,
-      verified_by: actorId,
-      verified_at: verifiedAt,
-    })
-    .select('id')
-    .single()
-
-  if (weighingError || !weighing) {
-    await rollbackRoosterCreation({
-      supabase,
-      extended,
-      registrationId: rooster.id,
-      registryRoosterId: registryResult.roosterId,
-    })
-    return { error: weighingError?.message ?? 'Failed to record weight' }
-  }
-
-  if (isDerby) {
+  if (isDerby && actorId) {
     await applyRegistrationEligibility(
       actorId,
       input.eventId,
       rooster.id,
-      { blockOnIneligible: false, currentRegistrationStatus: 'submitted' }
+      { blockOnIneligible: false, currentRegistrationStatus: 'pending_inspection' }
     )
-  } else if (!requiresApproval) {
-    await supabase
-      .from('rooster_event_registrations')
-      .update({
-        status: 'verified',
-        registration_status: 'approved',
-        approval_status: 'approved',
-        eligibility_status: 'eligible',
-        approved_by: actorId,
-        approved_at: verifiedAt,
-      })
-      .eq('id', rooster.id)
   }
 
   await writeAuditLog({
@@ -301,12 +277,16 @@ export async function createRoosterForEntry(
       entry_number: entry.entry_number,
       band_number: band,
       cock_number: nextCockNumber,
-      weight: input.weight,
-      weight_status: weightStatus,
+      declared_weight_grams: declaredWeightGrams,
+      reg_payment_status: regPaymentStatus,
+      registration_status: 'pending_inspection',
     },
   })
 
-  return { roosterId: rooster.id }
+  return {
+    roosterId: rooster.id,
+    cockEntryBarcode: cockEntryBarcode ?? undefined,
+  }
 }
 
 export async function recordWeight(
@@ -369,6 +349,19 @@ export async function recordWeight(
   if (saveError || !weighing) {
     return { error: saveError?.message ?? 'Failed to record weight' }
   }
+
+  const weightGrams = Math.round(input.officialWeight * 1000)
+  await supabase
+    .from('rooster_event_registrations')
+    .update({
+      official_weight_grams: null,
+      declared_weight: input.officialWeight,
+      declared_weight_grams: weightGrams,
+      weight_verified: false,
+      weight_verification_status: weightStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.roosterRecordId)
 
   await writeAuditLog({
     actorId,
@@ -434,6 +427,27 @@ export async function verifyWeight(
     .eq('id', input.weighingId)
 
   if (updateError) return { error: updateError.message }
+
+  const weightGrams = Math.round(Number(weighing.official_weight) * 1000)
+  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+  const weightVerificationStatus = evaluateWeightStatusGrams(
+    weightGrams,
+    minWeightGrams,
+    maxWeightGrams
+  )
+
+  await supabase
+    .from('rooster_event_registrations')
+    .update({
+      official_weight_grams: weightGrams,
+      declared_weight: Number(weighing.official_weight),
+      weight_verified: true,
+      weight_verification_status: weightVerificationStatus,
+      weighed_at: verifiedAt,
+      weighed_by: actorId,
+      updated_at: verifiedAt,
+    })
+    .eq('id', weighing.rooster_event_registration_id)
 
   await writeAuditLog({
     actorId,

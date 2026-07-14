@@ -29,6 +29,8 @@ export type EntryRow = {
   entry_source: EntrySource
   registration_status: RegistrationStatus
   payment_status: PaymentStatus
+  owner_barcode: string | null
+  fee_snapshot: Record<string, unknown> | null
   notes: string | null
   created_by: string | null
   created_at: string
@@ -47,6 +49,7 @@ export type EntryListItem = Pick<
   | 'entry_source'
   | 'registration_status'
   | 'payment_status'
+  | 'fee_snapshot'
   | 'created_at'
 > & {
   promoter_name: string | null

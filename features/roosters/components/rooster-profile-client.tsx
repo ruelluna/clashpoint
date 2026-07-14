@@ -176,7 +176,7 @@ export function RoosterProfileClient({
           participations.map((participation) => (
             <Link
               key={participation.id}
-              href={`/dashboard/events/${participation.event_id}/registrations/${participation.id}`}
+              href={`/dashboard/events/${participation.event_id}/roosters?highlight=${participation.id}`}
             >
               <Flex
                 px={4}

@@ -22,11 +22,6 @@ export const dashboardNavItemConfigs: DashboardNavItemConfig[] = [
     requiredPermissions: ['entries.manage', 'rooster.view'],
   },
   {
-    label: 'Roosters',
-    href: '/dashboard/roosters',
-    requiredPermissions: ['rooster.view', 'rooster.create'],
-  },
-  {
     label: 'Events',
     href: '/dashboard/events',
     requiredPermissions: ['events.view', 'events.manage'],

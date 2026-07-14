@@ -1,3 +1,4 @@
+import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { notFound } from 'next/navigation'
 
 import { EntryEditClient } from '@/features/entries/components/entry-edit-client'
@@ -6,7 +7,6 @@ import { getEntry, listEntryRoostersForEdit } from '@/features/entries/queries'
 import { getCompetitor } from '@/features/competitors/queries'
 import { getEvent } from '@/features/events/queries'
 import { listPromoters } from '@/features/promoters/queries'
-import { EventPageLayout } from '@/components/dashboard'
 import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
 import { requirePermission } from '@/lib/auth/permissions'
 

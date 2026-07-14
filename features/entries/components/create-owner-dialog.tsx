@@ -92,7 +92,17 @@ export function CreateOwnerDialog({
               </Dialog.Header>
               <Dialog.Body>
                 <Stack gap={LAYOUT_GAP.form}>
-                  <OwnerProfileFields values={profile} onChange={setProfile} />
+                  <OwnerProfileFields
+                    values={profile}
+                    onChange={(values) =>
+                      setProfile({
+                        displayName: values.displayName,
+                        contactNumber: values.contactNumber ?? '',
+                        email: values.email ?? '',
+                        address: values.address ?? '',
+                      })
+                    }
+                  />
                   {error ? (
                     <Text fontSize="sm" color="red.500">
                       {error}

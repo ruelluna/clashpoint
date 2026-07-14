@@ -54,6 +54,12 @@ export type EventRow = {
   max_weight_grams: number | null
   match_weight_tolerance_grams: number | null
   entry_fee: number
+  registration_fee_enabled: boolean
+  registration_fee_amount: number
+  rooster_entry_fee_enabled: boolean
+  rooster_entry_fee_amount: number
+  cash_bond_enabled: boolean
+  cash_bond_amount: number
   tax_per_fight: number
   min_entries: number | null
   max_entries: number | null

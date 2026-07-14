@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 
 import {
   recordPaymentSchema,
@@ -22,6 +23,7 @@ export async function recordPaymentAction(
     entryId: formData.get('entryId'),
     amountPaid: formData.get('amountPaid'),
     paymentMethod: formData.get('paymentMethod'),
+    paymentCategory: formData.get('paymentCategory')?.toString() || undefined,
     receiptNumber: formData.get('receiptNumber')?.toString().trim() || undefined,
     notes: formData.get('notes')?.toString().trim() || undefined,
   })
@@ -34,8 +36,14 @@ export async function recordPaymentAction(
   if (result.error) return { error: result.error }
 
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/payments`)
-  revalidatePath(`/dashboard/events/${parsed.data.eventId}/registrations`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/owners`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/roosters`)
   revalidatePath('/dashboard/audit')
+
+  if (result.paymentId) {
+    redirect(`/dashboard/events/${parsed.data.eventId}/payments/${result.paymentId}/print`)
+  }
+
   return { success: 'Payment recorded' }
 }
 
@@ -59,7 +67,8 @@ export async function refundPaymentAction(
   if (result.error) return { error: result.error }
 
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/payments`)
-  revalidatePath(`/dashboard/events/${parsed.data.eventId}/registrations`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/owners`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/roosters`)
   revalidatePath('/dashboard/audit')
   return { success: 'Payment refunded' }
 }

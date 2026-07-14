@@ -48,7 +48,11 @@ export const createRoosterSchema = z
     entryId: z.string().uuid(),
     entryName: optionalText(200),
     bandNumber: z.string().min(1, 'Band number is required').max(50),
-    weight: weightGramsSchema,
+    weight: z.preprocess(
+      (value) =>
+        value === '' || value === null || value === undefined ? undefined : value,
+      weightGramsSchema.optional()
+    ),
     colorMarking: optionalText(200),
     notes: optionalText(2000),
   })

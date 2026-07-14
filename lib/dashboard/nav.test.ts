@@ -57,4 +57,10 @@ describe('filterNavItemsByPermissions', () => {
       )
     ).toContain('/dashboard/owners')
   })
+
+  it('does not expose a global Roosters registry nav item', () => {
+    expect(
+      dashboardNavItemConfigs.some((item) => item.href === '/dashboard/roosters')
+    ).toBe(false)
+  })
 })

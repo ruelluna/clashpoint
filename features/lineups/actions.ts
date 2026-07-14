@@ -47,7 +47,7 @@ export async function submitLineupAction(
   if (result.error) return { error: result.error }
 
   const eventId = parsed.data.eventId
-  revalidatePath(`/dashboard/events/${eventId}/rooster-entries`)
+  revalidatePath(`/dashboard/events/${eventId}/roosters`)
   revalidatePath(`/dashboard/events/${eventId}`)
   revalidatePath('/dashboard/audit')
 

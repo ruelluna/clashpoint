@@ -1,6 +1,6 @@
+import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { notFound } from 'next/navigation'
 
-import { EventPageLayout } from '@/components/dashboard'
 import { getEventWithPrize } from '@/features/events/queries'
 import { StandingsTableClient } from '@/features/standings/components/standings-table-client'
 import { listStandingsForEvent } from '@/features/standings/queries'

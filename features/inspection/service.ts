@@ -61,6 +61,23 @@ export async function recordInspection(
     .update({
       inspection_status: registrationInspectionStatus,
       updated_at: now,
+      ...(input.inspectionStatus === 'passed'
+        ? {
+            eligibility_status: 'eligible',
+            registration_status: 'approved',
+            approval_status: 'approved',
+            approved_by: actorId,
+            approved_at: now,
+          }
+        : input.inspectionStatus === 'failed'
+          ? {
+              eligibility_status: 'ineligible',
+              registration_status: 'rejected',
+              approval_status: 'rejected',
+              rejected_by: actorId,
+              rejected_at: now,
+            }
+          : {}),
     })
     .eq('id', input.registrationId)
     .eq('event_id', input.eventId)

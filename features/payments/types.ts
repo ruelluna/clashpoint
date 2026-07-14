@@ -1,4 +1,5 @@
 import type { PaymentStatus } from '@/features/entries/types'
+import type { PaymentCategory } from '@/features/payments/fee-calc'
 
 export type PaymentLedgerItem = {
   id: string
@@ -13,7 +14,12 @@ export type PaymentLedgerItem = {
   paymentMethod: string | null
   receiptNumber: string | null
   paymentStatus: PaymentStatus
+  paymentCategory: PaymentCategory
   paidAt: string | null
   notes: string | null
   createdAt: string
+}
+
+export type PaymentReceiptItem = PaymentLedgerItem & {
+  eventName: string
 }

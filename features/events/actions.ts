@@ -90,6 +90,13 @@ function parseEventFields(formData: FormData) {
     customCocks ?? undefined
   )
 
+  const registrationFeeEnabled = isDerby
+    ? parseCheckbox(formData.get('registrationFeeEnabled'))
+    : false
+  const registrationFeeAmount = isDerby
+    ? (formData.get('registrationFeeAmount')?.toString() ?? '0')
+    : '0'
+
   return {
     promoterId: isDerby ? parseOptionalUuid(formData.get('promoterId')) : null,
     name: formData.get('name')?.toString() ?? '',
@@ -102,7 +109,13 @@ function parseEventFields(formData: FormData) {
     derbyAgeType: isDerby
       ? ((formData.get('derbyAgeType')?.toString() ?? 'open_derby') as DerbyAgeType)
       : null,
-    entryFee: formData.get('entryFee')?.toString() ?? '0',
+    entryFee: registrationFeeEnabled ? registrationFeeAmount : '0',
+    registrationFeeEnabled,
+    registrationFeeAmount,
+    roosterEntryFeeEnabled: parseCheckbox(formData.get('roosterEntryFeeEnabled')),
+    roosterEntryFeeAmount: formData.get('roosterEntryFeeAmount')?.toString() ?? '0',
+    cashBondEnabled: parseCheckbox(formData.get('cashBondEnabled')),
+    cashBondAmount: formData.get('cashBondAmount')?.toString() ?? '0',
     taxPerFight: formData.get('taxPerFight')?.toString() ?? '0',
     cocksPerEntry: String(cocksPerEntry),
     registrationRules: parseRegistrationRules(formData, isDerby),

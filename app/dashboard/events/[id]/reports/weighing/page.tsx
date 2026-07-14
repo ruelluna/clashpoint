@@ -1,3 +1,4 @@
+import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
@@ -8,7 +9,6 @@ import {
 } from '@chakra-ui/react'
 
 import {
-  EventPageLayout,
   PageHeader,
   PageStack,
   PanelCard,
@@ -60,7 +60,7 @@ export default async function WeighingReportPage({ params }: WeighingReportPageP
           description={`${stats.verified} verified · ${stats.passed} passed · ${stats.failed} failed · ${stats.total} roosters weighed`}
           actions={
             <Button asChild size="sm" variant="outline">
-              <Link href={`/dashboard/events/${eventId}/rooster-entries`}>Rooster entries</Link>
+              <Link href={`/dashboard/events/${eventId}/roosters`}>Roosters</Link>
             </Button>
           }
         />

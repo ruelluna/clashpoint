@@ -82,6 +82,18 @@ const eventFieldsSchema = z.object({
   derbyType: derbyFormatSchema.nullable().optional(),
   derbyAgeType: derbyAgeTypeSchema.nullable().optional(),
   entryFee: z.coerce.number().nonnegative('Entry fee cannot be negative').default(0),
+  registrationFeeEnabled: z.coerce.boolean().default(false),
+  registrationFeeAmount: z.coerce
+    .number()
+    .nonnegative('Registration fee cannot be negative')
+    .default(0),
+  roosterEntryFeeEnabled: z.coerce.boolean().default(false),
+  roosterEntryFeeAmount: z.coerce
+    .number()
+    .nonnegative('Rooster entry fee cannot be negative')
+    .default(0),
+  cashBondEnabled: z.coerce.boolean().default(false),
+  cashBondAmount: z.coerce.number().nonnegative('Cash bond cannot be negative').default(0),
   taxPerFight: z.coerce.number().nonnegative('Tax per fight cannot be negative').default(0),
   cocksPerEntry: z.coerce.number().int().positive().default(5),
   registrationRules: z.string().max(50000).nullable().optional(),
@@ -153,6 +165,30 @@ function refineEventRanges(
       message: 'Cocks per entry is required for custom derby type',
       path: ['cocksPerEntry'],
     })
+  }
+
+  if (data.eventType === 'derby') {
+    if (data.registrationFeeEnabled && data.registrationFeeAmount <= 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Registration fee amount is required when enabled',
+        path: ['registrationFeeAmount'],
+      })
+    }
+    if (data.roosterEntryFeeEnabled && data.roosterEntryFeeAmount <= 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Rooster entry fee amount is required when enabled',
+        path: ['roosterEntryFeeAmount'],
+      })
+    }
+    if (data.cashBondEnabled && data.cashBondAmount <= 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Cash bond amount is required when enabled',
+        path: ['cashBondAmount'],
+      })
+    }
   }
 }
 

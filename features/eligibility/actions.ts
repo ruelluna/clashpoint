@@ -84,7 +84,7 @@ export async function evaluateRegistrationEligibilityAction(
     .eq('id', registrationId)
     .eq('event_id', eventId)
 
-  revalidatePath(`/dashboard/events/${eventId}/registrations/${registrationId}`)
+  revalidatePath(`/dashboard/events/${eventId}/roosters`)
   return { success: 'Eligibility evaluated' }
 }
 

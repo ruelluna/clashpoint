@@ -1,8 +1,9 @@
+import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { notFound } from 'next/navigation'
 import { Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
-import { EventPageLayout, PanelCard } from '@/components/dashboard'
+import { PanelCard } from '@/components/dashboard'
 import { getEventWithPrize } from '@/features/events/queries'
 import { SettlementClient } from '@/features/promoter-settlements/components/settlement-client'
 import { getSettlementByEvent } from '@/features/promoter-settlements/queries'

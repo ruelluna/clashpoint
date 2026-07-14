@@ -1,6 +1,6 @@
+import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { notFound } from 'next/navigation'
 
-import { EventPageLayout } from '@/components/dashboard'
 import { getEvent } from '@/features/events/queries'
 import { ReportsHubClient } from '@/features/reports/components/reports-hub-client'
 import { requirePermission } from '@/lib/auth/permissions'

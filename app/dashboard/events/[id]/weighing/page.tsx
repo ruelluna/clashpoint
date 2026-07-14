@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
 
-type WeighingPageProps = {
+type WeighingRedirectProps = {
   params: Promise<{ id: string }>
 }
 
-export default async function WeighingPage({ params }: WeighingPageProps) {
+export default async function WeighingRedirectPage({ params }: WeighingRedirectProps) {
   const { id } = await params
-  redirect(`/dashboard/events/${id}/rooster-entries`)
+  redirect(`/dashboard/events/${id}/roosters`)
 }

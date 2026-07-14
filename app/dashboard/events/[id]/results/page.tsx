@@ -1,6 +1,6 @@
+import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { notFound } from 'next/navigation'
 
-import { EventPageLayout } from '@/components/dashboard'
 import { getEventWithPrize } from '@/features/events/queries'
 import { ResultsEntryClient } from '@/features/results/components/results-entry-client'
 import {

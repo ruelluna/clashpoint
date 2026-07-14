@@ -83,7 +83,15 @@ export function OwnerFormClient(props: OwnerFormClientProps) {
 
             <OwnerProfileFields
               values={profile}
-              onChange={setProfile}
+              onChange={(values) =>
+                setProfile({
+                  displayName: values.displayName,
+                  contactNumber: values.contactNumber ?? '',
+                  email: values.email ?? '',
+                  address: values.address ?? '',
+                  notes: values.notes ?? '',
+                })
+              }
               showNotes
             />
 

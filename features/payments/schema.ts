@@ -4,11 +4,20 @@ import type { PaymentStatus } from '@/features/entries/types'
 
 export const paymentMethodSchema = z.enum(['cash', 'bank_transfer', 'gcash', 'other'])
 
+export const paymentCategorySchema = z.enum([
+  'registration',
+  'rooster_entry',
+  'cash_bond',
+  'adjustment',
+  'legacy',
+])
+
 export const recordPaymentSchema = z.object({
   eventId: z.string().uuid(),
   entryId: z.string().uuid(),
   amountPaid: z.coerce.number().positive('Amount paid must be greater than zero'),
   paymentMethod: paymentMethodSchema,
+  paymentCategory: paymentCategorySchema.optional().default('legacy'),
   receiptNumber: z
     .string()
     .max(100)
@@ -40,6 +49,17 @@ export const PAYMENT_METHOD_LABELS: Record<
   bank_transfer: 'Bank transfer',
   gcash: 'GCash',
   other: 'Other',
+}
+
+export const PAYMENT_CATEGORY_LABELS: Record<
+  z.infer<typeof paymentCategorySchema>,
+  string
+> = {
+  registration: 'Registration fee',
+  rooster_entry: 'Rooster entry fee',
+  cash_bond: 'Cash bond',
+  adjustment: 'Fee adjustment',
+  legacy: 'Combined (legacy)',
 }
 
 export function calculateBalance(

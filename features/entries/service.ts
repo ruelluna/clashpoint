@@ -7,10 +7,12 @@ import {
   entryHasMatchReferences,
   getPairedRosterIdsForEntry,
   listEntryNumbersForEvent,
+  listOwnerBarcodesForEvent,
 } from '@/features/entries/queries'
-import { getNextEntryNumber } from '@/features/entries/schema'
+import { getNextEntryNumber, getNextOwnerBarcode } from '@/features/entries/schema'
 import type {
   CreateEntryInput,
+  CreateOwnerEntryInput,
   DeleteEntryInput,
   NewEntryRosterItemInput,
   RoosterEntryItemInput,
@@ -22,6 +24,7 @@ import {
   isSameEntryIdentity,
 } from '@/features/entries/utils'
 import { getEvent } from '@/features/events/queries'
+import { eventFeeSettingsFromRow, snapshotFromSettings } from '@/features/events/fee-utils'
 import { isRegistrationOpen } from '@/features/events/utils'
 import { createRoosterForEntry } from '@/features/weighing/service'
 import { evaluateWeightStatusGrams } from '@/features/weighing/schema'
@@ -105,14 +108,16 @@ export async function resolveEntryCompetitor(
 
 export async function createEntry(
   actorId: string | null,
-  input: CreateEntryInput,
+  input: CreateEntryInput | CreateOwnerEntryInput,
   options?: EntryWriteOptions
-): Promise<{ error?: string; entryId?: string }> {
+): Promise<{ error?: string; entryId?: string; entryNumber?: string; ownerBarcode?: string }> {
   const { supabase, extended: extendedSupabase } = await resolveWriteClient(options)
 
   const { data: event, error: eventError } = await supabase
     .from('events')
-    .select('id, name, status, max_entries, registration_deadline')
+    .select(
+      'id, name, status, max_entries, registration_deadline, event_type, entry_fee, registration_fee_enabled, registration_fee_amount, rooster_entry_fee_enabled, rooster_entry_fee_amount, cash_bond_enabled, cash_bond_amount'
+    )
     .eq('id', input.eventId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -157,6 +162,19 @@ export async function createEntry(
     return { error: competitorResult.error }
   }
 
+  const isDerby = event.event_type === 'derby'
+  let ownerBarcode: string | null = null
+  let feeSnapshot: Record<string, unknown> | null = null
+
+  if (isDerby) {
+    const existingBarcodes = await listOwnerBarcodesForEvent(input.eventId, options)
+    ownerBarcode = getNextOwnerBarcode(input.eventId, existingBarcodes)
+    feeSnapshot = snapshotFromSettings(eventFeeSettingsFromRow(event))
+  }
+
+  const feeSettings = eventFeeSettingsFromRow(event)
+  const paymentStatus = feeSettings.registrationFeeEnabled ? 'unpaid' : 'paid'
+
   const { data, error } = await extendedSupabase
     .from('entries')
     .insert({
@@ -172,9 +190,11 @@ export async function createEntry(
       address: null,
       entry_source: input.entrySource,
       registration_status: 'submitted',
-      payment_status: 'unpaid',
+      payment_status: paymentStatus,
       notes: input.notes ?? null,
       created_by: actorId,
+      owner_barcode: ownerBarcode,
+      fee_snapshot: feeSnapshot,
     })
     .select('id')
     .single()
@@ -195,11 +215,16 @@ export async function createEntry(
       entry_name: input.ownerName,
       owner_name: input.ownerName,
       competitor_id: competitorResult.competitorId ?? null,
+      owner_barcode: ownerBarcode,
       ...(input.entrySource === 'online' ? { source: 'online' } : {}),
     },
   })
 
-  return { entryId: data.id }
+  return {
+    entryId: data.id,
+    entryNumber,
+    ownerBarcode: ownerBarcode ?? undefined,
+  }
 }
 
 function toCreateRoosterInput(

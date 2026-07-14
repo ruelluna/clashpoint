@@ -23,7 +23,11 @@ export async function createPublicEntryWithRoosters(
     return { error: 'Online registration is only available for derby events' }
   }
 
-  const result = await createEntryWithRoosters(null, input, ADMIN_WRITE)
+  const result = await createEntryWithRoosters(
+    null,
+    { ...input, competitorId: undefined },
+    ADMIN_WRITE
+  )
   if (result.error || !result.entryId) {
     return { error: result.error ?? 'Failed to register entry' }
   }

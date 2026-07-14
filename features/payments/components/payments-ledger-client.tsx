@@ -6,6 +6,7 @@ import {
   Button,
   Flex,
   Input,
+  Link,
   NativeSelect,
   Stack,
   Text,
@@ -15,21 +16,28 @@ import { useActionState, useMemo, useState } from 'react'
 
 import { ButtonGroup, FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
-  PAYMENT_STATUS_LABELS,
-} from '@/features/entries/schema'
+  getOwnerRegistrationPaymentDisplay,
+  isOwnerRegistrationPaymentRequired,
+} from '@/features/payments/display-utils'
 import type { EntryListItem } from '@/features/entries/types'
+import { PAYMENT_STATUS_LABELS } from '@/features/entries/schema'
+import type { EventFeeSettings } from '@/features/events/fee-utils'
+import {
+  computeCategoryAmountDue,
+} from '@/features/payments/fee-calc'
 import {
   recordPaymentAction,
   refundPaymentAction,
   type PaymentActionState,
 } from '@/features/payments/actions'
-import { PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
+import { PAYMENT_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
 import type { PaymentLedgerItem } from '@/features/payments/types'
+import type { PaymentCategory } from '@/features/payments/fee-calc'
 
 type PaymentsLedgerClientProps = {
   eventId: string
   eventName: string
-  entryFee: number
+  feeSettings: EventFeeSettings
   entries: EntryListItem[]
   payments: PaymentLedgerItem[]
 }
@@ -122,10 +130,20 @@ function RefundForm({
   )
 }
 
+function resolveEntryFeeSettingsForEntry(
+  entry: EntryListItem,
+  eventSettings: EventFeeSettings
+): EventFeeSettings {
+  if (entry.fee_snapshot != null) {
+    return entry.fee_snapshot as unknown as EventFeeSettings
+  }
+  return eventSettings
+}
+
 export function PaymentsLedgerClient({
   eventId,
   eventName,
-  entryFee,
+  feeSettings,
   entries,
   payments,
 }: PaymentsLedgerClientProps) {
@@ -134,17 +152,60 @@ export function PaymentsLedgerClient({
     initialState
   )
   const [selectedEntryId, setSelectedEntryId] = useState('')
+  const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('rooster_entry')
+
+  const selectedEntry = useMemo(
+    () => entries.find((entry) => entry.id === selectedEntryId),
+    [entries, selectedEntryId]
+  )
+
+  const roosterCount = selectedEntry?.rooster_count ?? 0
+
+  const suggestedAmount = useMemo(() => {
+    return computeCategoryAmountDue(paymentCategory, feeSettings, roosterCount)
+  }, [feeSettings, paymentCategory, roosterCount])
+
+  const feeSummary = useMemo(() => {
+    const parts: string[] = []
+    if (feeSettings.registrationFeeEnabled) {
+      parts.push(`Registration ${formatCurrency(feeSettings.registrationFeeAmount)}`)
+    }
+    if (feeSettings.roosterEntryFeeEnabled) {
+      parts.push(
+        `Entry ${formatCurrency(feeSettings.roosterEntryFeeAmount)} / cock`
+      )
+    }
+    if (feeSettings.cashBondEnabled) {
+      parts.push(`Bond ${formatCurrency(feeSettings.cashBondAmount)}`)
+    }
+    return parts.length ? parts.join(' · ') : 'No fees configured'
+  }, [feeSettings])
 
   const payableEntries = useMemo(
-    () => entries.filter((entry) => entry.payment_status !== 'paid'),
-    [entries]
+    () =>
+      entries.filter((entry) => {
+        const settings = resolveEntryFeeSettingsForEntry(entry, feeSettings)
+        const hasAnyFee =
+          settings.registrationFeeEnabled ||
+          settings.roosterEntryFeeEnabled ||
+          settings.cashBondEnabled
+        if (!hasAnyFee) return false
+        if (
+          !isOwnerRegistrationPaymentRequired(settings) &&
+          entry.payment_status === 'unpaid'
+        ) {
+          return settings.roosterEntryFeeEnabled || settings.cashBondEnabled
+        }
+        return entry.payment_status !== 'paid'
+      }),
+    [entries, feeSettings]
   )
 
   return (
     <PageStack>
       <PageHeader
         title="Payments"
-        description={`${eventName} · Entry fee ${formatCurrency(entryFee)}`}
+        description={`${eventName} · ${feeSummary}`}
       />
 
       <PanelCard title="Record payment">
@@ -160,12 +221,41 @@ export function PaymentsLedgerClient({
                 onChange={(event) => setSelectedEntryId(event.currentTarget.value)}
               >
                 <option value="">Select entry</option>
-                {payableEntries.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    #{entry.entry_number} {entry.entry_name} ·{' '}
-                    {PAYMENT_STATUS_LABELS[entry.payment_status]}
-                  </option>
-                ))}
+                {payableEntries.map((entry) => {
+                  const settings = resolveEntryFeeSettingsForEntry(entry, feeSettings)
+                  const paymentDisplay = getOwnerRegistrationPaymentDisplay(
+                    entry.payment_status,
+                    settings
+                  )
+                  return (
+                    <option key={entry.id} value={entry.id}>
+                      #{entry.entry_number} {entry.entry_name} · {paymentDisplay.label}
+                    </option>
+                  )
+                })}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+          </FormField>
+
+          <FormField label="Payment category" required>
+            <NativeSelect.Root>
+              <NativeSelect.Field
+                name="paymentCategory"
+                value={paymentCategory}
+                onChange={(event) =>
+                  setPaymentCategory(event.currentTarget.value as PaymentCategory)
+                }
+              >
+                {feeSettings.registrationFeeEnabled ? (
+                  <option value="registration">Registration fee</option>
+                ) : null}
+                {feeSettings.roosterEntryFeeEnabled ? (
+                  <option value="rooster_entry">Rooster entry fee</option>
+                ) : null}
+                {feeSettings.cashBondEnabled ? (
+                  <option value="cash_bond">Cash bond</option>
+                ) : null}
+                <option value="legacy">Combined (legacy)</option>
               </NativeSelect.Field>
             </NativeSelect.Root>
           </FormField>
@@ -178,7 +268,8 @@ export function PaymentsLedgerClient({
                 min="0.01"
                 step="0.01"
                 required
-                defaultValue={entryFee}
+                key={`${selectedEntryId}-${paymentCategory}`}
+                defaultValue={suggestedAmount || undefined}
               />
             </FormField>
             <FormField label="Payment method" flex="1">
@@ -265,6 +356,9 @@ export function PaymentsLedgerClient({
                       Receipt {payment.receiptNumber}
                     </Text>
                   ) : null}
+                  <Text fontSize="xs" color="fg.muted">
+                    {PAYMENT_CATEGORY_LABELS[payment.paymentCategory]}
+                  </Text>
                 </Box>
                 <Box flex="1.2">
                   <Text fontSize="sm">
@@ -287,6 +381,13 @@ export function PaymentsLedgerClient({
                 </Box>
                 <Box flex="1">
                   <Text fontSize="sm">{formatDate(payment.paidAt)}</Text>
+                  <Link
+                    href={`/dashboard/events/${eventId}/payments/${payment.id}/print`}
+                    fontSize="xs"
+                    color="blue.600"
+                  >
+                    Print receipt
+                  </Link>
                 </Box>
               </Flex>
               <RefundForm payment={payment} eventId={eventId} />
@@ -297,16 +398,23 @@ export function PaymentsLedgerClient({
 
       <PanelCard title="Entry payment summary">
         <Stack gap={LAYOUT_GAP.form}>
-          {entries.map((entry) => (
-            <Flex key={entry.id} justify="space-between" gap={3} fontSize="sm">
-              <Text>
-                #{entry.entry_number} {entry.entry_name}
-              </Text>
-              <Badge colorPalette={paymentStatusColor(entry.payment_status)}>
-                {PAYMENT_STATUS_LABELS[entry.payment_status]}
-              </Badge>
-            </Flex>
-          ))}
+          {entries.map((entry) => {
+            const settings = resolveEntryFeeSettingsForEntry(entry, feeSettings)
+            const paymentDisplay = getOwnerRegistrationPaymentDisplay(
+              entry.payment_status,
+              settings
+            )
+            return (
+              <Flex key={entry.id} justify="space-between" gap={3} fontSize="sm">
+                <Text>
+                  #{entry.entry_number} {entry.entry_name}
+                </Text>
+                <Badge colorPalette={paymentDisplay.colorPalette}>
+                  {paymentDisplay.label}
+                </Badge>
+              </Flex>
+            )
+          })}
         </Stack>
       </PanelCard>
     </PageStack>

@@ -1,42 +1,12 @@
-import { notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 
-import { EntryFormClient } from '@/features/entries/components/entry-form-client'
-import { getEntryFormEligibilityContext } from '@/features/eligibility/registration-bridge'
-import { getEvent } from '@/features/events/queries'
-import { listPromoters } from '@/features/promoters/queries'
-import { EventPageLayout } from '@/components/dashboard'
-import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
-import { requirePermission } from '@/lib/auth/permissions'
-
-type NewRoosterEntryPageProps = {
+type NewRoosterEntryRedirectProps = {
   params: Promise<{ id: string }>
 }
 
-export default async function NewRoosterEntryPage({ params }: NewRoosterEntryPageProps) {
-  await requirePermission('entries.manage')
+export default async function NewRoosterEntryRedirectPage({
+  params,
+}: NewRoosterEntryRedirectProps) {
   const { id } = await params
-  const [event, promoters, eligibilityContext] = await Promise.all([
-    getEvent(id),
-    listPromoters('active'),
-    getEntryFormEligibilityContext(id),
-  ])
-
-  if (!event) notFound()
-
-  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
-
-  return (
-    <EventPageLayout eventId={event.id} eventName={event.name}>
-      <EntryFormClient
-        eventId={event.id}
-        eventName={event.name}
-        eventType={event.event_type}
-        promoters={promoters}
-        cocksPerEntry={event.cocks_per_entry}
-        minWeightGrams={minWeightGrams}
-        maxWeightGrams={maxWeightGrams}
-        eligibilityContext={eligibilityContext}
-      />
-    </EventPageLayout>
-  )
+  redirect(`/dashboard/events/${id}/owners/new`)
 }

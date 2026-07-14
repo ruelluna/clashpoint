@@ -86,6 +86,19 @@ export async function canAccessDashboardForProfile(
   return permissions.length > 0
 }
 
+export async function requireAnyPermission(permissions: string[]): Promise<Profile> {
+  const user = await getUser()
+  if (!user) redirect('/login')
+
+  const profile = await getProfile(user.id)
+  if (!profile || !profile.is_active) redirect('/access-denied')
+
+  const allowed = await hasAnyPermission(user.id, permissions)
+  if (!allowed) redirect('/access-denied')
+
+  return profile
+}
+
 export async function requirePermission(
   permission: string
 ): Promise<Profile> {

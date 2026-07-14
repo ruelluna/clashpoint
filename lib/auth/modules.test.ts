@@ -8,10 +8,21 @@ import {
 } from '@/lib/auth/modules'
 
 describe('moduleToPermissions', () => {
-  it('expands rooster-entries to entries, weighing, and events view', () => {
-    expect(moduleToPermissions('rooster-entries')).toEqual([
-      'entries.manage',
-      'weighing.manage',
+  it('expands derby-owner-registration permissions', () => {
+    expect(moduleToPermissions('derby-owner-registration')).toEqual([
+      'owner_registration.manage',
+      'owner_registration.print',
+      'payments.manage',
+      'events.view',
+    ])
+  })
+
+  it('expands inspection module with weigh-in permissions', () => {
+    expect(moduleToPermissions('inspection')).toEqual([
+      'inspection.record',
+      'inspection.approve',
+      'weighing.record',
+      'weighing.verify',
       'events.view',
     ])
   })

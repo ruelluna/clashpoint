@@ -10,6 +10,7 @@ import {
   NativeSelect,
   Stack,
   Text,
+  Switch,
   Textarea,
 } from '@chakra-ui/react'
 import Link from 'next/link'
@@ -123,6 +124,16 @@ export function EventFormClient({
   )
   const [prizeConfig, setPrizeConfig] = useState<PrizeConfigEntry[]>(
     () => buildInitialPrizeState(event).config
+  )
+
+  const [registrationFeeEnabled, setRegistrationFeeEnabled] = useState(
+    () => event?.registration_fee_enabled ?? false
+  )
+  const [roosterEntryFeeEnabled, setRoosterEntryFeeEnabled] = useState(
+    () => event?.rooster_entry_fee_enabled ?? false
+  )
+  const [cashBondEnabled, setCashBondEnabled] = useState(
+    () => event?.cash_bond_enabled ?? false
   )
 
   const prizeStructureJson = useMemo(
@@ -314,18 +325,108 @@ export function EventFormClient({
                   </FormField>
                 </Flex>
 
-                <FormField
-                  label="Registration entry fee"
-                  helpText="Amount due per entry when payment rules apply."
-                >
-                  <Input
-                    name="entryFee"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    defaultValue={event?.entry_fee ?? 0}
-                  />
-                </FormField>
+                <Stack gap={LAYOUT_GAP.form}>
+                  <Text fontWeight="semibold" fontSize="sm">
+                    Derby fees
+                  </Text>
+                  <Box borderWidth="1px" borderColor="border" rounded="md" p={4}>
+                    <Flex justify="space-between" align="flex-start" gap={4} mb={registrationFeeEnabled ? 3 : 0}>
+                      <Box flex="1">
+                        <Text fontWeight="medium" fontSize="sm">
+                          Registration fee (per owner)
+                        </Text>
+                        <Text fontSize="sm" color="fg.muted">
+                          Charge when an owner or game farm is registered.
+                        </Text>
+                      </Box>
+                      <Switch.Root
+                        checked={registrationFeeEnabled}
+                        onCheckedChange={(details) => setRegistrationFeeEnabled(details.checked)}
+                      >
+                        <Switch.HiddenInput name="registrationFeeEnabled" />
+                        <Switch.Control />
+                      </Switch.Root>
+                    </Flex>
+                    {registrationFeeEnabled ? (
+                      <FormField label="Amount">
+                        <Input
+                          name="registrationFeeAmount"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          defaultValue={event?.registration_fee_amount ?? event?.entry_fee ?? 0}
+                        />
+                      </FormField>
+                    ) : (
+                      <input type="hidden" name="registrationFeeAmount" value="0" />
+                    )}
+                  </Box>
+                  <Box borderWidth="1px" borderColor="border" rounded="md" p={4}>
+                    <Flex justify="space-between" align="flex-start" gap={4} mb={roosterEntryFeeEnabled ? 3 : 0}>
+                      <Box flex="1">
+                        <Text fontWeight="medium" fontSize="sm">
+                          Entry fee (per rooster)
+                        </Text>
+                        <Text fontSize="sm" color="fg.muted">
+                          Charge for each cock added to an entry.
+                        </Text>
+                      </Box>
+                      <Switch.Root
+                        checked={roosterEntryFeeEnabled}
+                        onCheckedChange={(details) => setRoosterEntryFeeEnabled(details.checked)}
+                      >
+                        <Switch.HiddenInput name="roosterEntryFeeEnabled" />
+                        <Switch.Control />
+                      </Switch.Root>
+                    </Flex>
+                    {roosterEntryFeeEnabled ? (
+                      <FormField label="Amount">
+                        <Input
+                          name="roosterEntryFeeAmount"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          defaultValue={event?.rooster_entry_fee_amount ?? 0}
+                        />
+                      </FormField>
+                    ) : (
+                      <input type="hidden" name="roosterEntryFeeAmount" value="0" />
+                    )}
+                  </Box>
+                  <Box borderWidth="1px" borderColor="border" rounded="md" p={4}>
+                    <Flex justify="space-between" align="flex-start" gap={4} mb={cashBondEnabled ? 3 : 0}>
+                      <Box flex="1">
+                        <Text fontWeight="medium" fontSize="sm">
+                          Cash bond (per entry)
+                        </Text>
+                        <Text fontSize="sm" color="fg.muted">
+                          Default bond amount collected per entry.
+                        </Text>
+                      </Box>
+                      <Switch.Root
+                        checked={cashBondEnabled}
+                        onCheckedChange={(details) => setCashBondEnabled(details.checked)}
+                      >
+                        <Switch.HiddenInput name="cashBondEnabled" />
+                        <Switch.Control />
+                      </Switch.Root>
+                    </Flex>
+                    {cashBondEnabled ? (
+                      <FormField label="Default amount">
+                        <Input
+                          name="cashBondAmount"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          defaultValue={event?.cash_bond_amount ?? 0}
+                        />
+                      </FormField>
+                    ) : (
+                      <input type="hidden" name="cashBondAmount" value="0" />
+                    )}
+                  </Box>
+                  <input type="hidden" name="entryFee" value={event?.entry_fee ?? 0} />
+                </Stack>
 
                 <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
                   <FormField label="Derby format" flex="1">

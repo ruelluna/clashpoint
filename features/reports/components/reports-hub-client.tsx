@@ -31,7 +31,7 @@ const EVENT_REPORTS: EventReportDefinition[] = [
     type: 'weighing',
     label: 'Weighing',
     description: 'Official weights and verification status per rooster.',
-    viewHref: 'rooster-entries',
+    viewHref: 'roosters',
   },
   {
     type: 'match',
@@ -47,7 +47,7 @@ const EVENT_REPORTS: EventReportDefinition[] = [
     type: 'entry_approval',
     label: 'Rooster entry approval',
     description: 'Per-rooster registration, eligibility, and approval decisions.',
-    viewHref: 'registrations',
+    viewHref: 'roosters',
   },
   {
     type: 'eligibility_summary',

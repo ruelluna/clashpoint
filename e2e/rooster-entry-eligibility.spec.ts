@@ -40,8 +40,16 @@ async function createDerbyEventWithEligibility(page: Page, name: string) {
   return page.url().replace(/.*\/events\//, '').replace(/\/.*$/, '')
 }
 
+async function registerDerbyOwner(page: Page, eventId: string, ownerName: string) {
+  await page.goto(`/dashboard/events/${eventId}/owners/new`)
+  await page.locator('input[name="ownerName"]').fill(ownerName)
+  await page.getByRole('button', { name: 'Register owner' }).click()
+  await page.waitForURL(new RegExp(`/dashboard/events/${eventId}/owners/[0-9a-f-]{36}/print`))
+  return page.url().match(/owners\/([0-9a-f-]{36})/)?.[1] ?? ''
+}
+
 test.describe('Rooster entry eligibility @auth', () => {
-  test('creates minimal entry then validates eligibility on edit', async ({ page }) => {
+  test('validates weight policy when editing an entry roster', async ({ page }) => {
     test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
 
     const suffix = uniqueSuffix()
@@ -49,10 +57,9 @@ test.describe('Rooster entry eligibility @auth', () => {
 
     await signInAsAdmin(page)
     const eventId = await createDerbyEventWithEligibility(page, eventName)
+    const entryId = await registerDerbyOwner(page, eventId, `Owner ${suffix}`)
 
-    await page.goto(`/dashboard/events/${eventId}/rooster-entries/new`)
-
-    await page.locator('input[name="ownerName"]').fill(`Owner ${suffix}`)
+    await page.goto(`/dashboard/events/${eventId}/rooster-entries/${entryId}/edit`)
     await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
     await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
     await page.locator('input[name="rooster_1_weight"]').fill('1500')
@@ -64,13 +71,13 @@ test.describe('Rooster entry eligibility @auth', () => {
     await page.locator('textarea[name="notes_rooster_1"]').fill(`Cock note ${suffix}`)
     await page.getByRole('button', { name: 'Save entry' }).click()
 
-    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
-    await expect(page.getByText(`Owner ${suffix}`)).toBeVisible({ timeout: 15_000 })
+    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/roosters`))
+    await expect(page.getByText(`B-${suffix}`)).toBeVisible({ timeout: 15_000 })
 
-    await page.getByRole('link', { name: 'Edit' }).first().click()
+    await page.goto(`/dashboard/events/${eventId}/rooster-entries/${entryId}/edit`)
     await expect(page.locator('textarea[name^="notes_"]').first()).toHaveValue(`Cock note ${suffix}`)
     await page.locator('select[name^="ageClass_"]').first().selectOption('stag')
-    await page.locator('input[name="rooster_1_weight"], input[name^="weight_"]').first().fill('1500')
+    await page.locator('input[name^="weight_"]').first().fill('1500')
     await page.getByRole('button', { name: 'Save entry' }).click()
 
     await expect(page.getByText('Weight is below the event minimum', { exact: false })).toBeVisible()
@@ -78,11 +85,11 @@ test.describe('Rooster entry eligibility @auth', () => {
     await page.locator('input[name^="weight_"]').first().fill('2000')
     await page.getByRole('button', { name: 'Save entry' }).click()
 
-    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
-    await expect(page.getByText(`Owner ${suffix}`)).toBeVisible({ timeout: 15_000 })
+    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/roosters`))
+    await expect(page.getByText(`B-${suffix}`)).toBeVisible({ timeout: 15_000 })
   })
 
-  test('adds new color marking through dialog', async ({ page }) => {
+  test('adds new color marking through dialog on entry edit', async ({ page }) => {
     test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
 
     const suffix = uniqueSuffix()
@@ -91,10 +98,9 @@ test.describe('Rooster entry eligibility @auth', () => {
 
     await signInAsAdmin(page)
     const eventId = await createDerbyEventWithEligibility(page, eventName)
+    const entryId = await registerDerbyOwner(page, eventId, `Owner ${suffix}`)
 
-    await page.goto(`/dashboard/events/${eventId}/rooster-entries/new`)
-
-    await page.locator('input[name="ownerName"]').fill(`Owner ${suffix}`)
+    await page.goto(`/dashboard/events/${eventId}/rooster-entries/${entryId}/edit`)
     await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
     await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
     await page.locator('input[name="rooster_1_weight"]').fill('2000')
@@ -108,6 +114,6 @@ test.describe('Rooster entry eligibility @auth', () => {
     await expect(colorCombobox).toHaveValue(newColor)
 
     await page.getByRole('button', { name: 'Save entry' }).click()
-    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/rooster-entries`))
+    await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/roosters`))
   })
 })

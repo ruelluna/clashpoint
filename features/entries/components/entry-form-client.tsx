@@ -201,7 +201,7 @@ export function EntryFormClient({
               Save entry
             </Button>
             <Button asChild variant="outline">
-              <Link href={`/dashboard/events/${eventId}/rooster-entries`}>Cancel</Link>
+              <Link href={`/dashboard/events/${eventId}/roosters`}>Cancel</Link>
             </Button>
           </ButtonGroup>
         </Stack>

@@ -11,7 +11,9 @@ import { isEligibilityFieldEnabled } from '@/lib/derby/eligibility-fields'
 import type { EligibilityFieldKey } from '@/lib/derby/eligibility-fields'
 import {
   createEntrySchema,
+  createOwnerEntrySchema,
   deleteEntrySchema,
+  entryMetadataSchema,
   parseCreateEntryFromFormData,
   parseNewRosterSlotsFromFormData,
   parseUpdateEntryRosterFromForm,
@@ -21,6 +23,7 @@ import {
 import { validateRoosterAgainstPolicy } from '@/features/entries/policy-validation'
 import {
   addEntryRoosters,
+  createEntry,
   createEntryWithRoosters,
   deleteEntry,
   updateEntry,
@@ -28,7 +31,7 @@ import {
 } from '@/features/entries/service'
 import { getPairedRosterIdsForEntry } from '@/features/entries/queries'
 import { getEvent } from '@/features/events/queries'
-import { requirePermission } from '@/lib/auth/permissions'
+import { requireAnyPermission, requirePermission } from '@/lib/auth/permissions'
 
 export type EntryActionState = { error?: string; success?: string }
 
@@ -38,7 +41,8 @@ function parseOptionalUuid(value: FormDataEntryValue | null): string | null {
 }
 
 function revalidateEntryPaths(eventId: string) {
-  revalidatePath(`/dashboard/events/${eventId}/rooster-entries`)
+  revalidatePath(`/dashboard/events/${eventId}/owners`)
+  revalidatePath(`/dashboard/events/${eventId}/roosters`)
   revalidatePath(`/dashboard/events/${eventId}/matching`)
   revalidatePath(`/dashboard/events/${eventId}/reports/weighing`)
 }
@@ -133,7 +137,59 @@ export async function createEntryAction(
   if (result.error) return { error: result.error }
 
   revalidateEntryPaths(schemaResult.data.eventId)
-  redirect(`/dashboard/events/${schemaResult.data.eventId}/rooster-entries`)
+  redirect(`/dashboard/events/${schemaResult.data.eventId}/roosters`)
+}
+
+function parseOwnerEntryFromFormData(formData: FormData) {
+  return entryMetadataSchema.safeParse({
+    eventId: formData.get('eventId'),
+    referredByPromoterId: formData.get('referredByPromoterId')?.toString().trim() || undefined,
+    competitorId: formData.get('competitorId')?.toString().trim() || undefined,
+    ownerName: formData.get('ownerName'),
+    handlerName: formData.get('handlerName')?.toString().trim() || undefined,
+    contactNumber: formData.get('contactNumber')?.toString().trim() || undefined,
+    email: formData.get('email')?.toString().trim() || undefined,
+    entrySource: formData.get('entrySource')?.toString() ?? 'staff_encoded',
+    notes: formData.get('notes')?.toString().trim() || undefined,
+  })
+}
+
+export async function createOwnerEntryAction(
+  _prev: EntryActionState,
+  formData: FormData
+): Promise<EntryActionState> {
+  const profile = await requireAnyPermission([
+    'owner_registration.manage',
+    'entries.manage',
+  ])
+
+  const parsed = parseOwnerEntryFromFormData(formData)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const schemaResult = createOwnerEntrySchema.safeParse(parsed.data)
+  if (!schemaResult.success) {
+    return { error: schemaResult.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const event = await getEvent(schemaResult.data.eventId)
+  if (!event) return { error: 'Event not found' }
+
+  const result = await createEntry(profile.id, schemaResult.data)
+  if (result.error) return { error: result.error }
+  if (!result.entryId) return { error: 'Failed to create entry' }
+
+  revalidateEntryPaths(schemaResult.data.eventId)
+  revalidatePath(`/dashboard/events/${schemaResult.data.eventId}/owners`)
+
+  if (event.event_type === 'derby') {
+    redirect(
+      `/dashboard/events/${schemaResult.data.eventId}/owners/${result.entryId}/print`
+    )
+  }
+
+  redirect(`/dashboard/events/${schemaResult.data.eventId}/owners`)
 }
 
 export async function updateEntryAction(
@@ -217,7 +273,7 @@ export async function updateEntryAction(
   revalidatePath(
     `/dashboard/events/${parsed.data.eventId}/rooster-entries/${parsed.data.entryId}/edit`
   )
-  redirect(`/dashboard/events/${parsed.data.eventId}/rooster-entries`)
+  redirect(`/dashboard/events/${parsed.data.eventId}/roosters`)
 }
 
 export async function deleteEntryAction(
@@ -239,5 +295,5 @@ export async function deleteEntryAction(
   if (result.error) return { error: result.error }
 
   revalidateEntryPaths(parsed.data.eventId)
-  redirect(`/dashboard/events/${parsed.data.eventId}/rooster-entries`)
+  redirect(`/dashboard/events/${parsed.data.eventId}/roosters`)
 }

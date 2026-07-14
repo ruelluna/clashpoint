@@ -41,12 +41,44 @@ export const ACCESS_MODULES = [
   },
   {
     id: 'inspection',
-    label: 'Inspection',
-    permissions: ['inspection.record', 'inspection.approve', 'events.view'],
+    label: 'Inspection & weigh-in',
+    permissions: [
+      'inspection.record',
+      'inspection.approve',
+      'weighing.record',
+      'weighing.verify',
+      'events.view',
+    ],
+  },
+  {
+    id: 'derby-owner-registration',
+    label: 'Derby owner registration',
+    permissions: [
+      'owner_registration.manage',
+      'owner_registration.print',
+      'payments.manage',
+      'events.view',
+    ],
+  },
+  {
+    id: 'derby-weighing',
+    label: 'Derby roosters',
+    permissions: [
+      'cock_entry.manage',
+      'cock_entry.print',
+      'weighing.record',
+      'weighing.verify',
+      'events.view',
+    ],
+  },
+  {
+    id: 'derby-payments',
+    label: 'Derby payments',
+    permissions: ['payments.manage', 'payments.print', 'events.view'],
   },
   {
     id: 'rooster-entries',
-    label: 'Rooster Entries',
+    label: 'Rooster entries (full)',
     permissions: ['entries.manage', 'weighing.manage', 'events.view'],
   },
   {

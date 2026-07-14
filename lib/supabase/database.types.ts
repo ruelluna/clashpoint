@@ -220,6 +220,12 @@ export type Database = {
           unknown_value_handling: Database['public']['Enums']['unknown_value_handling']
           approval_config: Json
           entry_fee: number
+          registration_fee_enabled: boolean
+          registration_fee_amount: number
+          rooster_entry_fee_enabled: boolean
+          rooster_entry_fee_amount: number
+          cash_bond_enabled: boolean
+          cash_bond_amount: number
           tax_per_fight: number
           min_entries: number | null
           max_entries: number | null
@@ -270,6 +276,12 @@ export type Database = {
           unknown_value_handling?: Database['public']['Enums']['unknown_value_handling']
           approval_config?: Json
           entry_fee?: number
+          registration_fee_enabled?: boolean
+          registration_fee_amount?: number
+          rooster_entry_fee_enabled?: boolean
+          rooster_entry_fee_amount?: number
+          cash_bond_enabled?: boolean
+          cash_bond_amount?: number
           tax_per_fight?: number
           min_entries?: number | null
           max_entries?: number | null
@@ -320,6 +332,12 @@ export type Database = {
           unknown_value_handling?: Database['public']['Enums']['unknown_value_handling']
           approval_config?: Json
           entry_fee?: number
+          registration_fee_enabled?: boolean
+          registration_fee_amount?: number
+          rooster_entry_fee_enabled?: boolean
+          rooster_entry_fee_amount?: number
+          cash_bond_enabled?: boolean
+          cash_bond_amount?: number
           tax_per_fight?: number
           min_entries?: number | null
           max_entries?: number | null
@@ -382,8 +400,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-        ]
       }
       competitors: {
         Row: {
@@ -458,6 +474,8 @@ export type Database = {
           entry_source: Database['public']['Enums']['entry_source'] | null
           registration_status: Database['public']['Enums']['registration_status']
           payment_status: Database['public']['Enums']['payment_status']
+          owner_barcode: string | null
+          fee_snapshot: Json | null
           notes: string | null
           created_by: string | null
           created_at: string
@@ -479,6 +497,8 @@ export type Database = {
           entry_source?: Database['public']['Enums']['entry_source'] | null
           registration_status?: Database['public']['Enums']['registration_status']
           payment_status?: Database['public']['Enums']['payment_status']
+          owner_barcode?: string | null
+          fee_snapshot?: Json | null
           notes?: string | null
           created_by?: string | null
           created_at?: string
@@ -500,6 +520,8 @@ export type Database = {
           entry_source?: Database['public']['Enums']['entry_source'] | null
           registration_status?: Database['public']['Enums']['registration_status']
           payment_status?: Database['public']['Enums']['payment_status']
+          owner_barcode?: string | null
+          fee_snapshot?: Json | null
           notes?: string | null
           created_by?: string | null
           created_at?: string
@@ -530,6 +552,98 @@ export type Database = {
           },
         ]
       }
+      entry_fee_adjustment_lines: {
+        Row: {
+          id: string
+          adjustment_id: string
+          entry_id: string
+          previous_amount_due: number
+          new_amount_due: number
+          amount_paid: number
+          delta: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          adjustment_id: string
+          entry_id: string
+          previous_amount_due: number
+          new_amount_due: number
+          amount_paid?: number
+          delta: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          adjustment_id?: string
+          entry_id?: string
+          previous_amount_due?: number
+          new_amount_due?: number
+          amount_paid?: number
+          delta?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'entry_fee_adjustment_lines_adjustment_id_fkey'
+            columns: ['adjustment_id']
+            isOneToOne: false
+            referencedRelation: 'event_fee_adjustments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'entry_fee_adjustment_lines_entry_id_fkey'
+            columns: ['entry_id']
+            isOneToOne: false
+            referencedRelation: 'entries'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      event_fee_adjustments: {
+        Row: {
+          id: string
+          event_id: string
+          changed_by: string | null
+          previous_settings: Json
+          new_settings: Json
+          entries_with_payments_count: number
+          total_refund_due: number
+          total_collect_due: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          changed_by?: string | null
+          previous_settings: Json
+          new_settings: Json
+          entries_with_payments_count?: number
+          total_refund_due?: number
+          total_collect_due?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          changed_by?: string | null
+          previous_settings?: Json
+          new_settings?: Json
+          entries_with_payments_count?: number
+          total_refund_due?: number
+          total_collect_due?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'event_fee_adjustments_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       payments: {
         Row: {
           id: string
@@ -542,6 +656,7 @@ export type Database = {
           payment_method: Database['public']['Enums']['payment_method'] | null
           receipt_number: string | null
           payment_status: Database['public']['Enums']['payment_status']
+          payment_category: Database['public']['Enums']['payment_category']
           receipt_path: string | null
           received_by: string | null
           paid_at: string | null
@@ -560,6 +675,7 @@ export type Database = {
           payment_method?: Database['public']['Enums']['payment_method'] | null
           receipt_number?: string | null
           payment_status?: Database['public']['Enums']['payment_status']
+          payment_category?: Database['public']['Enums']['payment_category']
           receipt_path?: string | null
           received_by?: string | null
           paid_at?: string | null
@@ -578,6 +694,7 @@ export type Database = {
           payment_method?: Database['public']['Enums']['payment_method'] | null
           receipt_number?: string | null
           payment_status?: Database['public']['Enums']['payment_status']
+          payment_category?: Database['public']['Enums']['payment_category']
           receipt_path?: string | null
           received_by?: string | null
           paid_at?: string | null
@@ -679,6 +796,7 @@ export type Database = {
           weight_verified: boolean
           weight_verification_status: Database['public']['Enums']['weight_status'] | null
           weight_notes: string | null
+          cock_entry_barcode: string | null
           notes: string | null
           created_at: string
           updated_at: string
@@ -733,7 +851,7 @@ export type Database = {
           weight_verified?: boolean
           weight_verification_status?: Database['public']['Enums']['weight_status'] | null
           weight_notes?: string | null
-          notes?: string | null
+          cock_entry_barcode?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -787,6 +905,7 @@ export type Database = {
           weight_verified?: boolean
           weight_verification_status?: Database['public']['Enums']['weight_status'] | null
           weight_notes?: string | null
+          cock_entry_barcode?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1346,6 +1465,12 @@ export type Database = {
         | 'passed'
         | 'failed'
         | 'for_review'
+      payment_category:
+        | 'registration'
+        | 'rooster_entry'
+        | 'cash_bond'
+        | 'adjustment'
+        | 'legacy'
       registration_payment_status:
         | 'not_required'
         | 'unpaid'

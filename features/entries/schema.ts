@@ -91,7 +91,6 @@ export const roosterEntryItemSchema = z.object({
 })
 
 export const entryRoosterRegistryFieldsSchema = {
-  ageClass: ageClassSchema.optional(),
   competitionClass: competitionClassSchema.optional(),
   hatchDate: z
     .string()
@@ -103,12 +102,9 @@ export const entryRoosterRegistryFieldsSchema = {
   hatchDateIsEstimated: z.coerce.boolean().optional(),
   breed: optionalText(100),
   bloodline: optionalText(200),
-  experienceStatus: experienceStatusSchema.optional(),
-  originType: originTypeSchema.optional(),
   countryOfOrigin: optionalText(100),
   provinceOfOrigin: optionalText(100),
   municipalityOfOrigin: optionalText(100),
-  breedingRelationship: breedingRelationshipSchema.optional(),
   breederNameExternal: optionalText(200),
   originNotes: optionalText(2000),
   ...entryRoosterPolicyFieldsSchema,
@@ -117,6 +113,52 @@ export const entryRoosterRegistryFieldsSchema = {
 export const entryRoosterEditItemSchema = roosterEntryItemSchema.extend(
   entryRoosterRegistryFieldsSchema
 )
+
+export const createOwnerEntrySchema = entryMetadataSchema
+
+export type CreateOwnerEntryInput = z.infer<typeof createOwnerEntrySchema>
+
+export function formatOwnerBarcode(eventId: string, sequence: number): string {
+  const prefix = eventId.replace(/-/g, '').slice(0, 8).toUpperCase()
+  return `OWN-${prefix}-${String(sequence).padStart(4, '0')}`
+}
+
+export function parseOwnerBarcodeSequence(value: string, eventId: string): number | null {
+  const prefix = `OWN-${eventId.replace(/-/g, '').slice(0, 8).toUpperCase()}-`
+  if (!value.startsWith(prefix)) return null
+  const parsed = Number.parseInt(value.slice(prefix.length), 10)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+export function getNextOwnerBarcode(eventId: string, existingBarcodes: string[]): string {
+  let max = 0
+  for (const barcode of existingBarcodes) {
+    const parsed = parseOwnerBarcodeSequence(barcode, eventId)
+    if (parsed != null && parsed > max) max = parsed
+  }
+  return formatOwnerBarcode(eventId, max + 1)
+}
+
+export function formatCockEntryBarcode(eventId: string, sequence: number): string {
+  const prefix = eventId.replace(/-/g, '').slice(0, 8).toUpperCase()
+  return `COCK-${prefix}-${String(sequence).padStart(4, '0')}`
+}
+
+export function parseCockEntryBarcodeSequence(value: string, eventId: string): number | null {
+  const prefix = `COCK-${eventId.replace(/-/g, '').slice(0, 8).toUpperCase()}-`
+  if (!value.startsWith(prefix)) return null
+  const parsed = Number.parseInt(value.slice(prefix.length), 10)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+export function getNextCockEntryBarcode(eventId: string, existingBarcodes: string[]): string {
+  let max = 0
+  for (const barcode of existingBarcodes) {
+    const parsed = parseCockEntryBarcodeSequence(barcode, eventId)
+    if (parsed != null && parsed > max) max = parsed
+  }
+  return formatCockEntryBarcode(eventId, max + 1)
+}
 
 export const createEntrySchema = entryMetadataSchema.extend({
   roosters: z.array(roosterEntryItemSchema).min(1, 'At least one rooster is required'),

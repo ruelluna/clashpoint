@@ -93,7 +93,7 @@ export async function createPublicEntryAction(
   if (result.error) return { error: result.error }
 
   revalidatePath(`/events/${schemaResult.data.eventId}/register`)
-  revalidatePath(`/dashboard/events/${schemaResult.data.eventId}/rooster-entries`)
+  revalidatePath(`/dashboard/events/${schemaResult.data.eventId}/roosters`)
 
   const entryLabel = result.entryNumber ? `Entry #${result.entryNumber}` : 'Your entry'
   const approvalNote = event.require_rooster_entry_approval
