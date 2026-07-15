@@ -2,6 +2,11 @@ import { notFound } from 'next/navigation'
 
 import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { EventRoostersClient } from '@/features/event-roosters/components/event-roosters-client'
+import { getEntryIdByOwnerBarcode } from '@/features/entries/queries'
+import {
+  isOwnerBarcodeForEvent,
+  normalizeOwnerBarcodeInput,
+} from '@/features/entries/schema'
 import { listRegistrationsByEvent } from '@/features/registrations/queries'
 import { getEvent } from '@/features/events/queries'
 import { listWeighingEntrySummaries } from '@/features/weighing/queries'
@@ -10,15 +15,27 @@ import { requireAnyPermission } from '@/lib/auth/permissions'
 
 type RoostersPageProps = {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ highlight?: string }>
+  searchParams: Promise<{ highlight?: string; entryId?: string; barcode?: string }>
 }
 
 export default async function RoostersPage({ params, searchParams }: RoostersPageProps) {
   await requireAnyPermission(['cock_entry.manage', 'entries.manage'])
   const { id } = await params
-  const { highlight } = await searchParams
+  const { highlight, entryId: rawEntryId, barcode: rawBarcode } = await searchParams
   const event = await getEvent(id)
   if (!event) notFound()
+
+  let initialEntryId = rawEntryId ?? undefined
+
+  if (!initialEntryId && rawBarcode && event.event_type === 'derby') {
+    const barcode = normalizeOwnerBarcodeInput(rawBarcode)
+    if (barcode && isOwnerBarcodeForEvent(barcode, id)) {
+      const resolvedEntryId = await getEntryIdByOwnerBarcode(id, barcode)
+      if (resolvedEntryId) {
+        initialEntryId = resolvedEntryId
+      }
+    }
+  }
 
   const [registrations, entries] = await Promise.all([
     listRegistrationsByEvent(id),
@@ -36,6 +53,7 @@ export default async function RoostersPage({ params, searchParams }: RoostersPag
         registrations={registrations}
         entries={entries}
         highlightId={highlight}
+        initialEntryId={initialEntryId}
       />
     </EventPageLayout>
   )

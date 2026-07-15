@@ -5,6 +5,9 @@ import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
 
 import { FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { EventOwnerEntryPicker } from '@/features/entries/components/event-owner-entry-picker'
+import { OwnerBarcodeScanRow } from '@/features/entries/components/owner-barcode-scan-row'
+import { OwnerRoosterCheckPanel } from '@/features/entries/components/owner-rooster-check-panel'
 import { createRoosterAction, type WeighingActionState } from '@/features/weighing/actions'
 import type { RegistrationListItem } from '@/features/registrations/types'
 import type { WeighingEntrySummary } from '@/features/weighing/types'
@@ -23,6 +26,7 @@ type EventRoostersClientProps = {
   registrations: RegistrationListItem[]
   entries: WeighingEntrySummary[]
   highlightId?: string
+  initialEntryId?: string
 }
 
 import type { EventFeeSettings } from '@/features/events/fee-utils'
@@ -46,43 +50,51 @@ function eligibilityColor(
 
 function AddRoosterForm({
   eventId,
+  eventType,
   entries,
   cocksPerEntry,
+  registrations,
+  initialEntryId = '',
 }: {
   eventId: string
+  eventType: string
   entries: WeighingEntrySummary[]
   cocksPerEntry: number
+  registrations: RegistrationListItem[]
+  initialEntryId?: string
 }) {
   const [state, action, pending] = useActionState(
     createRoosterAction,
     {} as WeighingActionState
   )
-  const [entryId, setEntryId] = useState('')
-  const addableEntries = entries.filter((entry) => entry.can_add_rooster)
+  const [entryId, setEntryId] = useState(initialEntryId)
+  const isDerby = eventType === 'derby'
+  const selectedEntry = entries.find((entry) => entry.entry_id === entryId) ?? null
+  const canSubmit =
+    entries.some((entry) => entry.can_add_rooster) &&
+    Boolean(entryId) &&
+    (selectedEntry?.can_add_rooster ?? false)
 
   return (
     <PanelCard title="Add rooster">
       <form action={action}>
         <input type="hidden" name="eventId" value={eventId} />
         <Stack gap={LAYOUT_GAP.form} maxW="2xl">
-          <FormField label="Entry" required>
-            <NativeSelect.Root>
-              <NativeSelect.Field
-                name="entryId"
-                value={entryId}
-                onChange={(event) => setEntryId(event.currentTarget.value)}
-              >
-                <option value="">Select entry</option>
-                {addableEntries.map((entry) => (
-                  <option key={entry.entry_id} value={entry.entry_id}>
-                    #{entry.entry_number} {entry.entry_name} · {entry.owner_name} (
-                    {entry.rooster_count}/{cocksPerEntry} cock
-                    {cocksPerEntry === 1 ? '' : 's'})
-                  </option>
-                ))}
-              </NativeSelect.Field>
-            </NativeSelect.Root>
-          </FormField>
+          {isDerby ? (
+            <OwnerBarcodeScanRow eventId={eventId} onResolved={setEntryId} />
+          ) : null}
+          <EventOwnerEntryPicker
+            entries={entries}
+            cocksPerEntry={cocksPerEntry}
+            value={entryId}
+            onValueChange={setEntryId}
+          />
+          <OwnerRoosterCheckPanel
+            eventId={eventId}
+            entry={selectedEntry}
+            cocksPerEntry={cocksPerEntry}
+            registrations={registrations}
+          />
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
             <FormField label="Band number" required flex="1">
               <Input name="bandNumber" required maxLength={50} />
@@ -104,7 +116,7 @@ function AddRoosterForm({
               {state.success}
             </Text>
           ) : null}
-          <Button type="submit" loading={pending} disabled={!addableEntries.length} alignSelf="flex-start">
+          <Button type="submit" loading={pending} disabled={!canSubmit} alignSelf="flex-start">
             Add rooster
           </Button>
         </Stack>
@@ -122,6 +134,7 @@ export function EventRoostersClient({
   registrations,
   entries,
   highlightId,
+  initialEntryId,
 }: EventRoostersClientProps) {
   const [statusFilter, setStatusFilter] = useState<'' | RegistrationWorkflowStatus>('')
 
@@ -139,7 +152,14 @@ export function EventRoostersClient({
         description={`${eventName} · ${registrations.length} cock${registrations.length === 1 ? '' : 's'} registered. Entry fees stay pending until Payments.`}
       />
 
-      <AddRoosterForm eventId={eventId} entries={entries} cocksPerEntry={cocksPerEntry} />
+      <AddRoosterForm
+        eventId={eventId}
+        eventType={eventType}
+        entries={entries}
+        cocksPerEntry={cocksPerEntry}
+        registrations={registrations}
+        initialEntryId={initialEntryId}
+      />
 
       <Flex align="center" gap={3} maxW="xs">
         <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
@@ -177,7 +197,7 @@ export function EventRoostersClient({
           display={{ base: 'none', lg: 'flex' }}
         >
           <Box flex="0.5">Cock</Box>
-          <Box flex="1.2">Entry</Box>
+          <Box flex="1.2">Owner</Box>
           <Box flex="0.7">Payment</Box>
           <Box flex="0.9">Registration</Box>
           <Box flex="0.8">Eligibility</Box>

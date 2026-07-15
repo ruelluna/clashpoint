@@ -45,7 +45,12 @@ export async function lookupOwnerEntryByBarcodeAction(
   eventId: string,
   rawBarcode: string
 ): Promise<OwnerBarcodeLookupResult> {
-  await requireAnyPermission(['owner_registration.manage', 'entries.manage', 'events.view'])
+  await requireAnyPermission([
+    'owner_registration.manage',
+    'entries.manage',
+    'events.view',
+    'cock_entry.manage',
+  ])
 
   const barcode = normalizeOwnerBarcodeInput(rawBarcode)
   if (!barcode) {

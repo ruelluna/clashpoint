@@ -187,7 +187,7 @@ export async function listWeighingEntrySummaries(
 
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('id, entry_number, entry_name, owner_name')
+    .select('id, entry_number, entry_name, owner_name, owner_barcode')
     .eq('event_id', eventId)
     .is('deleted_at', null)
     .order('entry_number', { ascending: true })
@@ -214,6 +214,7 @@ export async function listWeighingEntrySummaries(
       entry_number: entry.entry_number as string,
       entry_name: entry.entry_name as string,
       owner_name: entry.owner_name as string,
+      owner_barcode: (entry.owner_barcode as string | null) ?? null,
       rooster_count: roosterCount,
       can_add_rooster: roosterCount < cocksPerEntry,
     }

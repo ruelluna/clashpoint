@@ -71,6 +71,7 @@ export type RegistrationListItem = Pick<
   | 'registry_rooster_id'
   | 'cock_number'
   | 'band_number'
+  | 'handler_name'
   | 'registration_status'
   | 'approval_status'
   | 'eligibility_status'

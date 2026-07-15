@@ -33,6 +33,7 @@ export type WeighingEntrySummary = {
   entry_number: string
   entry_name: string
   owner_name: string
+  owner_barcode: string | null
   rooster_count: number
   can_add_rooster: boolean
 }
