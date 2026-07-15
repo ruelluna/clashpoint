@@ -1,21 +1,25 @@
 'use client'
 
-import { Flex, Input, Text, Textarea } from '@chakra-ui/react'
+import { Flex, Input, Text } from '@chakra-ui/react'
 
 import { FormField, LAYOUT_GAP, PanelCard } from '@/components/dashboard'
+import { RoosterEntryCoreFields } from '@/features/entries/components/rooster-entry-core-fields'
 import {
   EligibilityStatusSummary,
   RoosterPolicyFields,
 } from '@/features/entries/components/rooster-policy-fields'
+import { isBandNumberRequiredForEvent } from '@/features/entries/schema'
 import type { EntryRoosterEditItem } from '@/features/entries/queries'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
-import { ReferenceValueCombobox } from '@/features/reference-values/components/reference-value-combobox'
+import type { RoosterEntryCatalog, PublicReferenceOptions } from '@/features/reference-values/catalog'
 import { RoosterProfileFields } from '@/features/roosters/components/rooster-profile-fields'
 
 type RoosterEntrySlotsProps = {
   mode: 'create' | 'edit'
   eventType: 'classic' | 'derby'
   cocksPerEntry: number
+  catalog: RoosterEntryCatalog
+  publicReferenceOptions?: PublicReferenceOptions | null
   eligibilityContext?: EntryFormEligibilityContext | null
   existingRoosters?: EntryRoosterEditItem[]
 }
@@ -32,27 +36,6 @@ function fieldPrefixForExistingEdit(roosterId: string) {
   return `${roosterId}_`
 }
 
-function colorMarkingFieldName(mode: 'create' | 'edit', slotKey: string) {
-  if (mode === 'create') {
-    return `colorMarking_rooster_${slotKey}`
-  }
-  return `colorMarking_${slotKey}`
-}
-
-function notesFieldName(mode: 'create' | 'edit', slotKey: string) {
-  if (mode === 'create') {
-    return `notes_rooster_${slotKey}`
-  }
-  return `notes_${slotKey}`
-}
-
-function handlerFieldName(mode: 'create' | 'edit', slotKey: string) {
-  if (mode === 'create') {
-    return `handlerName_rooster_${slotKey}`
-  }
-  return `handlerName_${slotKey}`
-}
-
 type RoosterSlotFieldsProps = {
   mode: 'create' | 'edit'
   prefix: string
@@ -65,6 +48,17 @@ type RoosterSlotFieldsProps = {
   defaults?: EntryRoosterEditItem
   fieldPrefixForPolicy: string
   namePrefix?: string
+  bandNumberRequired?: boolean
+  catalog: RoosterEntryCatalog
+  allowBreedCreate?: boolean
+  allowColorCreate?: boolean
+}
+
+function handlerFieldName(mode: 'create' | 'edit', slotKey: string) {
+  if (mode === 'create') {
+    return `handlerName_rooster_${slotKey}`
+  }
+  return `handlerName_${slotKey}`
 }
 
 function RoosterSlotFields({
@@ -79,6 +73,10 @@ function RoosterSlotFields({
   defaults,
   fieldPrefixForPolicy,
   namePrefix = '',
+  bandNumberRequired = true,
+  catalog,
+  allowBreedCreate = false,
+  allowColorCreate = false,
 }: RoosterSlotFieldsProps) {
   const entryNameField = namePrefix
     ? `entryName_${namePrefix}`
@@ -97,7 +95,7 @@ function RoosterSlotFields({
         ) : null}
       </Text>
       <input type="hidden" name={`${prefix}cockNumber`} value={cockNumber} />
-      <FormField label="Entry name" required={required}>
+      <FormField label="Rooster name" required={required}>
         <Input
           name={entryNameField}
           required={required}
@@ -107,10 +105,10 @@ function RoosterSlotFields({
         />
       </FormField>
       <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-        <FormField label="Band number" required={required} flex="1">
+        <FormField label="Band number" required={required && bandNumberRequired} flex="1">
           <Input
             name={bandField}
-            required={required}
+            required={required && bandNumberRequired}
             maxLength={50}
             defaultValue={defaults?.band_number ?? ''}
             disabled={disabled}
@@ -138,34 +136,31 @@ function RoosterSlotFields({
           disabled={disabled}
         />
       </FormField>
-      <ReferenceValueCombobox
-        kind="color_marking"
-        name={colorMarkingFieldName(mode, slotKey)}
-        label="Color / marking"
-        defaultValue={defaults?.color_marking ?? ''}
-        maxLength={200}
+      <RoosterEntryCoreFields
+        slotKey={slotKey}
+        mode={mode === 'create' ? 'create' : 'edit'}
+        catalog={catalog}
+        allowBreedCreate={allowBreedCreate}
+        allowColorCreate={allowColorCreate}
         disabled={disabled}
+        required={required}
+        defaults={{
+          breed: defaults?.breed,
+          colorMarking: defaults?.color_marking,
+          notes: defaults?.notes,
+        }}
       />
-      <FormField label="Notes">
-        <Textarea
-          name={notesFieldName(mode, slotKey)}
-          rows={2}
-          maxLength={2000}
-          defaultValue={defaults?.notes ?? ''}
-          disabled={disabled}
-        />
-      </FormField>
       {mode === 'edit' ? (
         <>
           <RoosterProfileFields
             fieldSuffix={fieldPrefixForPolicy}
             disabled={disabled}
+            hideBreed
             defaults={{
               ageClass: defaults?.age_class ?? undefined,
               competitionClass: defaults?.competition_class ?? undefined,
               hatchDate: defaults?.hatch_date ?? undefined,
               hatchDateIsEstimated: defaults?.hatch_date_is_estimated ?? undefined,
-              breed: defaults?.breed ?? undefined,
               bloodline: defaults?.bloodline ?? undefined,
               experienceStatus: defaults?.experience_status ?? undefined,
               originType: defaults?.origin_type ?? undefined,
@@ -204,10 +199,15 @@ export function RoosterEntrySlots({
   mode,
   eventType,
   cocksPerEntry,
+  catalog,
+  publicReferenceOptions = null,
   eligibilityContext = null,
   existingRoosters = [],
 }: RoosterEntrySlotsProps) {
   const slotCount = eventType === 'classic' ? 1 : cocksPerEntry
+  const bandNumberRequired = isBandNumberRequiredForEvent(eventType, eligibilityContext)
+  const allowBreedCreate = publicReferenceOptions?.allowBreedAdd ?? false
+  const allowColorCreate = publicReferenceOptions?.allowColorAdd ?? false
 
   if (mode === 'create') {
     return (
@@ -227,13 +227,17 @@ export function RoosterEntrySlots({
               required={isClassic}
               eligibilityContext={eligibilityContext}
               fieldPrefixForPolicy={`rooster_${cockNumber}`}
+              bandNumberRequired={bandNumberRequired}
+              catalog={catalog}
+              allowBreedCreate={allowBreedCreate}
+              allowColorCreate={allowColorCreate}
             />
           )
         })}
         {eventType === 'derby' ? (
           <Text fontSize="sm" color="fg.muted">
-            Fill at least one cock to save. Complete breed, bloodline, and eligibility
-            details from Edit entry.
+            Fill at least one cock to save. Complete bloodline and eligibility details from
+            Edit entry.
           </Text>
         ) : null}
       </>
@@ -267,6 +271,8 @@ export function RoosterEntrySlots({
           defaults={rooster}
           fieldPrefixForPolicy={fieldPrefixForExistingEdit(rooster.rooster_id)}
           namePrefix={rooster.rooster_id}
+          bandNumberRequired={bandNumberRequired}
+          catalog={catalog}
         />
       ))}
       {missingSlots.map((cockNumber) => (
@@ -279,6 +285,8 @@ export function RoosterEntrySlots({
           title={`New cock #${cockNumber}`}
           eligibilityContext={eligibilityContext}
           fieldPrefixForPolicy={`new_rooster_${cockNumber}`}
+          bandNumberRequired={bandNumberRequired}
+          catalog={catalog}
         />
       ))}
     </>

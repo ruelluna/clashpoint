@@ -63,6 +63,9 @@ describe('createPublicEntrySchema', () => {
           bandNumber: 'B-001',
           weight: 2000,
           handlerName: 'Pedro',
+          breed: 'Talisayon',
+          colorMarking: 'Black',
+          notes: 'Public rooster note',
         },
       ],
     })
@@ -86,6 +89,9 @@ describe('createPublicEntrySchema', () => {
           entryName: 'Thunder',
           bandNumber: 'B-001',
           weight: 2000,
+          breed: 'Talisayon',
+          colorMarking: 'Black',
+          notes: 'Public rooster note',
         },
       ],
     })

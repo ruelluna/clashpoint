@@ -22,7 +22,11 @@ vi.mock('@/features/roosters/service', () => ({
   createRooster: vi.fn(),
 }))
 vi.mock('@/features/reference-values/service', () => ({
-  catalogReferenceValues: vi.fn().mockResolvedValue({ colorMarking: null }),
+  resolveEntryReferenceValues: vi.fn().mockResolvedValue({
+    breed: 'Talisayon',
+    colorMarking: 'Black',
+    bloodline: undefined,
+  }),
 }))
 vi.mock('@/lib/supabase/server', () => ({ createClient }))
 vi.mock('@/lib/supabase/extended', () => ({ createExtendedClient }))

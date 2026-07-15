@@ -1,6 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { hasAdminCredentials, signInAsAdmin } from './fixtures/auth'
+import {
+  fillPublicRoosterCoreFields,
+  fillStaffRoosterCoreFields,
+} from './helpers/rooster-core-fields'
 
 const eventDetailUrl = /\/dashboard\/events\/[0-9a-f-]{36}/
 
@@ -49,6 +53,7 @@ async function fillPublicRegistration(
   await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
   await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
   await page.locator('input[name="rooster_1_weight"]').fill('2000')
+  await fillPublicRoosterCoreFields(page, suffix)
 }
 
 test.describe('Public derby registration @auth', () => {
@@ -103,6 +108,7 @@ test.describe('Public derby registration @auth', () => {
     await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster B ${suffix}`)
     await page.locator('input[name="rooster_1_bandNumber"]').fill(`B2-${suffix}`)
     await page.locator('input[name="rooster_1_weight"]').fill('2100')
+    await fillPublicRoosterCoreFields(page, `${suffix}-b`)
     await page.getByRole('button', { name: 'Submit registration' }).click()
 
     await expect(

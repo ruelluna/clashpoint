@@ -2,6 +2,11 @@ import { notFound } from 'next/navigation'
 
 import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { EventRoostersClient } from '@/features/event-roosters/components/event-roosters-client'
+import { getEntryFormEligibilityContext } from '@/features/eligibility/registration-bridge'
+import {
+  getPublicReferenceOptions,
+  getRoosterEntryCatalog,
+} from '@/features/reference-values/catalog'
 import { getEntryIdByOwnerBarcode } from '@/features/entries/queries'
 import {
   isOwnerBarcodeForEvent,
@@ -37,9 +42,11 @@ export default async function RoostersPage({ params, searchParams }: RoostersPag
     }
   }
 
-  const [registrations, entries] = await Promise.all([
+  const [registrations, entries, eligibilityContext, catalog] = await Promise.all([
     listRegistrationsByEvent(id),
     listWeighingEntrySummaries(id, event.cocks_per_entry),
+    getEntryFormEligibilityContext(id),
+    getRoosterEntryCatalog(),
   ])
 
   return (
@@ -52,6 +59,8 @@ export default async function RoostersPage({ params, searchParams }: RoostersPag
         feeSettings={eventFeeSettingsFromRow(event)}
         registrations={registrations}
         entries={entries}
+        eligibilityContext={eligibilityContext}
+        catalog={catalog}
         highlightId={highlight}
         initialEntryId={initialEntryId}
       />

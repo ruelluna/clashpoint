@@ -39,3 +39,19 @@ export function filterExactReferenceMatches<T extends { name: string }>(
 }
 
 export const ADD_NEW_REFERENCE_VALUE_ID = '__add_new__'
+
+export const createReferenceValueSettingsSchema = z.object({
+  kind: z.enum(['breed', 'color_marking']),
+  name: z.string().trim().min(1).max(200),
+})
+
+export const deleteReferenceValueSchema = z.object({
+  id: z.string().uuid(),
+})
+
+export type CreateReferenceValueSettingsInput = z.infer<
+  typeof createReferenceValueSettingsSchema
+>
+export type DeleteReferenceValueInput = z.infer<typeof deleteReferenceValueSchema>
+
+export const USE_CUSTOM_REFERENCE_VALUE_ID = '__use_custom__'

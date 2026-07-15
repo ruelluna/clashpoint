@@ -18,6 +18,10 @@ import {
   type PublicEntryActionState,
 } from '@/features/public/actions'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
+import type {
+  PublicReferenceOptions,
+  RoosterEntryCatalog,
+} from '@/features/reference-values/catalog'
 
 type PublicEntryFormClientProps = {
   eventId: string
@@ -25,6 +29,8 @@ type PublicEntryFormClientProps = {
   cocksPerEntry: number
   minWeightGrams: number | null
   maxWeightGrams: number | null
+  catalog: RoosterEntryCatalog
+  publicReferenceOptions: PublicReferenceOptions
   eligibilityContext?: EntryFormEligibilityContext | null
 }
 
@@ -41,6 +47,8 @@ export function PublicEntryFormClient({
   cocksPerEntry,
   minWeightGrams,
   maxWeightGrams,
+  catalog,
+  publicReferenceOptions,
   eligibilityContext = null,
 }: PublicEntryFormClientProps) {
   const [formState, formAction, pending] = useActionState(
@@ -138,6 +146,8 @@ export function PublicEntryFormClient({
             mode="create"
             eventType="derby"
             cocksPerEntry={cocksPerEntry}
+            catalog={catalog}
+            publicReferenceOptions={publicReferenceOptions}
             eligibilityContext={eligibilityContext}
           />
 

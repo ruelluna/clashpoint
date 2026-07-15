@@ -8,3 +8,5 @@ export type ReferenceValueSearchResult = {
   id: string
   name: string
 }
+
+export type ReferenceValueListItem = ReferenceValueSearchResult

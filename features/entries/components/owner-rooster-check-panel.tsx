@@ -3,6 +3,7 @@
 import { Box, Link, Stack, Text } from '@chakra-ui/react'
 import NextLink from 'next/link'
 
+import { formatBandNumberForDisplay } from '@/features/entries/band-display'
 import { LAYOUT_GAP } from '@/components/dashboard'
 import type { RegistrationListItem } from '@/features/registrations/types'
 import type { WeighingEntrySummary } from '@/features/weighing/types'
@@ -13,7 +14,13 @@ type OwnerRoosterCheckPanelProps = {
   cocksPerEntry: number
   registrations: Pick<
     RegistrationListItem,
-    'entry_id' | 'cock_number' | 'band_number' | 'handler_name'
+    | 'entry_id'
+    | 'cock_number'
+    | 'band_number'
+    | 'handler_name'
+    | 'breed'
+    | 'color_marking'
+    | 'notes'
   >[]
 }
 
@@ -63,9 +70,17 @@ export function OwnerRoosterCheckPanel({
             {ownerRoosters.map((registration) => (
               <Box as="li" key={`${registration.entry_id}-${registration.cock_number}`}>
                 <Text fontSize="sm">
-                  Cock #{registration.cock_number} · Band {registration.band_number}
+                  Cock #{registration.cock_number} · Band{' '}
+                  {formatBandNumberForDisplay(registration.band_number)}
+                  {registration.breed ? ` · ${registration.breed}` : ''}
+                  {registration.color_marking ? ` · ${registration.color_marking}` : ''}
                   {registration.handler_name ? ` · Handler: ${registration.handler_name}` : ''}
                 </Text>
+                {registration.notes ? (
+                  <Text fontSize="xs" color="fg.muted">
+                    {registration.notes}
+                  </Text>
+                ) : null}
               </Box>
             ))}
           </Stack>

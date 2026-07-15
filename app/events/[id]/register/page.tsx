@@ -11,6 +11,10 @@ import { getRegistrationClosedReason } from '@/features/events/utils'
 import { PublicEntryFormClient } from '@/features/public/components/public-entry-form-client'
 import { PublicEventNav } from '@/features/public/components/public-event-nav'
 import { getPublicRegistrationEvent } from '@/features/public/queries'
+import {
+  getPublicReferenceOptions,
+  getRoosterEntryCatalog,
+} from '@/features/reference-values/catalog'
 import { sanitizeHtml } from '@/lib/sanitize-html'
 
 type PublicRegisterPageProps = {
@@ -40,6 +44,11 @@ export default async function PublicRegisterPage({ params }: PublicRegisterPageP
   const eligibilityContext = await getEntryFormEligibilityContext(id, {
     useAdminClient: true,
   })
+
+  const [catalog, publicReferenceOptions] = await Promise.all([
+    getRoosterEntryCatalog(),
+    getPublicReferenceOptions(),
+  ])
 
   const navEvent = {
     id: event.id,
@@ -170,6 +179,8 @@ export default async function PublicRegisterPage({ params }: PublicRegisterPageP
             cocksPerEntry={event.cocks_per_entry}
             minWeightGrams={event.min_weight_grams}
             maxWeightGrams={event.max_weight_grams}
+            catalog={catalog}
+            publicReferenceOptions={publicReferenceOptions}
             eligibilityContext={eligibilityContext}
           />
         </Stack>

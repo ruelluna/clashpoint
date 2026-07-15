@@ -19,6 +19,8 @@ export async function updateSettingsAction(
     defaultVenue: formData.get('defaultVenue'),
     legalDisclaimer: formData.get('legalDisclaimer'),
     termsAccepted: formData.get('termsAccepted') === 'on',
+    allowPublicBreedAdd: formData.get('allowPublicBreedAdd') === 'on',
+    allowPublicColorAdd: formData.get('allowPublicColorAdd') === 'on',
   })
 
   if (!parsed.success) {

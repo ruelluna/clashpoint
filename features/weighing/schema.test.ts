@@ -77,12 +77,41 @@ describe('createRoosterSchema', () => {
     const result = createRoosterSchema.safeParse({
       eventId,
       entryId,
+      entryName: 'Thunder',
       bandNumber: 'B-101',
       weight: 2150,
+      breed: 'Talisayon',
       colorMarking: 'Red',
+      notes: 'Staff encoded',
     })
 
     expect(result.success).toBe(true)
+  })
+
+  it('requires rooster name', () => {
+    const result = createRoosterSchema.safeParse({
+      eventId,
+      entryId,
+      bandNumber: 'B-101',
+      breed: 'Talisayon',
+      colorMarking: 'Red',
+      notes: 'Staff encoded',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects missing breed, color, or notes', () => {
+    const result = createRoosterSchema.safeParse({
+      eventId,
+      entryId,
+      bandNumber: 'B-101',
+      weight: 2150,
+      colorMarking: 'Red',
+      notes: 'Staff encoded',
+    })
+
+    expect(result.success).toBe(false)
   })
 
   it('rejects missing band number', () => {

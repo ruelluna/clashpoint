@@ -8,6 +8,8 @@ describe('updateSettingsSchema', () => {
     defaultVenue: 'Main Arena',
     legalDisclaimer: 'Licensed derby operators only.',
     termsAccepted: true,
+    allowPublicBreedAdd: true,
+    allowPublicColorAdd: true,
   }
 
   it('accepts valid settings input', () => {

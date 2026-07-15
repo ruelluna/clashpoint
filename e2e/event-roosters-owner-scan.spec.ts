@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { hasAdminCredentials, signInAsAdmin } from './fixtures/auth'
+import { fillStaffRoosterCoreFields } from './helpers/rooster-core-fields'
 
 const eventDetailUrl = /\/dashboard\/events\/[0-9a-f-]{36}/
 
@@ -79,6 +80,7 @@ test.describe('Event roosters owner scan @auth', () => {
     await expect(ownerPicker).toHaveValue(new RegExp(ownerName))
 
     await page.locator('input[name="bandNumber"]').fill(bandNumber)
+    await fillStaffRoosterCoreFields(page, suffix)
     await page.getByRole('button', { name: 'Add rooster' }).click()
 
     await page.waitForURL(new RegExp(`/dashboard/events/${eventId}/roosters/[^/]+/print`))

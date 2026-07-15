@@ -1,26 +1,34 @@
 import { z } from 'zod'
 
 import {
-  createEntrySchema,
+  buildCreateEntrySchema,
   entryMetadataSchema,
+  isBandNumberRequiredForEvent,
   parseCreateEntryFromFormData,
   roosterEntryItemSchema,
 } from '@/features/entries/schema'
 
-export const createPublicEntrySchema = createEntrySchema
-  .omit({
-    referredByPromoterId: true,
-    competitorId: true,
-    entrySource: true,
-  })
-  .extend({
-    entrySource: z.literal('online'),
-  })
+export function buildCreatePublicEntrySchema(bandingRequired: boolean) {
+  return buildCreateEntrySchema(bandingRequired)
+    .omit({
+      referredByPromoterId: true,
+      competitorId: true,
+      entrySource: true,
+    })
+    .extend({
+      entrySource: z.literal('online'),
+    })
+}
+
+export const createPublicEntrySchema = buildCreatePublicEntrySchema(true)
 
 export type CreatePublicEntryInput = z.infer<typeof createPublicEntrySchema>
 
-export function parsePublicEntryFromFormData(formData: FormData) {
-  const parsed = parseCreateEntryFromFormData(formData)
+export function parsePublicEntryFromFormData(
+  formData: FormData,
+  options?: { bandingRequired?: boolean }
+) {
+  const parsed = parseCreateEntryFromFormData(formData, options)
   const metadataResult = entryMetadataSchema
     .omit({
       referredByPromoterId: true,

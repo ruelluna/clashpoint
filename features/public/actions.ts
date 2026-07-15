@@ -8,10 +8,10 @@ import {
 } from '@/features/eligibility/registration-bridge'
 import { isEligibilityFieldEnabled } from '@/lib/derby/eligibility-fields'
 import type { EligibilityFieldKey } from '@/lib/derby/eligibility-fields'
-import { validateEntryRosterCount } from '@/features/entries/schema'
+import { validateEntryRosterCount, isBandNumberRequiredForEvent } from '@/features/entries/schema'
 import { validateRoosterAgainstPolicy } from '@/features/entries/policy-validation'
 import {
-  createPublicEntrySchema,
+  buildCreatePublicEntrySchema,
   parsePublicEntryFromFormData,
 } from '@/features/public/schema'
 import { createPublicEntryWithRoosters } from '@/features/public/service'
@@ -53,7 +53,15 @@ export async function createPublicEntryAction(
   _prev: PublicEntryActionState,
   formData: FormData
 ): Promise<PublicEntryActionState> {
-  const parsedForm = parsePublicEntryFromFormData(formData)
+  const event = await getPublicRegistrationEvent(formData.get('eventId')?.toString() ?? '')
+  if (!event) return { error: 'Event not found' }
+
+  const eligibilityContext = await getEntryFormEligibilityContext(event.id, {
+    useAdminClient: true,
+  })
+  const bandingRequired = isBandNumberRequiredForEvent('derby', eligibilityContext)
+
+  const parsedForm = parsePublicEntryFromFormData(formData, { bandingRequired })
   if (parsedForm.parseErrors.length > 0 || !parsedForm.metadata) {
     return { error: parsedForm.parseErrors[0] ?? 'Invalid entry details' }
   }
@@ -64,13 +72,10 @@ export async function createPublicEntryAction(
     roosters: parsedForm.roosters,
   }
 
-  const schemaResult = createPublicEntrySchema.safeParse(createInput)
+  const schemaResult = buildCreatePublicEntrySchema(bandingRequired).safeParse(createInput)
   if (!schemaResult.success) {
     return { error: schemaResult.error.issues[0]?.message ?? 'Invalid input' }
   }
-
-  const event = await getPublicRegistrationEvent(schemaResult.data.eventId)
-  if (!event) return { error: 'Event not found' }
 
   const countError = validateEntryRosterCount(
     schemaResult.data.roosters.length,
@@ -79,10 +84,6 @@ export async function createPublicEntryAction(
   )
   if (countError) return { error: countError }
 
-  const eligibilityContext = await getEntryFormEligibilityContext(
-    schemaResult.data.eventId,
-    { useAdminClient: true }
-  )
   const weightError = validateCreateWeightOnly(
     schemaResult.data.roosters,
     eligibilityContext

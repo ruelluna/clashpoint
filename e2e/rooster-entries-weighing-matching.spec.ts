@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { hasAdminCredentials, signInAsAdmin } from './fixtures/auth'
+import { fillStaffRoosterCoreFields } from './helpers/rooster-core-fields'
 
 const eventDetailUrl = /\/dashboard\/events\/[0-9a-f-]{36}/
 
@@ -35,8 +36,11 @@ async function registerOwner(page: Page, eventId: string, ownerName: string) {
 
 async function addRooster(page: Page, eventId: string, band: string) {
   await page.goto(`/dashboard/events/${eventId}/roosters`)
-  await page.locator('select[name="entryId"]').selectOption({ index: 1 })
+  const ownerPicker = page.getByTestId('event-owner-entry-picker').getByRole('combobox')
+  await ownerPicker.click()
+  await page.getByRole('option').first().click()
   await page.locator('input[name="bandNumber"]').fill(band)
+  await fillStaffRoosterCoreFields(page, band)
   await page.getByRole('button', { name: 'Add rooster' }).click()
   await expect(page.getByText(band)).toBeVisible({ timeout: 15_000 })
 }

@@ -3,6 +3,7 @@ import 'server-only'
 import { createEntryWithRoosters } from '@/features/entries/service'
 import type { CreatePublicEntryInput } from '@/features/public/schema'
 import { getPublicRegistrationEvent } from '@/features/public/queries'
+import { getPublicReferenceOptions } from '@/features/reference-values/catalog'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const ADMIN_WRITE = { useAdminClient: true } as const
@@ -23,10 +24,15 @@ export async function createPublicEntryWithRoosters(
     return { error: 'Online registration is only available for derby events' }
   }
 
+  const publicReferenceOptions = await getPublicReferenceOptions()
+
   const result = await createEntryWithRoosters(
     null,
     { ...input, competitorId: undefined },
-    ADMIN_WRITE
+    {
+      ...ADMIN_WRITE,
+      catalogResolution: { mode: 'public', ...publicReferenceOptions },
+    }
   )
   if (result.error || !result.entryId) {
     return { error: result.error ?? 'Failed to register entry' }
