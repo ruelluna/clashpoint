@@ -185,6 +185,35 @@ export async function getCompetitor(id: string): Promise<CompetitorSearchResult 
   )
 }
 
+export type PublicGameFarmSearchResult = {
+  id: string
+  displayName: string
+}
+
+export async function searchPublicGameFarms(
+  query: string,
+  limit = 10
+): Promise<PublicGameFarmSearchResult[]> {
+  const trimmed = query.trim()
+  if (trimmed.length < 2) return []
+
+  const supabase = await createExtendedClient()
+  const { data, error } = await supabase
+    .from('competitors')
+    .select('id, display_name')
+    .is('deleted_at', null)
+    .ilike('display_name', `%${trimmed}%`)
+    .order('display_name', { ascending: true })
+    .limit(limit)
+
+  if (error) throw error
+
+  return ((data ?? []) as Array<{ id: string; display_name: string }>).map((row) => ({
+    id: row.id,
+    displayName: row.display_name,
+  }))
+}
+
 export async function findCompetitorByDisplayName(
   displayName: string
 ): Promise<CompetitorSearchResult | null> {

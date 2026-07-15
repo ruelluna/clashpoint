@@ -16,6 +16,7 @@ type RoosterEntrySlotsProps = {
   mode: 'create' | 'edit'
   eventType: 'classic' | 'derby'
   cocksPerEntry: number
+  slotCount?: number
   eligibilityContext?: EntryFormEligibilityContext | null
   existingRoosters?: EntryRoosterEditItem[]
 }
@@ -204,10 +205,12 @@ export function RoosterEntrySlots({
   mode,
   eventType,
   cocksPerEntry,
+  slotCount: slotCountOverride,
   eligibilityContext = null,
   existingRoosters = [],
 }: RoosterEntrySlotsProps) {
-  const slotCount = eventType === 'classic' ? 1 : cocksPerEntry
+  const slotCount =
+    slotCountOverride ?? (eventType === 'classic' ? 1 : cocksPerEntry)
 
   if (mode === 'create') {
     return (

@@ -5,7 +5,11 @@ import {
   getRegistrationClosedReason,
   isRegistrationOpen,
 } from '@/features/events/utils'
-import { createPublicEntrySchema } from '@/features/public/schema'
+import {
+  createPublicOwnerSchema,
+  createPublicRoostersSchema,
+  verifyOwnerVerificationSchema,
+} from '@/features/public/schema'
 
 describe('normalizeEntryIdentity', () => {
   it('trims, collapses whitespace, and lowercases', () => {
@@ -49,14 +53,53 @@ describe('getRegistrationClosedReason', () => {
   })
 })
 
-describe('createPublicEntrySchema', () => {
-  it('forces online entry source with contact and per-rooster handler', () => {
-    const parsed = createPublicEntrySchema.safeParse({
+describe('createPublicOwnerSchema', () => {
+  it('requires email for new public game farm registration', () => {
+    const parsed = createPublicOwnerSchema.safeParse({
       eventId: '00000000-0000-4000-8000-000000000099',
       ownerName: 'Farm Alpha',
-      contactFullName: 'Juan Dela Cruz',
-      contactDesignation: 'Manager',
-      entrySource: 'online',
+      email: 'owner@example.com',
+    })
+
+    expect(parsed.success).toBe(true)
+  })
+
+  it('rejects missing email', () => {
+    const parsed = createPublicOwnerSchema.safeParse({
+      eventId: '00000000-0000-4000-8000-000000000099',
+      ownerName: 'Farm Alpha',
+    })
+
+    expect(parsed.success).toBe(false)
+  })
+})
+
+describe('verifyOwnerVerificationSchema', () => {
+  it('requires a 6-digit code', () => {
+    const parsed = verifyOwnerVerificationSchema.safeParse({
+      eventId: '00000000-0000-4000-8000-000000000099',
+      competitorId: '00000000-0000-4000-8000-000000000001',
+      code: '123456',
+    })
+
+    expect(parsed.success).toBe(true)
+  })
+
+  it('rejects short codes', () => {
+    const parsed = verifyOwnerVerificationSchema.safeParse({
+      eventId: '00000000-0000-4000-8000-000000000099',
+      competitorId: '00000000-0000-4000-8000-000000000001',
+      code: '123',
+    })
+
+    expect(parsed.success).toBe(false)
+  })
+})
+
+describe('createPublicRoostersSchema', () => {
+  it('requires at least one rooster with handler', () => {
+    const parsed = createPublicRoostersSchema.safeParse({
+      eventId: '00000000-0000-4000-8000-000000000099',
       roosters: [
         {
           entryName: 'Thunder',
@@ -68,34 +111,5 @@ describe('createPublicEntrySchema', () => {
     })
 
     expect(parsed.success).toBe(true)
-    if (parsed.success) {
-      expect(parsed.data.entrySource).toBe('online')
-      expect(parsed.data.contactFullName).toBe('Juan Dela Cruz')
-      expect(parsed.data.roosters[0]?.handlerName).toBe('Pedro')
-    }
-  })
-
-  it('rejects staff-only fields when included', () => {
-    const parsed = createPublicEntrySchema.safeParse({
-      eventId: '00000000-0000-4000-8000-000000000099',
-      ownerName: 'Farm Alpha',
-      entrySource: 'online',
-      referredByPromoterId: '00000000-0000-4000-8000-000000000001',
-      roosters: [
-        {
-          entryName: 'Thunder',
-          bandNumber: 'B-001',
-          weight: 2000,
-        },
-      ],
-    })
-
-    expect(parsed.success).toBe(true)
-    if (parsed.success) {
-      expect(
-        'referredByPromoterId' in parsed.data &&
-          parsed.data.referredByPromoterId
-      ).toBeFalsy()
-    }
   })
 })
