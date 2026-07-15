@@ -353,7 +353,10 @@ export type ParsedCreateEntryForm = {
   parseErrors: string[]
 }
 
-export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEntryForm {
+export function parseRosterSlotsFromCreateFormData(formData: FormData): {
+  roosters: RoosterEntryItemInput[]
+  parseErrors: string[]
+} {
   const parseErrors: string[] = []
   const roosterCount = Number.parseInt(
     formData.get('roosterSlotCount')?.toString() ?? '1',
@@ -387,6 +390,12 @@ export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEn
       parseErrors.push(parsed.error.issues[0]?.message ?? `Invalid rooster slot ${index}`)
     }
   }
+
+  return { roosters, parseErrors }
+}
+
+export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEntryForm {
+  const { roosters, parseErrors } = parseRosterSlotsFromCreateFormData(formData)
 
   const metadataResult = entryMetadataSchema.safeParse({
     eventId: formData.get('eventId'),

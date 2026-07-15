@@ -8,6 +8,7 @@ import {
 import {
   createPublicOwnerSchema,
   createPublicRoostersSchema,
+  parsePublicRoostersFromFormData,
   verifyOwnerVerificationSchema,
 } from '@/features/public/schema'
 
@@ -111,5 +112,22 @@ describe('createPublicRoostersSchema', () => {
     })
 
     expect(parsed.success).toBe(true)
+  })
+})
+
+describe('parsePublicRoostersFromFormData', () => {
+  it('parses rooster slots without owner metadata fields', () => {
+    const formData = new FormData()
+    formData.set('eventId', '00000000-0000-4000-8000-000000000099')
+    formData.set('roosterSlotCount', '1')
+    formData.set('rooster_1_entryName', 'Thunder')
+    formData.set('rooster_1_bandNumber', 'B-001')
+    formData.set('rooster_1_weight', '2000')
+    formData.set('handlerName_rooster_1', 'Pedro')
+
+    const parsed = parsePublicRoostersFromFormData(formData)
+
+    expect(parsed.parseErrors).toEqual([])
+    expect(parsed.schemaResult.success).toBe(true)
   })
 })

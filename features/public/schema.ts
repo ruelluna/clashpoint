@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import {
   contactNumberSchema,
-  parseCreateEntryFromFormData,
+  parseRosterSlotsFromCreateFormData,
   roosterEntryItemSchema,
 } from '@/features/entries/schema'
 
@@ -69,16 +69,17 @@ export function parsePublicOwnerFromFormData(formData: FormData) {
 }
 
 export function parsePublicRoostersFromFormData(formData: FormData) {
-  const parsed = parseCreateEntryFromFormData(formData)
+  const { roosters, parseErrors } = parseRosterSlotsFromCreateFormData(formData)
   const eventId = formData.get('eventId')?.toString()
 
   const schemaResult = createPublicRoostersSchema.safeParse({
     eventId,
-    roosters: parsed.roosters,
+    roosters,
   })
 
   return {
-    ...parsed,
+    roosters,
+    parseErrors,
     schemaResult,
   }
 }
