@@ -61,7 +61,7 @@ create table public.competitor_associations (
   primary key (competitor_id, association_id)
 );
 
-create sequence public.rooster_code_seq start 1;
+create sequence if not exists public.rooster_code_seq start 1;
 
 create table public.roosters (
   id uuid primary key default gen_random_uuid(),
