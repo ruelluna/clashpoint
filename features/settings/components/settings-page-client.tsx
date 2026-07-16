@@ -1,23 +1,30 @@
 'use client'
 
-import { Box, Button, Checkbox, Input, Stack, Text, Textarea } from '@chakra-ui/react'
+import { Button, Checkbox, Input, Stack, Text, Textarea } from '@chakra-ui/react'
 import { useActionState } from 'react'
 
 import { LAYOUT_GAP, FormField, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { ReferenceOptionsManager } from '@/features/settings/components/reference-options-manager'
 import {
   updateSettingsAction,
   type SettingsActionState,
 } from '@/features/settings/actions'
 import type { SystemSettings } from '@/features/settings/schema'
+import type { RoosterEntryCatalog } from '@/features/reference-values/catalog'
 
-export function SettingsPageClient({ settings }: { settings: SystemSettings }) {
+type SettingsPageClientProps = {
+  settings: SystemSettings
+  catalog: RoosterEntryCatalog
+}
+
+export function SettingsPageClient({ settings, catalog }: SettingsPageClientProps) {
   const [state, action, pending] = useActionState(updateSettingsAction, {} as SettingsActionState)
 
   return (
-    <PageStack maxW="xl">
+    <PageStack maxW="2xl">
       <PageHeader
         title="Settings"
-        description="Organization and compliance settings."
+        description="Organization, compliance, and rooster catalog settings."
       />
 
       <PanelCard>
@@ -46,6 +53,22 @@ export function SettingsPageClient({ settings }: { settings: SystemSettings }) {
               <Checkbox.Control />
               <Checkbox.Label>Terms of use accepted for this organization</Checkbox.Label>
             </Checkbox.Root>
+            <Checkbox.Root
+              defaultChecked={settings.allowPublicBreedAdd}
+              data-testid="settings-allow-public-breed-add"
+            >
+              <Checkbox.HiddenInput name="allowPublicBreedAdd" />
+              <Checkbox.Control />
+              <Checkbox.Label>Allow public registrants to add new breeds</Checkbox.Label>
+            </Checkbox.Root>
+            <Checkbox.Root
+              defaultChecked={settings.allowPublicColorAdd}
+              data-testid="settings-allow-public-color-add"
+            >
+              <Checkbox.HiddenInput name="allowPublicColorAdd" />
+              <Checkbox.Control />
+              <Checkbox.Label>Allow public registrants to add new colors</Checkbox.Label>
+            </Checkbox.Root>
             <Button type="submit" loading={pending} alignSelf="flex-start">
               Save settings
             </Button>
@@ -61,6 +84,24 @@ export function SettingsPageClient({ settings }: { settings: SystemSettings }) {
             ) : null}
           </Stack>
         </form>
+      </PanelCard>
+
+      <PanelCard>
+        <ReferenceOptionsManager
+          kind="breed"
+          title="Breed options"
+          items={catalog.breeds}
+          testIdPrefix="settings-breed-options"
+        />
+      </PanelCard>
+
+      <PanelCard>
+        <ReferenceOptionsManager
+          kind="color_marking"
+          title="Color options"
+          items={catalog.colors}
+          testIdPrefix="settings-color-options"
+        />
       </PanelCard>
     </PageStack>
   )

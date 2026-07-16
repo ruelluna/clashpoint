@@ -12,7 +12,7 @@ type RegistrationListRow = RegistrationListItem & {
     entry_number: string
     entry_name: string
   } | null
-  roosters: { rooster_code: string } | null
+  roosters: { rooster_code: string; breed: string | null } | null
 }
 
 type RegistrationDetailRow = RoosterEventRegistrationRow & {
@@ -128,6 +128,9 @@ export async function listRegistrationsByEvent(
       registry_rooster_id,
       cock_number,
       band_number,
+      handler_name,
+      color_marking,
+      notes,
       registration_status,
       approval_status,
       eligibility_status,
@@ -135,7 +138,7 @@ export async function listRegistrationsByEvent(
       reg_payment_status,
       created_at,
       entries ( entry_number, entry_name ),
-      roosters:registry_rooster_id ( rooster_code )
+      roosters:registry_rooster_id ( rooster_code, breed )
     `
     )
     .eq('event_id', eventId)
@@ -150,6 +153,9 @@ export async function listRegistrationsByEvent(
     registry_rooster_id: row.registry_rooster_id,
     cock_number: row.cock_number,
     band_number: row.band_number,
+    handler_name: row.handler_name,
+    color_marking: row.color_marking,
+    notes: row.notes,
     registration_status: row.registration_status,
     approval_status: row.approval_status,
     eligibility_status: row.eligibility_status,
@@ -159,6 +165,7 @@ export async function listRegistrationsByEvent(
     entry_number: row.entries?.entry_number ?? '',
     entry_name: row.entries?.entry_name ?? '',
     rooster_code: row.roosters?.rooster_code ?? null,
+    breed: row.roosters?.breed ?? null,
   }))
 }
 

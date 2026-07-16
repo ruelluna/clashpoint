@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { hasAdminCredentials, signInAsAdmin } from './fixtures/auth'
+import {
+  fillBreedCombobox,
+  fillRoosterColorField,
+  fillRoosterNotesField,
+} from './helpers/rooster-core-fields'
 
 const eventDetailUrl = /\/dashboard\/events\/[0-9a-f-]{36}/
 
@@ -60,15 +65,17 @@ test.describe('Rooster entry eligibility @auth', () => {
     const entryId = await registerDerbyOwner(page, eventId, `Owner ${suffix}`)
 
     await page.goto(`/dashboard/events/${eventId}/rooster-entries/${entryId}/edit`)
-    await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
-    await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
-    await page.locator('input[name="rooster_1_weight"]').fill('1500')
+    await page.locator('input[name="new_rooster_1_entryName"]').fill(`Rooster ${suffix}`)
+    await page.locator('input[name="new_rooster_1_bandNumber"]').fill(`B-${suffix}`)
+    await page.locator('input[name="new_rooster_1_weight"]').fill('1500')
+    await fillBreedCombobox(page, 'Talisayon')
+    await fillRoosterColorField(page, 'Black')
+    await fillRoosterNotesField(page, `Cock note ${suffix}`)
     await page.getByRole('button', { name: 'Save entry' }).click()
 
     await expect(page.getByText('Weight is below the event minimum', { exact: false })).toBeVisible()
 
-    await page.locator('input[name="rooster_1_weight"]').fill('2000')
-    await page.locator('textarea[name="notes_rooster_1"]').fill(`Cock note ${suffix}`)
+    await page.locator('input[name="new_rooster_1_weight"]').fill('2000')
     await page.getByRole('button', { name: 'Save entry' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/roosters`))
@@ -89,31 +96,34 @@ test.describe('Rooster entry eligibility @auth', () => {
     await expect(page.getByText(`B-${suffix}`)).toBeVisible({ timeout: 15_000 })
   })
 
-  test('adds new color marking through dialog on entry edit', async ({ page }) => {
+  test('staff entry edit uses color from settings catalog', async ({ page }) => {
     test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
 
     const suffix = uniqueSuffix()
-    const eventName = `E2E Add New Color ${suffix}`
-    const newColor = `E2E Color ${suffix}`
+    const eventName = `E2E Catalog Color ${suffix}`
+    const catalogColor = `E2E Color ${suffix}`
 
     await signInAsAdmin(page)
+
+    await page.goto('/dashboard/settings')
+    const colorSection = page.getByTestId('settings-color-options')
+    await colorSection.locator('input').fill(catalogColor)
+    await colorSection.getByRole('button', { name: 'Add' }).click()
+    await expect(colorSection.getByText(catalogColor)).toBeVisible({ timeout: 10_000 })
+
     const eventId = await createDerbyEventWithEligibility(page, eventName)
     const entryId = await registerDerbyOwner(page, eventId, `Owner ${suffix}`)
 
     await page.goto(`/dashboard/events/${eventId}/rooster-entries/${entryId}/edit`)
-    await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
-    await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
-    await page.locator('input[name="rooster_1_weight"]').fill('2000')
-
-    const colorCombobox = page.getByTestId('reference-value-color_marking').getByRole('combobox')
-    await colorCombobox.fill(newColor)
-    await expect(page.getByRole('option', { name: 'Add New' })).toBeVisible({ timeout: 5000 })
-    await page.getByRole('option', { name: 'Add New' }).click()
-    await expect(page.getByRole('dialog', { name: 'Add Color / marking' })).toBeVisible()
-    await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
-    await expect(colorCombobox).toHaveValue(newColor)
+    await page.locator('input[name="new_rooster_1_entryName"]').fill(`Rooster ${suffix}`)
+    await page.locator('input[name="new_rooster_1_bandNumber"]').fill(`B-${suffix}`)
+    await page.locator('input[name="new_rooster_1_weight"]').fill('2000')
+    await fillBreedCombobox(page, 'Buyugon')
+    await fillRoosterColorField(page, catalogColor)
+    await fillRoosterNotesField(page, `Color test ${suffix}`)
 
     await page.getByRole('button', { name: 'Save entry' }).click()
     await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/roosters`))
+    await expect(page.getByText(catalogColor)).toBeVisible({ timeout: 15_000 })
   })
 })

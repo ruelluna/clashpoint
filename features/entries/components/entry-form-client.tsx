@@ -31,6 +31,7 @@ import {
 import { RoosterEntrySlots } from '@/features/entries/components/rooster-entry-slots'
 import { ENTRY_SOURCE_LABELS } from '@/features/entries/schema'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
+import type { RoosterEntryCatalog } from '@/features/reference-values/catalog'
 import type { PromoterListItem } from '@/features/promoters/types'
 
 type EntryFormClientProps = {
@@ -41,6 +42,7 @@ type EntryFormClientProps = {
   cocksPerEntry: number
   minWeightGrams: number | null
   maxWeightGrams: number | null
+  catalog: RoosterEntryCatalog
   eligibilityContext?: EntryFormEligibilityContext | null
 }
 
@@ -73,6 +75,7 @@ export function EntryFormClient({
   cocksPerEntry,
   minWeightGrams,
   maxWeightGrams,
+  catalog,
   eligibilityContext = null,
 }: EntryFormClientProps) {
   const [formState, formAction, pending] = useActionState(
@@ -182,6 +185,7 @@ export function EntryFormClient({
             mode="create"
             eventType={eventType}
             cocksPerEntry={cocksPerEntry}
+            catalog={catalog}
             eligibilityContext={eligibilityContext}
           />
 

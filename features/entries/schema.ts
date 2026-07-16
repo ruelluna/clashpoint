@@ -1,7 +1,13 @@
 import { z } from 'zod'
 
+import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
 import { entryRoosterPolicyFieldsSchema } from '@/features/entries/policy-validation'
+import {
+  parseRoosterBreedFromForm,
+  parseRoosterColorFromForm,
+} from '@/features/entries/rooster-color'
 import type { EntrySource, RegistrationStatus } from '@/features/entries/types'
+import { isEligibilityFieldEnabled } from '@/lib/derby/eligibility-fields'
 import {
   ageClassSchema,
   breedingRelationshipSchema,
@@ -35,6 +41,12 @@ const optionalText = (max: number) =>
     .optional()
     .or(z.literal(''))
     .transform((value) => value || undefined)
+
+const requiredText = (max: number, message: string) =>
+  z
+    .string()
+    .min(1, message)
+    .max(max, `Must be at most ${max} characters`)
 
 const optionalEmail = z
   .string()
@@ -82,15 +94,46 @@ export const weightGramsSchema = z.coerce
   .int('Weight must be a whole number of grams')
   .positive('Weight must be greater than zero')
 
-export const roosterEntryItemSchema = z.object({
-  cockIndex: z.number().int().positive().optional(),
-  entryName: z.string().min(1, 'Entry name is required').max(200),
-  bandNumber: z.string().min(1, 'Band number is required').max(50),
-  weight: weightGramsSchema,
-  handlerName: optionalText(200),
-  colorMarking: optionalText(200),
-  notes: optionalText(2000),
-})
+export const roosterColorMarkingSchema = z
+  .string()
+  .min(1, 'Color is required')
+  .max(200, 'Color must be at most 200 characters')
+
+const optionalBandNumberSchema = z
+  .string()
+  .max(50)
+  .optional()
+  .or(z.literal(''))
+  .transform((value) => value?.trim() || undefined)
+
+export function isBandNumberRequiredForEvent(
+  eventType: string,
+  eligibilityContext: EntryFormEligibilityContext | null | undefined
+): boolean {
+  if (eventType !== 'derby') return true
+  if (!eligibilityContext) return false
+  return (
+    isEligibilityFieldEnabled(eligibilityContext.enabledFields, 'banding') &&
+    eligibilityContext.bandingRequired
+  )
+}
+
+export function buildRoosterEntryItemSchema(bandingRequired: boolean) {
+  return z.object({
+    cockIndex: z.number().int().positive().optional(),
+    entryName: requiredText(200, 'Rooster name is required'),
+    bandNumber: bandingRequired
+      ? z.string().min(1, 'Band number is required').max(50)
+      : optionalBandNumberSchema,
+    weight: weightGramsSchema,
+    handlerName: optionalText(200),
+    breed: requiredText(100, 'Breed is required'),
+    colorMarking: roosterColorMarkingSchema,
+    notes: requiredText(2000, 'Notes are required'),
+  })
+}
+
+export const roosterEntryItemSchema = buildRoosterEntryItemSchema(true)
 
 export const entryRoosterRegistryFieldsSchema = {
   competitionClass: competitionClassSchema.optional(),
@@ -102,7 +145,6 @@ export const entryRoosterRegistryFieldsSchema = {
     .or(z.literal(''))
     .transform((value) => value || undefined),
   hatchDateIsEstimated: z.coerce.boolean().optional(),
-  breed: optionalText(100),
   bloodline: optionalText(200),
   countryOfOrigin: optionalText(100),
   provinceOfOrigin: optionalText(100),
@@ -174,6 +216,14 @@ export const createEntrySchema = entryMetadataSchema.extend({
   roosters: z.array(roosterEntryItemSchema).min(1, 'At least one rooster is required'),
 })
 
+export function buildCreateEntrySchema(bandingRequired: boolean) {
+  return entryMetadataSchema.extend({
+    roosters: z
+      .array(buildRoosterEntryItemSchema(bandingRequired))
+      .min(1, 'At least one rooster is required'),
+  })
+}
+
 export type CreateEntryInput = z.infer<typeof createEntrySchema>
 export type RoosterEntryItemInput = z.infer<typeof roosterEntryItemSchema>
 export type EntryRoosterEditItemInput = z.infer<typeof entryRoosterEditItemSchema>
@@ -237,7 +287,6 @@ function parseRoosterRegistryFieldsFromForm(
     competitionClass: field('competitionClass')?.toString().trim() || undefined,
     hatchDate: hatchDateRaw || undefined,
     hatchDateIsEstimated,
-    breed: field('breed')?.toString().trim() || undefined,
     bloodline: field('bloodline')?.toString().trim() || undefined,
     experienceStatus: field('experienceStatus')?.toString().trim() || undefined,
     originType: field('originType')?.toString().trim() || undefined,
@@ -293,10 +342,21 @@ function parseRoosterPolicyFieldsFromForm(
 
 function slotHasContent(formData: FormData, slotKey: string, mode: 'create' | 'new'): boolean {
   const prefix = mode === 'create' ? `rooster_${slotKey}_` : `new_rooster_${slotKey}_`
+  const policyPrefix = mode === 'create' ? `rooster_${slotKey}` : `new_rooster_${slotKey}`
   const entryName = formData.get(`${prefix}entryName`)?.toString().trim()
   const bandNumber = formData.get(`${prefix}bandNumber`)?.toString().trim()
   const weight = formData.get(`${prefix}weight`)?.toString().trim()
-  return Boolean(entryName || bandNumber || weight)
+  const breed = parseRoosterBreedFromForm(formData, policyPrefix, mode === 'create' ? 'create' : 'edit')
+  const colorMarking = parseRoosterColorFromForm(
+    formData,
+    policyPrefix,
+    mode === 'create' ? 'create' : 'edit'
+  )
+  const notes = formData
+    .get(notesFieldName(mode === 'create' ? 'create' : 'edit', policyPrefix))
+    ?.toString()
+    .trim()
+  return Boolean(entryName || bandNumber || weight || breed || colorMarking || notes)
 }
 
 function parseRoosterSlotFromForm(
@@ -320,8 +380,16 @@ function parseRoosterSlotFromForm(
       mode === 'create' ? 'create' : 'edit',
       policyPrefix
     ),
-    colorMarking:
-      formData.get(`colorMarking_${policyPrefix}`)?.toString().trim() || undefined,
+    breed: parseRoosterBreedFromForm(
+      formData,
+      policyPrefix,
+      mode === 'create' ? 'create' : 'edit'
+    ),
+    colorMarking: parseRoosterColorFromForm(
+      formData,
+      policyPrefix,
+      mode === 'create' ? 'create' : 'edit'
+    ),
     notes: parseRoosterNotesFromForm(formData, mode === 'create' ? 'create' : 'edit', policyPrefix),
     ...parseRoosterRegistryFieldsFromForm(formData, policyPrefix),
   })
@@ -339,7 +407,8 @@ export function parseUpdateEntryRosterFromForm(
     bandNumber: formData.get(`bandNumber_${roosterId}`),
     weight: formData.get(`weight_${roosterId}`),
     handlerName: parseRoosterHandlerFromForm(formData, 'edit', roosterId),
-    colorMarking: formData.get(`colorMarking_${roosterId}`)?.toString().trim() || undefined,
+    breed: parseRoosterBreedFromForm(formData, roosterId, 'edit'),
+    colorMarking: parseRoosterColorFromForm(formData, roosterId, 'edit'),
     notes: parseRoosterNotesFromForm(formData, 'edit', roosterId),
     ...parseRoosterRegistryFieldsFromForm(formData, roosterId),
   })
@@ -353,10 +422,15 @@ export type ParsedCreateEntryForm = {
   parseErrors: string[]
 }
 
-export function parseRosterSlotsFromCreateFormData(formData: FormData): {
+export function parseRosterSlotsFromCreateFormData(
+  formData: FormData,
+  options?: { bandingRequired?: boolean }
+): {
   roosters: RoosterEntryItemInput[]
   parseErrors: string[]
 } {
+  const bandingRequired = options?.bandingRequired ?? true
+  const roosterSchema = buildRoosterEntryItemSchema(bandingRequired)
   const parseErrors: string[] = []
   const roosterCount = Number.parseInt(
     formData.get('roosterSlotCount')?.toString() ?? '1',
@@ -373,14 +447,14 @@ export function parseRosterSlotsFromCreateFormData(formData: FormData): {
     const bandNumber = formData.get(`${prefix}bandNumber`)?.toString().trim()
     const weight = formData.get(`${prefix}weight`)
 
-    const parsed = roosterEntryItemSchema.safeParse({
+    const parsed = roosterSchema.safeParse({
       cockIndex: index,
       entryName,
       bandNumber,
       weight,
       handlerName: parseRoosterHandlerFromForm(formData, 'create', String(index)),
-      colorMarking:
-        formData.get(`colorMarking_rooster_${index}`)?.toString().trim() || undefined,
+      breed: parseRoosterBreedFromForm(formData, String(index), 'create'),
+      colorMarking: parseRoosterColorFromForm(formData, String(index), 'create'),
       notes: parseRoosterNotesFromForm(formData, 'create', String(index)),
     })
 
@@ -394,8 +468,11 @@ export function parseRosterSlotsFromCreateFormData(formData: FormData): {
   return { roosters, parseErrors }
 }
 
-export function parseCreateEntryFromFormData(formData: FormData): ParsedCreateEntryForm {
-  const { roosters, parseErrors } = parseRosterSlotsFromCreateFormData(formData)
+export function parseCreateEntryFromFormData(
+  formData: FormData,
+  options?: { bandingRequired?: boolean }
+): ParsedCreateEntryForm {
+  const { roosters, parseErrors } = parseRosterSlotsFromCreateFormData(formData, options)
 
   const metadataResult = entryMetadataSchema.safeParse({
     eventId: formData.get('eventId'),

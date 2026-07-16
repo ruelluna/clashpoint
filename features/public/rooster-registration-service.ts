@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { addEntryRoosters } from '@/features/entries/service'
-import { newEntryRosterItemSchema, validateEntryRosterCount } from '@/features/entries/schema'
+import type { NewEntryRosterItemInput } from '@/features/entries/schema'
 import {
   getEntryFormEligibilityContext,
   toPolicyValidationContext,
@@ -16,6 +16,7 @@ import {
   clearPublicRegistrationSession,
   getPublicRegistrationSession,
 } from '@/features/public/session-cookie'
+import { getPublicReferenceOptions } from '@/features/reference-values/catalog'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const ADMIN_WRITE = { useAdminClient: true } as const
@@ -46,6 +47,13 @@ function validateCreateWeightOnly(
   return null
 }
 
+function requiredRosterCount(
+  eventType: 'classic' | 'derby',
+  cocksPerEntry: number
+): number {
+  return eventType === 'classic' ? 1 : cocksPerEntry
+}
+
 export async function createPublicRoostersForEntry(
   input: CreatePublicRoostersInput
 ): Promise<{ error?: string; entryNumber?: string; bandNumbers?: string[] }> {
@@ -66,13 +74,19 @@ export async function createPublicRoostersForEntry(
   }
 
   const existingCount = context.roosterCount ?? 0
-  const totalAfter = existingCount + input.roosters.length
-  const countError = validateEntryRosterCount(
-    totalAfter,
-    event.event_type,
-    event.cocks_per_entry
-  )
-  if (countError) return { error: countError }
+  if (existingCount > 0) {
+    return { error: 'Rooster registration for this entry is already complete.' }
+  }
+
+  const expectedCount = requiredRosterCount(event.event_type, event.cocks_per_entry)
+  if (input.roosters.length !== expectedCount) {
+    return {
+      error:
+        event.event_type === 'classic'
+          ? 'Classic events require exactly one rooster'
+          : `Submit all ${event.cocks_per_entry} rooster(s) for this derby entry`,
+    }
+  }
 
   const eligibilityContext = await getEntryFormEligibilityContext(input.eventId, {
     useAdminClient: true,
@@ -80,19 +94,31 @@ export async function createPublicRoostersForEntry(
   const weightError = validateCreateWeightOnly(input.roosters, eligibilityContext)
   if (weightError) return { error: weightError }
 
-  const rosterItems = input.roosters.map((rooster, index) =>
-    newEntryRosterItemSchema.parse({
-      ...rooster,
-      cockIndex: rooster.cockIndex ?? index + 1,
-    })
-  )
+  const rosterItems = input.roosters.map((rooster, index) => ({
+    cockIndex: rooster.cockIndex ?? index + 1,
+    entryName: rooster.entryName,
+    bandNumber: rooster.bandNumber,
+    weight: rooster.weight,
+    handlerName: rooster.handlerName,
+    breed: rooster.breed,
+    colorMarking: rooster.colorMarking,
+    notes: rooster.notes,
+  })) as NewEntryRosterItemInput[]
 
+  const publicReferenceOptions = await getPublicReferenceOptions()
   const result = await addEntryRoosters(
     null,
     input.eventId,
     context.entryId,
     rosterItems,
-    ADMIN_WRITE
+    {
+      ...ADMIN_WRITE,
+      catalogResolution: {
+        mode: 'public',
+        allowBreedAdd: publicReferenceOptions.allowBreedAdd,
+        allowColorAdd: publicReferenceOptions.allowColorAdd,
+      },
+    }
   )
 
   if (result.error) return { error: result.error }

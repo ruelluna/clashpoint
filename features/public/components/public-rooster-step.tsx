@@ -10,23 +10,31 @@ import {
   type PublicRegistrationActionState,
 } from '@/features/public/actions'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
+import type {
+  PublicReferenceOptions,
+  RoosterEntryCatalog,
+} from '@/features/reference-values/catalog'
 
 type PublicRoosterStepProps = {
   eventId: string
   eventName: string
   eventType: 'classic' | 'derby'
   cocksPerEntry: number
+  catalog: RoosterEntryCatalog
+  publicReferenceOptions: PublicReferenceOptions
   entryNumber?: string
-  roosterCount: number
+  roosterCount?: number
   eligibilityContext?: EntryFormEligibilityContext | null
   onComplete: (state: PublicRegistrationActionState) => void
 }
 
 const initialState: PublicRegistrationActionState = {}
 
-function formatWeightRange(minWeightGrams: number | null, maxWeightGrams: number | null) {
-  if (minWeightGrams == null && maxWeightGrams == null) return 'No weight limits configured'
-  return `${minWeightGrams ?? '—'} – ${maxWeightGrams ?? '—'} g`
+function requiredRosterCount(
+  eventType: 'classic' | 'derby',
+  cocksPerEntry: number
+): number {
+  return eventType === 'classic' ? 1 : cocksPerEntry
 }
 
 export function PublicRoosterStep({
@@ -34,8 +42,10 @@ export function PublicRoosterStep({
   eventName,
   eventType,
   cocksPerEntry,
+  catalog,
+  publicReferenceOptions,
   entryNumber,
-  roosterCount,
+  roosterCount = 0,
   eligibilityContext = null,
   onComplete,
 }: PublicRoosterStepProps) {
@@ -50,12 +60,8 @@ export function PublicRoosterStep({
     }
   }, [formState, onComplete])
 
-  const remainingSlots =
-    eventType === 'classic'
-      ? Math.max(0, 1 - roosterCount)
-      : Math.max(0, cocksPerEntry - roosterCount)
-
-  if (remainingSlots === 0) {
+  const expectedCount = requiredRosterCount(eventType, cocksPerEntry)
+  if (roosterCount >= expectedCount) {
     return (
       <Stack gap={4} maxW="2xl" borderWidth="1px" borderColor="border" rounded="lg" p={6}>
         <Text fontSize="lg" fontWeight="semibold">
@@ -63,8 +69,8 @@ export function PublicRoosterStep({
         </Text>
         <Text color="fg.muted">
           {entryNumber
-            ? `Entry #${entryNumber} already has the maximum rooster(s) for this event.`
-            : 'This entry already has the maximum rooster(s) for this event.'}
+            ? `Entry #${entryNumber} already has the required rooster(s) for this event.`
+            : 'This entry already has the required rooster(s) for this event.'}
         </Text>
         <Button asChild variant="outline" alignSelf="flex-start">
           <Link href={`/events/${eventId}`}>Back to event</Link>
@@ -84,7 +90,9 @@ export function PublicRoosterStep({
           {eventName}
         </Text>
         <Text color="fg.muted" fontSize="sm">
-          Add up to {remainingSlots} rooster(s). At least one is required.
+          {eventType === 'classic'
+            ? 'Add the rooster for this entry. Handler name is required; breed, color, and notes are optional.'
+            : `Add all ${cocksPerEntry} rooster(s) in one submission. Handler name is required for each; breed, color, and notes are optional.`}
         </Text>
       </Stack>
 
@@ -102,7 +110,9 @@ export function PublicRoosterStep({
             mode="create"
             eventType={eventType}
             cocksPerEntry={cocksPerEntry}
-            slotCount={remainingSlots}
+            catalog={catalog}
+            publicReferenceOptions={publicReferenceOptions}
+            requireAllSlots={eventType === 'derby'}
             eligibilityContext={eligibilityContext}
           />
 
@@ -119,5 +129,3 @@ export function PublicRoosterStep({
     </Stack>
   )
 }
-
-export { formatWeightRange }

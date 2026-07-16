@@ -20,5 +20,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
       (map.legal_disclaimer as string) ??
       'This platform is for licensed and legally authorized derby operators only.',
     termsAccepted: (map.terms_accepted as boolean) ?? false,
+    allowPublicBreedAdd: (map.allow_public_breed_add as boolean | undefined) ?? true,
+    allowPublicColorAdd: (map.allow_public_color_add as boolean | undefined) ?? true,
   }
 }

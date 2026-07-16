@@ -1,6 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { hasAdminCredentials, signInAsAdmin } from './fixtures/auth'
+import {
+  fillPublicRoosterCoreFields,
+  fillStaffRoosterCoreFields,
+} from './helpers/rooster-core-fields'
 
 const eventDetailUrl = /\/dashboard\/events\/[0-9a-f-]{36}/
 
@@ -33,6 +37,7 @@ async function createOpenPublicEvent(
 
   if (eventType === 'derby') {
     await page.locator('input[name="registrationDeadline"]').fill('2026-12-19T18:00')
+    await page.locator('input[name="cocksPerEntry"]').fill('1')
   }
 
   const eventTypeSelect = page
@@ -66,6 +71,7 @@ async function fillRoosterStep(page: Page, handlerName: string, suffix: string) 
   await page.locator('input[name="rooster_1_entryName"]').fill(`Rooster ${suffix}`)
   await page.locator('input[name="rooster_1_bandNumber"]').fill(`B-${suffix}`)
   await page.locator('input[name="rooster_1_weight"]').fill('2000')
+  await fillPublicRoosterCoreFields(page, suffix)
 }
 
 test.describe('Public staged registration anonymous', () => {

@@ -6,8 +6,8 @@ import {
   isRegistrationOpen,
 } from '@/features/events/utils'
 import {
+  buildCreatePublicRoostersSchema,
   createPublicOwnerSchema,
-  createPublicRoostersSchema,
   parsePublicRoostersFromFormData,
   verifyOwnerVerificationSchema,
 } from '@/features/public/schema'
@@ -97,9 +97,49 @@ describe('verifyOwnerVerificationSchema', () => {
   })
 })
 
-describe('createPublicRoostersSchema', () => {
-  it('requires at least one rooster with handler', () => {
-    const parsed = createPublicRoostersSchema.safeParse({
+describe('buildCreatePublicRoostersSchema', () => {
+  it('requires handler and allows optional breed/color/notes', () => {
+    const parsed = buildCreatePublicRoostersSchema(true, 'derby', 2).safeParse({
+      eventId: '00000000-0000-4000-8000-000000000099',
+      roosters: [
+        {
+          entryName: 'Thunder',
+          bandNumber: 'B-001',
+          weight: 2000,
+          handlerName: 'Pedro',
+        },
+        {
+          entryName: 'Bolt',
+          bandNumber: 'B-002',
+          weight: 2100,
+          handlerName: 'Maria',
+          breed: 'Talisayon',
+          colorMarking: 'Black',
+          notes: 'Public rooster note',
+        },
+      ],
+    })
+
+    expect(parsed.success).toBe(true)
+  })
+
+  it('rejects missing handler', () => {
+    const parsed = buildCreatePublicRoostersSchema(true, 'classic', 1).safeParse({
+      eventId: '00000000-0000-4000-8000-000000000099',
+      roosters: [
+        {
+          entryName: 'Thunder',
+          bandNumber: 'B-001',
+          weight: 2000,
+        },
+      ],
+    })
+
+    expect(parsed.success).toBe(false)
+  })
+
+  it('requires all derby slots', () => {
+    const parsed = buildCreatePublicRoostersSchema(true, 'derby', 2).safeParse({
       eventId: '00000000-0000-4000-8000-000000000099',
       roosters: [
         {
@@ -111,7 +151,7 @@ describe('createPublicRoostersSchema', () => {
       ],
     })
 
-    expect(parsed.success).toBe(true)
+    expect(parsed.success).toBe(false)
   })
 })
 
@@ -125,7 +165,11 @@ describe('parsePublicRoostersFromFormData', () => {
     formData.set('rooster_1_weight', '2000')
     formData.set('handlerName_rooster_1', 'Pedro')
 
-    const parsed = parsePublicRoostersFromFormData(formData)
+    const parsed = parsePublicRoostersFromFormData(formData, {
+      bandingRequired: true,
+      eventType: 'classic',
+      cocksPerEntry: 1,
+    })
 
     expect(parsed.parseErrors).toEqual([])
     expect(parsed.schemaResult.success).toBe(true)

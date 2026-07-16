@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 
 import { searchPublicGameFarms } from '@/features/competitors/queries'
+import { getEntryFormEligibilityContext } from '@/features/eligibility/registration-bridge'
+import { isBandNumberRequiredForEvent } from '@/features/entries/schema'
 import {
   createPublicOwnerRegistration,
   getPublicRegistrationEntryContext,
@@ -135,7 +137,16 @@ export async function registerPublicRoostersAction(
   const event = await getPublicRegistrationEvent(eventId)
   if (!event) return { error: 'Event not found' }
 
-  const parsed = parsePublicRoostersFromFormData(formData)
+  const eligibilityContext = await getEntryFormEligibilityContext(eventId, {
+    useAdminClient: true,
+  })
+  const bandingRequired = isBandNumberRequiredForEvent(event.event_type, eligibilityContext)
+
+  const parsed = parsePublicRoostersFromFormData(formData, {
+    bandingRequired,
+    eventType: event.event_type,
+    cocksPerEntry: event.cocks_per_entry,
+  })
   if (parsed.parseErrors.length > 0) {
     return { error: parsed.parseErrors[0] ?? 'Invalid rooster details' }
   }

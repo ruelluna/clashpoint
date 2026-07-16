@@ -7,10 +7,16 @@ import { useCallback, useState } from 'react'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
 import type { PublicRegistrationActionState } from '@/features/public/actions'
 import { PublicGameFarmStep } from '@/features/public/components/public-game-farm-step'
-import {
-  formatWeightRange,
-  PublicRoosterStep,
-} from '@/features/public/components/public-rooster-step'
+import { PublicRoosterStep } from '@/features/public/components/public-rooster-step'
+import type {
+  PublicReferenceOptions,
+  RoosterEntryCatalog,
+} from '@/features/reference-values/catalog'
+
+function formatWeightRange(minWeightGrams: number | null, maxWeightGrams: number | null) {
+  if (minWeightGrams == null && maxWeightGrams == null) return 'No weight limits configured'
+  return `${minWeightGrams ?? '—'} – ${maxWeightGrams ?? '—'} g`
+}
 
 export type PublicRegistrationSessionContext = {
   entryId?: string
@@ -29,6 +35,8 @@ type PublicRegistrationWizardProps = {
   cocksPerEntry: number
   minWeightGrams: number | null
   maxWeightGrams: number | null
+  catalog: RoosterEntryCatalog
+  publicReferenceOptions: PublicReferenceOptions
   eligibilityContext?: EntryFormEligibilityContext | null
   sessionContext?: PublicRegistrationSessionContext | null
 }
@@ -50,6 +58,8 @@ export function PublicRegistrationWizard({
   cocksPerEntry,
   minWeightGrams,
   maxWeightGrams,
+  catalog,
+  publicReferenceOptions,
   eligibilityContext = null,
   sessionContext = null,
 }: PublicRegistrationWizardProps) {
@@ -138,6 +148,8 @@ export function PublicRegistrationWizard({
           eventName={eventName}
           eventType={eventType}
           cocksPerEntry={cocksPerEntry}
+          catalog={catalog}
+          publicReferenceOptions={publicReferenceOptions}
           entryNumber={entryNumber || sessionContext?.entryNumber}
           roosterCount={roosterCount}
           eligibilityContext={eligibilityContext}

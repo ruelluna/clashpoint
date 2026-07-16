@@ -3,7 +3,17 @@
 import { redirect } from 'next/navigation'
 
 import {
-  createRoosterSchema,
+  parseRoosterBreedFromForm,
+  parseRoosterColorFromForm,
+} from '@/features/entries/rooster-color'
+import {
+  getEntryFormEligibilityContext,
+} from '@/features/eligibility/registration-bridge'
+import {
+  isBandNumberRequiredForEvent,
+} from '@/features/entries/schema'
+import {
+  buildCreateRoosterSchema,
   recordWeightSchema,
   verifyWeightSchema,
 } from '@/features/weighing/schema'
@@ -24,15 +34,26 @@ export async function createRoosterAction(
     'weighing.manage',
   ])
 
+  const eventId = formData.get('eventId')?.toString()
+  if (!eventId) {
+    return { error: 'Event is required' }
+  }
+
+  const eligibilityContext = await getEntryFormEligibilityContext(eventId)
+  const eventType = formData.get('eventType')?.toString() ?? 'derby'
+  const bandingRequired = isBandNumberRequiredForEvent(eventType, eligibilityContext)
+  const createRoosterSchema = buildCreateRoosterSchema(bandingRequired)
+
   const parsed = createRoosterSchema.safeParse({
-    eventId: formData.get('eventId'),
+    eventId,
     entryId: formData.get('entryId'),
-    entryName: formData.get('entryName')?.toString().trim() || formData.get('bandNumber'),
+    entryName: formData.get('entryName')?.toString().trim(),
     bandNumber: formData.get('bandNumber'),
     weight: formData.get('weight'),
     handlerName: formData.get('handlerName')?.toString().trim() || undefined,
-    category: formData.get('category')?.toString().trim() || undefined,
-    colorMarking: formData.get('colorMarking')?.toString().trim() || undefined,
+    breed: parseRoosterBreedFromForm(formData, '', 'staff'),
+    colorMarking: parseRoosterColorFromForm(formData, '', 'staff'),
+    notes: formData.get('notes')?.toString().trim(),
   })
 
   if (!parsed.success) {
@@ -42,12 +63,11 @@ export async function createRoosterAction(
   const result = await createRoosterForEntry(profile.id, parsed.data)
   if (result.error) return { error: result.error }
 
-  const eventId = parsed.data.eventId
-  revalidateEventRoostersPaths(eventId)
+  revalidateEventRoostersPaths(parsed.data.eventId)
 
-  const event = await getEvent(eventId)
+  const event = await getEvent(parsed.data.eventId)
   if (event?.event_type === 'derby' && result.roosterId) {
-    redirect(`/dashboard/events/${eventId}/roosters/${result.roosterId}/print`)
+    redirect(`/dashboard/events/${parsed.data.eventId}/roosters/${result.roosterId}/print`)
   }
 
   return { success: 'Rooster added' }

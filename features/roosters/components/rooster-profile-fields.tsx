@@ -62,6 +62,7 @@ export type RoosterProfileDefaults = {
 type RoosterProfileFieldsProps = {
   fieldSuffix: string
   disabled?: boolean
+  hideBreed?: boolean
   defaults?: RoosterProfileDefaults
 }
 
@@ -72,6 +73,7 @@ function fieldName(suffix: string, name: string) {
 export function RoosterProfileFields({
   fieldSuffix,
   disabled = false,
+  hideBreed = false,
   defaults,
 }: RoosterProfileFieldsProps) {
   return (
@@ -139,15 +141,17 @@ export function RoosterProfileFields({
       </Flex>
 
       <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-        <ReferenceValueCombobox
-          kind="breed"
-          name={fieldName(fieldSuffix, 'breed')}
-          label="Breed"
-          defaultValue={defaults?.breed ?? ''}
-          maxLength={100}
-          disabled={disabled}
-          flex="1"
-        />
+        {hideBreed ? null : (
+          <ReferenceValueCombobox
+            kind="breed"
+            name={fieldName(fieldSuffix, 'breed')}
+            label="Breed"
+            defaultValue={defaults?.breed ?? ''}
+            maxLength={100}
+            disabled={disabled}
+            flex="1"
+          />
+        )}
         <ReferenceValueCombobox
           kind="bloodline"
           name={fieldName(fieldSuffix, 'bloodline')}

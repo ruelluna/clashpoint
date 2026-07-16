@@ -59,6 +59,7 @@ export type RoosterEventRegistrationRow = {
   weight_verified: boolean
   weight_verification_status: WeightStatus | null
   weight_notes: string | null
+  notes: string | null
   created_at: string
   updated_at: string
 }
@@ -71,6 +72,9 @@ export type RegistrationListItem = Pick<
   | 'registry_rooster_id'
   | 'cock_number'
   | 'band_number'
+  | 'handler_name'
+  | 'color_marking'
+  | 'notes'
   | 'registration_status'
   | 'approval_status'
   | 'eligibility_status'
@@ -81,6 +85,7 @@ export type RegistrationListItem = Pick<
   entry_number: string
   entry_name: string
   rooster_code: string | null
+  breed: string | null
 }
 
 export type RegistrationWithRelations = RoosterEventRegistrationRow & {

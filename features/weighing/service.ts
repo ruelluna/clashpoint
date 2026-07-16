@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
+import { resolveRegistrationBandNumber } from '@/features/entries/band-display'
 import { applyRegistrationEligibility } from '@/features/eligibility/registration-bridge'
 import { listCockEntryBarcodesForEvent } from '@/features/entries/queries'
 import { getNextCockEntryBarcode } from '@/features/entries/schema'
@@ -17,7 +18,11 @@ import {
 } from '@/features/weighing/schema'
 import type { WeightStatus } from '@/features/weighing/types'
 import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
-import { catalogReferenceValues } from '@/features/reference-values/service'
+import {
+  ReferenceValueNotInCatalogError,
+  resolveEntryReferenceValues,
+  type CatalogResolutionOptions,
+} from '@/features/reference-values/service'
 import type { AgeClass, BandLevel } from '@/lib/derby/enums'
 import { createExtendedClient } from '@/lib/supabase/extended'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -25,6 +30,7 @@ import { createClient } from '@/lib/supabase/server'
 
 type WriteClientOptions = {
   useAdminClient?: boolean
+  catalogResolution?: CatalogResolutionOptions
 }
 
 async function resolveWriteClient(options?: WriteClientOptions) {
@@ -130,29 +136,46 @@ export async function createRoosterForEntry(
       0
     ) + 1
 
-  const band = input.bandNumber.trim()
-  const { data: bandConflict, error: bandError } = await supabase
-    .from('rooster_event_registrations')
-    .select('id')
-    .eq('event_id', input.eventId)
-    .ilike('band_number', band)
-    .maybeSingle()
+  const userBand = input.bandNumber?.trim() ?? ''
+  const band = resolveRegistrationBandNumber({
+    bandNumber: userBand,
+    entryId: input.entryId,
+    cockNumber: nextCockNumber,
+  })
 
-  if (bandError) return { error: bandError.message }
-  if (bandConflict) {
-    return { error: `Band number ${band} is already registered for this event` }
+  if (userBand) {
+    const { data: bandConflict, error: bandError } = await supabase
+      .from('rooster_event_registrations')
+      .select('id')
+      .eq('event_id', input.eventId)
+      .ilike('band_number', userBand)
+      .maybeSingle()
+
+    if (bandError) return { error: bandError.message }
+    if (bandConflict) {
+      return { error: `Band number ${userBand} is already registered for this event` }
+    }
   }
 
   const ageClass = resolveAgeClass(input)
 
-  const cataloged = await catalogReferenceValues(
-    {
-      breed: input.breed,
-      bloodline: input.bloodline,
-      colorMarking: input.colorMarking,
-    },
-    options
-  )
+  let cataloged: Awaited<ReturnType<typeof resolveEntryReferenceValues>>
+  try {
+    cataloged = await resolveEntryReferenceValues(
+      {
+        breed: input.breed,
+        bloodline: input.bloodline,
+        colorMarking: input.colorMarking,
+      },
+      options?.catalogResolution ?? { mode: 'strict' },
+      { useAdminClient: options?.useAdminClient }
+    )
+  } catch (error) {
+    if (error instanceof ReferenceValueNotInCatalogError) {
+      return { error: error.message }
+    }
+    throw error
+  }
 
   const registryResult = await createRooster(
     actorId,

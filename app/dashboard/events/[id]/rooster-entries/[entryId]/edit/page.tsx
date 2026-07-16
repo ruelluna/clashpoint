@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { EntryEditClient } from '@/features/entries/components/entry-edit-client'
 import { getEntryFormEligibilityContext } from '@/features/eligibility/registration-bridge'
 import { getEntry, listEntryRoostersForEdit } from '@/features/entries/queries'
+import { getRoosterEntryCatalog } from '@/features/reference-values/catalog'
 import { getCompetitor } from '@/features/competitors/queries'
 import { getEvent } from '@/features/events/queries'
 import { listPromoters } from '@/features/promoters/queries'
@@ -18,12 +19,13 @@ export default async function EditRoosterEntryPage({ params }: EditRoosterEntryP
   await requirePermission('entries.manage')
   const { id: eventId, entryId } = await params
 
-  const [event, entry, promoters, roosters, eligibilityContext] = await Promise.all([
+  const [event, entry, promoters, roosters, eligibilityContext, catalog] = await Promise.all([
     getEvent(eventId),
     getEntry(entryId),
     listPromoters('active'),
     listEntryRoostersForEdit(eventId, entryId),
     getEntryFormEligibilityContext(eventId),
+    getRoosterEntryCatalog(),
   ])
 
   if (!event || !entry || entry.event_id !== eventId) notFound()
@@ -47,6 +49,7 @@ export default async function EditRoosterEntryPage({ params }: EditRoosterEntryP
         linkedCompetitor={linkedCompetitor}
         minWeightGrams={minWeightGrams}
         maxWeightGrams={maxWeightGrams}
+        catalog={catalog}
         eligibilityContext={eligibilityContext}
       />
     </EventPageLayout>
