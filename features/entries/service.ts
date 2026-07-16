@@ -181,17 +181,27 @@ export async function createEntry(
     return { error: 'Registrations are only accepted while the event is open' }
   }
 
-  const competitorResult = actorId
-    ? await resolveEntryCompetitor(actorId, input)
-    : { competitorId: null as string | null }
-  if (competitorResult.error) {
-    return { error: competitorResult.error }
+  let competitorId: string | null = null
+  if (actorId) {
+    const competitorResult = await resolveEntryCompetitor(actorId, input)
+    if (competitorResult.error) {
+      return { error: competitorResult.error }
+    }
+    competitorId = competitorResult.competitorId ?? null
+  } else if (input.competitorId) {
+    const competitor = await getCompetitor(input.competitorId, {
+      useAdminClient: options?.useAdminClient,
+    })
+    if (!competitor) {
+      return { error: 'Selected game farm was not found' }
+    }
+    competitorId = competitor.id
   }
 
   const duplicateResult = await assertOwnerNotAlreadyRegistered(
     input.eventId,
     input.ownerName,
-    competitorResult.competitorId,
+    competitorId,
     options
   )
   if (duplicateResult.error) {
@@ -233,7 +243,7 @@ export async function createEntry(
     .insert({
       event_id: input.eventId,
       referred_by_promoter_id: input.referredByPromoterId ?? null,
-      competitor_id: competitorResult.competitorId ?? null,
+      competitor_id: competitorId,
       entry_number: entryNumber,
       entry_name: input.ownerName,
       owner_name: input.ownerName,
@@ -268,7 +278,7 @@ export async function createEntry(
       entry_number: entryNumber,
       entry_name: input.ownerName,
       owner_name: input.ownerName,
-      competitor_id: competitorResult.competitorId ?? null,
+      competitor_id: competitorId,
       owner_barcode: ownerBarcode,
       ...(input.entrySource === 'online' ? { source: 'online' } : {}),
     },
@@ -393,10 +403,11 @@ export async function createEntryWithRooster(
 }
 
 export async function addEntryRoosters(
-  actorId: string,
+  actorId: string | null,
   eventId: string,
   entryId: string,
-  roosters: NewEntryRosterItemInput[]
+  roosters: NewEntryRosterItemInput[],
+  options?: EntryWriteOptions
 ): Promise<{ error?: string; roosterIds?: string[] }> {
   if (roosters.length === 0) return {}
 
@@ -405,7 +416,8 @@ export async function addEntryRoosters(
   for (const rooster of roosters) {
     const roosterResult = await createRoosterForEntry(
       actorId,
-      toCreateRoosterInput(eventId, entryId, rooster)
+      toCreateRoosterInput(eventId, entryId, rooster),
+      options
     )
 
     if (roosterResult.error || !roosterResult.roosterId) {

@@ -172,7 +172,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           />
         ) : null}
 
-        {isDerby ? (
+        {event.is_public ? (
           <PanelCard title="Registration link">
             <RegistrationShareLink eventId={event.id} />
           </PanelCard>

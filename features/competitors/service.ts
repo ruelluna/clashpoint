@@ -10,7 +10,36 @@ import type {
   DeleteCompetitorInput,
   UpdateCompetitorInput,
 } from '@/features/competitors/schema'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createExtendedClient } from '@/lib/supabase/extended'
+
+export async function createPublicCompetitor(
+  input: CreateCompetitorInput
+): Promise<{ error?: string; competitorId?: string }> {
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('competitors')
+    .insert({
+      display_name: input.displayName.trim(),
+      contact_full_name: input.contactFullName ?? null,
+      contact_designation: input.contactDesignation ?? null,
+      contact_number: input.contactNumber ?? null,
+      email: input.email ?? null,
+      address: input.address ?? null,
+      notes: input.notes ?? null,
+      created_by: null,
+      updated_by: null,
+    })
+    .select('id, display_name')
+    .single()
+
+  if (error || !data) {
+    return { error: error?.message ?? 'Failed to create game farm' }
+  }
+
+  return { competitorId: data.id }
+}
 
 export async function createCompetitor(
   actorId: string,

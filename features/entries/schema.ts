@@ -422,10 +422,13 @@ export type ParsedCreateEntryForm = {
   parseErrors: string[]
 }
 
-export function parseCreateEntryFromFormData(
+export function parseRosterSlotsFromCreateFormData(
   formData: FormData,
   options?: { bandingRequired?: boolean }
-): ParsedCreateEntryForm {
+): {
+  roosters: RoosterEntryItemInput[]
+  parseErrors: string[]
+} {
   const bandingRequired = options?.bandingRequired ?? true
   const roosterSchema = buildRoosterEntryItemSchema(bandingRequired)
   const parseErrors: string[] = []
@@ -461,6 +464,15 @@ export function parseCreateEntryFromFormData(
       parseErrors.push(parsed.error.issues[0]?.message ?? `Invalid rooster slot ${index}`)
     }
   }
+
+  return { roosters, parseErrors }
+}
+
+export function parseCreateEntryFromFormData(
+  formData: FormData,
+  options?: { bandingRequired?: boolean }
+): ParsedCreateEntryForm {
+  const { roosters, parseErrors } = parseRosterSlotsFromCreateFormData(formData, options)
 
   const metadataResult = entryMetadataSchema.safeParse({
     eventId: formData.get('eventId'),

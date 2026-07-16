@@ -20,6 +20,7 @@ type RoosterEntrySlotsProps = {
   cocksPerEntry: number
   catalog: RoosterEntryCatalog
   publicReferenceOptions?: PublicReferenceOptions | null
+  requireAllSlots?: boolean
   eligibilityContext?: EntryFormEligibilityContext | null
   existingRoosters?: EntryRoosterEditItem[]
 }
@@ -128,10 +129,11 @@ function RoosterSlotFields({
           />
         </FormField>
       </Flex>
-      <FormField label="Handler name">
+      <FormField label="Handler name" required={required}>
         <Input
           name={handlerFieldName(mode, slotKey)}
           maxLength={200}
+          required={required}
           defaultValue={defaults?.handler_name ?? ''}
           disabled={disabled}
         />
@@ -143,7 +145,7 @@ function RoosterSlotFields({
         allowBreedCreate={allowBreedCreate}
         allowColorCreate={allowColorCreate}
         disabled={disabled}
-        required={required}
+        required={false}
         defaults={{
           breed: defaults?.breed,
           colorMarking: defaults?.color_marking,
@@ -201,6 +203,7 @@ export function RoosterEntrySlots({
   cocksPerEntry,
   catalog,
   publicReferenceOptions = null,
+  requireAllSlots = false,
   eligibilityContext = null,
   existingRoosters = [],
 }: RoosterEntrySlotsProps) {
@@ -216,6 +219,7 @@ export function RoosterEntrySlots({
         {Array.from({ length: slotCount }, (_, index) => {
           const cockNumber = index + 1
           const isClassic = eventType === 'classic'
+          const slotRequired = isClassic || requireAllSlots
           return (
             <RoosterSlotFields
               key={cockNumber}
@@ -224,7 +228,7 @@ export function RoosterEntrySlots({
               slotKey={String(cockNumber)}
               cockNumber={cockNumber}
               title={isClassic ? 'Rooster & weight' : `Cock #${cockNumber}`}
-              required={isClassic}
+              required={slotRequired}
               eligibilityContext={eligibilityContext}
               fieldPrefixForPolicy={`rooster_${cockNumber}`}
               bandNumberRequired={bandNumberRequired}
@@ -236,8 +240,9 @@ export function RoosterEntrySlots({
         })}
         {eventType === 'derby' ? (
           <Text fontSize="sm" color="fg.muted">
-            Fill at least one cock to save. Complete bloodline and eligibility details from
-            Edit entry.
+            {requireAllSlots
+              ? `Fill all ${cocksPerEntry} cock slots to submit. Breed, color, and notes are optional.`
+              : 'Fill at least one cock to save. Complete bloodline and eligibility details from Edit entry.'}
           </Text>
         ) : null}
       </>

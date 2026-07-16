@@ -98,13 +98,10 @@ function mapPublicEvent(row: EventPublishRow): PublicEvent {
     publish_standings: row.publish_standings,
     publish_winners: row.publish_winners,
     publish_prize_amounts: row.publish_prize_amounts,
-    registration_open:
-      row.event_type === 'derby'
-        ? isRegistrationOpen({
-            status: row.status,
-            registration_deadline: row.registration_deadline,
-          })
-        : false,
+    registration_open: isRegistrationOpen({
+      status: row.status,
+      registration_deadline: row.registration_deadline,
+    }),
   }
 }
 
@@ -244,6 +241,7 @@ type RegistrationEventRow = {
   max_entries: number | null
   min_weight_grams: number | null
   max_weight_grams: number | null
+  is_public: boolean
   deleted_at: string | null
   promoters: { name: string } | null
 }
@@ -272,17 +270,19 @@ export async function getPublicRegistrationEvent(
       max_entries,
       min_weight_grams,
       max_weight_grams,
+      is_public,
       deleted_at,
       promoters ( name )
     `
     )
     .eq('id', eventId)
+    .eq('is_public', true)
     .is('deleted_at', null)
     .maybeSingle()
 
   if (error) throw error
   const row = data as unknown as RegistrationEventRow | null
-  if (!row || row.event_type !== 'derby') return null
+  if (!row) return null
 
   return {
     id: row.id,
