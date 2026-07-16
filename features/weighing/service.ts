@@ -145,11 +145,14 @@ export async function createRoosterForEntry(
 
   const ageClass = resolveAgeClass(input)
 
-  const cataloged = await catalogReferenceValues({
-    breed: input.breed,
-    bloodline: input.bloodline,
-    colorMarking: input.colorMarking,
-  })
+  const cataloged = await catalogReferenceValues(
+    {
+      breed: input.breed,
+      bloodline: input.bloodline,
+      colorMarking: input.colorMarking,
+    },
+    options
+  )
 
   const registryResult = await createRooster(
     actorId,

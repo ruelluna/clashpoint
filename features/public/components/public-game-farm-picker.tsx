@@ -56,15 +56,20 @@ export function PublicGameFarmPicker({
       return
     }
 
-    const result = await searchPublicGameFarmsAction(trimmed)
-    if (result.error) {
-      setSearchResults([])
-      setSearchError(result.error)
-      return
-    }
+    try {
+      const result = await searchPublicGameFarmsAction(trimmed)
+      if (result.error) {
+        setSearchResults([])
+        setSearchError(result.error)
+        return
+      }
 
-    setSearchError(null)
-    setSearchResults(result.results ?? [])
+      setSearchError(null)
+      setSearchResults(result.results ?? [])
+    } catch (error) {
+      setSearchResults([])
+      setSearchError(error instanceof Error ? error.message : 'Search failed')
+    }
   }, [])
 
   useEffect(() => {

@@ -7,7 +7,19 @@ import type {
   CompetitorSearchResult,
 } from '@/features/competitors/types'
 import type { ListCompetitorsInput } from '@/features/competitors/schema'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createExtendedClient } from '@/lib/supabase/extended'
+
+export type CompetitorQueryOptions = {
+  useAdminClient?: boolean
+}
+
+async function resolveCompetitorClient(options?: CompetitorQueryOptions) {
+  if (options?.useAdminClient) {
+    return createAdminClient() as Awaited<ReturnType<typeof createExtendedClient>>
+  }
+  return createExtendedClient()
+}
 
 function toSearchResult(row: Pick<
   CompetitorRow,
@@ -159,8 +171,11 @@ export async function countEntriesForCompetitor(competitorId: string): Promise<n
   return count ?? 0
 }
 
-export async function getCompetitor(id: string): Promise<CompetitorSearchResult | null> {
-  const supabase = await createExtendedClient()
+export async function getCompetitor(
+  id: string,
+  options?: CompetitorQueryOptions
+): Promise<CompetitorSearchResult | null> {
+  const supabase = await resolveCompetitorClient(options)
   const { data, error } = await supabase
     .from('competitors')
     .select('id, display_name, contact_full_name, contact_designation, contact_number, email, address')
@@ -197,7 +212,7 @@ export async function searchPublicGameFarms(
   const trimmed = query.trim()
   if (trimmed.length < 2) return []
 
-  const supabase = await createExtendedClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('competitors')
     .select('id, display_name')

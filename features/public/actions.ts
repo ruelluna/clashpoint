@@ -42,8 +42,13 @@ export async function searchPublicGameFarmsAction(
     return { error: parsed.error.issues[0]?.message ?? 'Invalid search' }
   }
 
-  const results = await searchPublicGameFarms(parsed.data.query, parsed.data.limit)
-  return { results }
+  try {
+    const results = await searchPublicGameFarms(parsed.data.query, parsed.data.limit)
+    return { results }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Search failed'
+    return { error: message }
+  }
 }
 
 export async function registerPublicGameFarmAction(

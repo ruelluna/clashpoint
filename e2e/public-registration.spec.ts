@@ -68,6 +68,43 @@ async function fillRoosterStep(page: Page, handlerName: string, suffix: string) 
   await page.locator('input[name="rooster_1_weight"]').fill('2000')
 }
 
+test.describe('Public staged registration anonymous', () => {
+  test('visitor without login completes new game farm registration', async ({ browser }) => {
+    test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
+
+    const suffix = uniqueSuffix()
+    const eventName = `E2E Public Anon ${suffix}`
+    const ownerName = `Anon Farm ${suffix}`
+    const email = `anon-${suffix}@example.com`
+
+    const adminContext = await browser.newContext()
+    const adminPage = await adminContext.newPage()
+    await signInAsAdmin(adminPage)
+    const eventId = await createOpenPublicEvent(adminPage, eventName, 'derby')
+    await adminContext.close()
+
+    const visitorContext = await browser.newContext()
+    const page = await visitorContext.newPage()
+
+    await page.goto(`/events/${eventId}/register`)
+    await expect(page.getByText('Step 1 — Game farm')).toBeVisible()
+
+    await fillNewGameFarmStep(page, ownerName, email, `Contact ${suffix}`)
+    await page.getByRole('button', { name: 'Continue to rooster registration' }).click()
+
+    await expect(page.getByText('Step 2 — Rooster registration')).toBeVisible({
+      timeout: 15_000,
+    })
+
+    await fillRoosterStep(page, `Handler ${suffix}`, suffix)
+    await page.getByRole('button', { name: 'Submit rooster registration' }).click()
+
+    await expect(page.getByText('Registration submitted')).toBeVisible({ timeout: 15_000 })
+
+    await visitorContext.close()
+  })
+})
+
 test.describe('Public staged registration @auth', () => {
   test('derby: new game farm then rooster registration', async ({ page }) => {
     test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')

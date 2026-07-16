@@ -183,7 +183,9 @@ export async function createEntry(
     }
     competitorId = competitorResult.competitorId ?? null
   } else if (input.competitorId) {
-    const competitor = await getCompetitor(input.competitorId)
+    const competitor = await getCompetitor(input.competitorId, {
+      useAdminClient: options?.useAdminClient,
+    })
     if (!competitor) {
       return { error: 'Selected game farm was not found' }
     }

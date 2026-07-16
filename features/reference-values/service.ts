@@ -5,11 +5,24 @@ import {
   normalizeReferenceValueName,
 } from '@/features/reference-values/schema'
 import type { ReferenceValueKind } from '@/features/reference-values/types'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+
+export type ReferenceValueQueryOptions = {
+  useAdminClient?: boolean
+}
+
+async function resolveReferenceValueClient(options?: ReferenceValueQueryOptions) {
+  if (options?.useAdminClient) {
+    return createAdminClient()
+  }
+  return createClient()
+}
 
 export async function findOrCreateReferenceValue(
   kind: ReferenceValueKind,
-  rawName: string | null | undefined
+  rawName: string | null | undefined,
+  options?: ReferenceValueQueryOptions
 ): Promise<string | null> {
   const trimmed = rawName?.trim()
   if (!trimmed) return null
@@ -17,7 +30,7 @@ export async function findOrCreateReferenceValue(
   const parsed = findOrCreateReferenceValueSchema.safeParse({ kind, name: trimmed })
   if (!parsed.success) return trimmed.slice(0, 200)
 
-  const supabase = await createClient()
+  const supabase = await resolveReferenceValueClient(options)
   const normalizedName = normalizeReferenceValueName(parsed.data.name)
 
   const { data: existing, error: existingError } = await supabase
@@ -117,16 +130,17 @@ export async function catalogReferenceValues(
     breed?: string | null
     bloodline?: string | null
     colorMarking?: string | null
-  }
+  },
+  options?: ReferenceValueQueryOptions
 ): Promise<{
   breed: string | null
   bloodline: string | null
   colorMarking: string | null
 }> {
   const [breed, bloodline, colorMarking] = await Promise.all([
-    findOrCreateReferenceValue('breed', input.breed),
-    findOrCreateReferenceValue('bloodline', input.bloodline),
-    findOrCreateReferenceValue('color_marking', input.colorMarking),
+    findOrCreateReferenceValue('breed', input.breed, options),
+    findOrCreateReferenceValue('bloodline', input.bloodline, options),
+    findOrCreateReferenceValue('color_marking', input.colorMarking, options),
   ])
 
   return { breed, bloodline, colorMarking }

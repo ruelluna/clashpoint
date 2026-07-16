@@ -220,7 +220,7 @@ export async function sendPublicOwnerVerification(
     return { error: 'Too many verification requests. Please try again later.' }
   }
 
-  const competitor = await getCompetitor(input.competitorId)
+  const competitor = await getCompetitor(input.competitorId, { useAdminClient: true })
   if (!competitor) return { error: 'Game farm not found' }
   if (!competitor.email) {
     return {
@@ -279,7 +279,7 @@ export async function verifyPublicOwnerVerification(
     return { error: 'Registration is closed for this event' }
   }
 
-  const competitor = await getCompetitor(input.competitorId)
+  const competitor = await getCompetitor(input.competitorId, { useAdminClient: true })
   if (!competitor) return { error: 'Game farm not found' }
 
   const supabase = createAdminClient()
