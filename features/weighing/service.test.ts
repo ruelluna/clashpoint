@@ -154,6 +154,7 @@ describe('createRoosterForEntry', () => {
         weight_verified: false,
         official_weight_grams: null,
         inspection_status: 'not_required',
+        cock_entry_barcode: expect.stringMatching(/^COCK-/),
       })
     )
   })

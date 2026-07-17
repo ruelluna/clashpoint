@@ -32,7 +32,7 @@ export default async function RoostersPage({ params, searchParams }: RoostersPag
 
   let initialEntryId = rawEntryId ?? undefined
 
-  if (!initialEntryId && rawBarcode && event.event_type === 'derby') {
+  if (!initialEntryId && rawBarcode) {
     const barcode = normalizeOwnerBarcodeInput(rawBarcode)
     if (barcode && isOwnerBarcodeForEvent(barcode, id)) {
       const resolvedEntryId = await getEntryIdByOwnerBarcode(id, barcode)

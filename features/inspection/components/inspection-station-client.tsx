@@ -359,13 +359,11 @@ function InspectionRow({
 
 function FindRoosterPanel({
   eventId,
-  eventType,
   items,
   highlightRegistrationId,
   onHighlight,
 }: {
   eventId: string
-  eventType: string
   items: InspectionQueueItem[]
   highlightRegistrationId?: string
   onHighlight: (registrationId: string | undefined) => void
@@ -373,8 +371,6 @@ function FindRoosterPanel({
   const [searchQuery, setSearchQuery] = useState('')
   const [searchError, setSearchError] = useState<string | null>(null)
   const [pickerMatches, setPickerMatches] = useState<InspectionQueueItem[]>([])
-
-  const showBarcodeScan = eventType === 'derby'
 
   function applyHighlight(registrationId: string) {
     onHighlight(registrationId)
@@ -412,14 +408,12 @@ function FindRoosterPanel({
           direction={{ base: 'column', md: 'row' }}
           align={{ md: 'stretch' }}
         >
-          {showBarcodeScan ? (
-            <Box flex="1">
-              <RoosterBarcodeScanRow
-                eventId={eventId}
-                onResolved={applyHighlight}
-              />
-            </Box>
-          ) : null}
+          <Box flex="1">
+            <RoosterBarcodeScanRow
+              eventId={eventId}
+              onResolved={applyHighlight}
+            />
+          </Box>
           <Stack gap={2} flex="1">
             <Text fontSize="sm" fontWeight="medium">
               Search
@@ -609,7 +603,6 @@ export function InspectionStationClient({
 
       <FindRoosterPanel
         eventId={eventId}
-        eventType={eventType}
         items={items}
         highlightRegistrationId={highlightRegistrationId}
         onHighlight={setHighlightRegistrationId}

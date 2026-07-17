@@ -218,7 +218,7 @@ export async function createOwnerEntryAction(
   revalidateEntryPaths(schemaResult.data.eventId)
   revalidatePath(`/dashboard/events/${schemaResult.data.eventId}/owners`)
 
-  if (event.event_type === 'derby') {
+  if (result.ownerBarcode) {
     redirect(
       `/dashboard/events/${schemaResult.data.eventId}/owners/${result.entryId}/print`
     )

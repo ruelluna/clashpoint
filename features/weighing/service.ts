@@ -244,11 +244,8 @@ export async function createRoosterForEntry(
   const declaredWeightGrams =
     input.weight != null && input.weight > 0 ? Math.round(input.weight) : null
 
-  let cockEntryBarcode: string | null = null
-  if (isDerby) {
-    const existingBarcodes = await listCockEntryBarcodesForEvent(input.eventId)
-    cockEntryBarcode = getNextCockEntryBarcode(input.eventId, existingBarcodes)
-  }
+  const existingBarcodes = await listCockEntryBarcodesForEvent(input.eventId)
+  const cockEntryBarcode = getNextCockEntryBarcode(input.eventId, existingBarcodes)
 
   const submittedAt = new Date().toISOString()
 

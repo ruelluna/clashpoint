@@ -81,7 +81,6 @@ function AddRoosterForm({
     {} as WeighingActionState
   )
   const [entryId, setEntryId] = useState(initialEntryId)
-  const isDerby = eventType === 'derby'
   const selectedEntry = entries.find((entry) => entry.entry_id === entryId) ?? null
   const canSubmit =
     entries.some((entry) => entry.can_add_rooster) &&
@@ -94,9 +93,7 @@ function AddRoosterForm({
         <input type="hidden" name="eventId" value={eventId} />
         <input type="hidden" name="eventType" value={eventType} />
         <Stack gap={LAYOUT_GAP.form} maxW="2xl">
-          {isDerby ? (
-            <OwnerBarcodeScanRow eventId={eventId} onResolved={setEntryId} />
-          ) : null}
+          <OwnerBarcodeScanRow eventId={eventId} onResolved={setEntryId} />
           <EventOwnerEntryPicker
             entries={entries}
             cocksPerEntry={cocksPerEntry}
@@ -293,13 +290,11 @@ export function EventRoostersClient({
                 </Box>
                 <Box flex="0.6">
                   <Flex justify={{ base: 'flex-start', lg: 'flex-end' }} gap={2}>
-                    {eventType === 'derby' ? (
-                      <Button asChild size="xs" variant="outline">
-                        <Link href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}>
-                          Print slip
-                        </Link>
-                      </Button>
-                    ) : null}
+                    <Button asChild size="xs" variant="outline">
+                      <Link href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}>
+                        Print slip
+                      </Link>
+                    </Button>
                   </Flex>
                 </Box>
               </Flex>
