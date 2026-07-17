@@ -15,6 +15,12 @@ Refactored the Users dashboard page so staff module access is no longer always v
 - Mobile: Role/Status labeled via `DetailFieldRow`; action buttons stack full-width on small screens
 - Fixed duplicate checkbox DOM ids across multiple staff rows
 
+### Follow-up (same day)
+
+- **Add user** opens a modal dialog (same pattern as Events → Roosters → Add rooster); form resets on close, dialog closes on successful invite
+- Module access checkboxes fixed via `Fieldset` + `CheckboxGroup` (not `FormField`)
+- Inactive users can be reactivated with **Activate**
+
 ## Files touched
 
 ### `features/`

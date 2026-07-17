@@ -18,9 +18,14 @@ test.describe('Users management @auth', () => {
     await expect(
       page.getByText('Manage staff accounts, roles, and module access.')
     ).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Invite' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add user' })).toBeVisible()
 
-    const roleSelect = page.locator('form').filter({ has: page.getByPlaceholder('Email') }).getByRole('combobox')
+    await page.getByTestId('users-add-toggle').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Add user' })).toBeVisible()
+    await expect(page.getByTestId('users-invite-button')).toBeVisible()
+
+    const roleSelect = page.getByRole('dialog').getByRole('combobox')
     await expect(roleSelect.locator('option', { hasText: 'Promoter' })).toHaveCount(0)
   })
 
@@ -29,9 +34,6 @@ test.describe('Users management @auth', () => {
 
     await signInAsAdmin(page)
     await page.goto('/dashboard/users')
-
-    const inviteForm = page.locator('form').filter({ has: page.getByRole('button', { name: 'Invite' }) })
-    await inviteForm.getByRole('combobox').selectOption('event_organizer')
 
     const editButton = page.getByRole('button', { name: 'Edit' }).first()
     const editVisible = await editButton.isVisible().catch(() => false)
