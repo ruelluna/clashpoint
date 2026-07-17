@@ -192,6 +192,32 @@ describe('createEntrySchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('accepts weight up to 9999 grams', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 9999,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+      notes: 'Note',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects weight over 9999 grams', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 10000,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+      notes: 'Note',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   it('accepts optional competitor link', () => {
     const competitorId = '00000000-0000-4000-8000-000000000003'
     const result = createEntrySchema.safeParse({

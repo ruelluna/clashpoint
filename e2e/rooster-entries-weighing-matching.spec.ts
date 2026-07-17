@@ -58,7 +58,7 @@ async function completeInspectionForEntry(page: Page, eventId: string, searchTex
   await page.getByTestId('inspection-rooster-search-input').fill(searchText)
   await page.getByRole('button', { name: 'Find' }).click()
   const row = page.locator('[data-registration-id]').first()
-  await row.locator('input[name="officialWeight"]').fill('2.1')
+  await row.locator('input[name="officialWeight"]').fill('2100')
   await row.getByRole('button', { name: 'Record' }).click()
   await expect(row.getByText('Weight recorded', { exact: false })).toBeVisible({
     timeout: 15_000,

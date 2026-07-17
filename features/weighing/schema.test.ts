@@ -40,11 +40,11 @@ describe('evaluateWeightStatus', () => {
 })
 
 describe('recordWeightSchema', () => {
-  it('accepts valid weight input', () => {
+  it('accepts valid weight input in grams', () => {
     const result = recordWeightSchema.safeParse({
       eventId,
       roosterRecordId: roosterId,
-      officialWeight: 2.15,
+      officialWeight: 2150,
     })
 
     expect(result.success).toBe(true)
@@ -55,6 +55,16 @@ describe('recordWeightSchema', () => {
       eventId,
       roosterRecordId: roosterId,
       officialWeight: 0,
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects weight above 9999 g', () => {
+    const result = recordWeightSchema.safeParse({
+      eventId,
+      roosterRecordId: roosterId,
+      officialWeight: 10000,
     })
 
     expect(result.success).toBe(false)
@@ -119,7 +129,7 @@ describe('createRoosterSchema', () => {
       eventId,
       entryId,
       bandNumber: '',
-      weight: 2.15,
+      weight: 2150,
     })
 
     expect(result.success).toBe(false)

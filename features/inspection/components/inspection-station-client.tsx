@@ -12,6 +12,7 @@ import {
   PageStack,
   PanelCard,
 } from '@/components/dashboard'
+import { GramWeightInput } from '@/features/entries/components/gram-weight-input'
 import type { EventFeeSettings } from '@/features/events/fee-utils'
 import { EVENT_STATUS_LABELS } from '@/features/events/schema'
 import type { EventStatus } from '@/features/events/types'
@@ -102,16 +103,13 @@ function RecordWeightForm({
       <input type="hidden" name="roosterRecordId" value={item.registrationId} />
       <Flex gap={2} align="center" direction={{ base: 'column', sm: 'row' }} wrap="wrap">
         <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
-          Official weight (kg)
+          Official weight (g)
         </Text>
-        <Input
+        <GramWeightInput
           name="officialWeight"
-          type="number"
-          step="0.01"
-          min="0"
           size="md"
           width={{ base: 'full', sm: '24' }}
-          placeholder="kg"
+          placeholder="g"
           defaultValue={
             item.officialWeight != null ? String(item.officialWeight) : ''
           }
@@ -233,8 +231,8 @@ function InspectionRow({
           </Text>
           <Text fontSize="sm" color="fg.muted">
             {item.handlerName ? `Handler ${item.handlerName}` : 'No handler listed'}
-            {item.declaredWeight != null ? ` · Declared ${item.declaredWeight} kg` : ''}
-            {item.officialWeight != null ? ` · Official ${item.officialWeight} kg` : ''}
+            {item.declaredWeight != null ? ` · Declared ${item.declaredWeight} g` : ''}
+            {item.officialWeight != null ? ` · Official ${item.officialWeight} g` : ''}
           </Text>
           <Flex gap={2} wrap="wrap">
             <Badge colorPalette={statusColor(item.inspectionStatus)}>

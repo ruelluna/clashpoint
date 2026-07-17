@@ -4,6 +4,7 @@ import type { InspectionStatus } from '@/lib/derby/enums'
 import type { EligibilityStatus, RegistrationWorkflowStatus } from '@/lib/derby/enums'
 import type { RegistrationPaymentStatus } from '@/lib/derby/enums'
 import type { WeightStatus } from '@/features/weighing/types'
+import { resolveStoredWeightGrams } from '@/features/entries/weight-utils'
 import { createClient } from '@/lib/supabase/server'
 
 export type InspectionQueueItem = {
@@ -20,6 +21,7 @@ export type InspectionQueueItem = {
   inspectedAt: string | null
   notes: string | null
   declaredWeight: number | null
+  /** Whole grams */
   officialWeight: number | null
   weightVerified: boolean
   weighingId: string | null
@@ -39,6 +41,7 @@ type InspectionQueueRow = {
   cock_entry_barcode: string | null
   inspection_status: InspectionStatus
   declared_weight: number | null
+  declared_weight_grams: number | null
   weight_verified: boolean | null
   eligibility_status: EligibilityStatus
   registration_status: RegistrationWorkflowStatus
@@ -62,12 +65,14 @@ type InspectionQueueRow = {
     | {
         id: string
         official_weight: number | null
+        official_weight_grams: number | null
         weight_status: WeightStatus
         verified_at: string | null
       }
     | Array<{
         id: string
         official_weight: number | null
+        official_weight_grams: number | null
         weight_status: WeightStatus
         verified_at: string | null
       }>
@@ -105,6 +110,7 @@ export async function listInspectionQueue(eventId: string): Promise<InspectionQu
       cock_entry_barcode,
       inspection_status,
       declared_weight,
+      declared_weight_grams,
       weight_verified,
       eligibility_status,
       registration_status,
@@ -119,6 +125,7 @@ export async function listInspectionQueue(eventId: string): Promise<InspectionQu
       weighings (
         id,
         official_weight,
+        official_weight_grams,
         weight_status,
         verified_at
       )
@@ -151,9 +158,14 @@ export async function listInspectionQueue(eventId: string): Promise<InspectionQu
       inspectionId: inspection?.id ?? null,
       inspectedAt: inspection?.inspected_at ?? null,
       notes: inspection?.notes ?? null,
-      declaredWeight: row.declared_weight != null ? Number(row.declared_weight) : null,
-      officialWeight:
-        weighing?.official_weight != null ? Number(weighing.official_weight) : null,
+      declaredWeight: resolveStoredWeightGrams(
+        row.declared_weight_grams,
+        row.declared_weight
+      ),
+      officialWeight: resolveStoredWeightGrams(
+        weighing?.official_weight_grams ?? null,
+        weighing?.official_weight ?? null
+      ),
       weightVerified: Boolean(row.weight_verified),
       weighingId: weighing?.id ?? null,
       weightStatus: weighing?.weight_status ?? null,

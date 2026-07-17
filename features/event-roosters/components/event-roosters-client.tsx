@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
 
 import { FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { GramWeightInput } from '@/features/entries/components/gram-weight-input'
 import { formatBandNumberForDisplay } from '@/features/entries/band-display'
 import { isBandNumberRequiredForEvent } from '@/features/entries/schema'
 import { EventOwnerEntryPicker } from '@/features/entries/components/event-owner-entry-picker'
@@ -116,7 +117,7 @@ function AddRoosterForm({
               <Input name="bandNumber" required={bandNumberRequired} maxLength={50} />
             </FormField>
             <FormField label="Declared weight (g, optional)" flex="1">
-              <Input name="weight" type="number" step="1" min="1" />
+              <GramWeightInput name="weight" />
             </FormField>
           </Flex>
           <FormField label="Handler name">

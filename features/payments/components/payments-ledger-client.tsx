@@ -153,6 +153,12 @@ export function PaymentsLedgerClient({
   )
   const [selectedEntryId, setSelectedEntryId] = useState('')
   const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('rooster_entry')
+  const [paymentMethod, setPaymentMethod] = useState<
+    keyof typeof PAYMENT_METHOD_LABELS
+  >('cash')
+
+  const nonCashPaymentMethods = new Set(['bank_transfer', 'gcash', 'other'])
+  const showReceiptNumber = nonCashPaymentMethods.has(paymentMethod)
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === selectedEntryId),
@@ -275,9 +281,21 @@ export function PaymentsLedgerClient({
             </FormField>
             <FormField label="Payment method" flex="1">
               <NativeSelect.Root>
-                <NativeSelect.Field name="paymentMethod" defaultValue="cash">
+                <NativeSelect.Field
+                  name="paymentMethod"
+                  value={paymentMethod}
+                  onChange={(event) =>
+                    setPaymentMethod(
+                      event.currentTarget.value as keyof typeof PAYMENT_METHOD_LABELS
+                    )
+                  }
+                >
                   {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
+                    <option
+                      key={value}
+                      value={value}
+                      disabled={value !== 'cash'}
+                    >
                       {label}
                     </option>
                   ))}
@@ -286,9 +304,11 @@ export function PaymentsLedgerClient({
             </FormField>
           </Flex>
 
-          <FormField label="Receipt number">
-            <Input name="receiptNumber" maxLength={100} />
-          </FormField>
+          {showReceiptNumber ? (
+            <FormField label="Receipt number">
+              <Input name="receiptNumber" maxLength={100} />
+            </FormField>
+          ) : null}
 
           <FormField label="Notes">
             <Textarea name="notes" rows={2} maxLength={2000} />

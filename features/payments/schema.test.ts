@@ -4,6 +4,7 @@ import {
   calculateBalance,
   generatePaymentReference,
   getNextPaymentReference,
+  recordPaymentSchema,
 } from '@/features/payments/schema'
 
 describe('calculateBalance', () => {
@@ -52,5 +53,48 @@ describe('payment reference helpers', () => {
 
     expect(getNextPaymentReference(eventId, existing)).toBe('PAY-00000000-0003')
     expect(getNextPaymentReference(eventId, [])).toBe('PAY-00000000-0001')
+  })
+})
+
+describe('recordPaymentSchema', () => {
+  const eventId = '00000000-0000-4000-8000-000000000001'
+  const entryId = '00000000-0000-4000-8000-000000000002'
+
+  it('accepts cash without receipt number', () => {
+    const result = recordPaymentSchema.safeParse({
+      eventId,
+      entryId,
+      amountPaid: 500,
+      paymentMethod: 'cash',
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.receiptNumber).toBeUndefined()
+    }
+  })
+
+  it('rejects gcash payments', () => {
+    const result = recordPaymentSchema.safeParse({
+      eventId,
+      entryId,
+      amountPaid: 500,
+      paymentMethod: 'gcash',
+      receiptNumber: 'GC-123',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects bank transfer payments', () => {
+    const result = recordPaymentSchema.safeParse({
+      eventId,
+      entryId,
+      amountPaid: 500,
+      paymentMethod: 'bank_transfer',
+      receiptNumber: 'BT-456',
+    })
+
+    expect(result.success).toBe(false)
   })
 })
