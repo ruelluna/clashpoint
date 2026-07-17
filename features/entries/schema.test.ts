@@ -8,12 +8,16 @@ import {
   deleteEntrySchema,
   entryMetadataSchema,
   formatEntryNumber,
+  formatCockEntryBarcode,
   formatOwnerBarcode,
   getNextEntryNumber,
   getNextOwnerBarcode,
   isBandNumberRequiredForEvent,
+  isCockEntryBarcodeForEvent,
   isOwnerBarcodeForEvent,
+  normalizeCockEntryBarcodeInput,
   normalizeOwnerBarcodeInput,
+  parseCockEntryBarcodeSequence,
   parseCreateEntryFromFormData,
   parseEntryNumber,
   parseOwnerBarcodeSequence,
@@ -348,5 +352,14 @@ describe('owner barcode helpers', () => {
   it('returns the next owner barcode sequence', () => {
     const existing = [formatOwnerBarcode(eventId, 1), formatOwnerBarcode(eventId, 3)]
     expect(getNextOwnerBarcode(eventId, existing)).toBe(formatOwnerBarcode(eventId, 4))
+  })
+})
+
+describe('cock entry barcode helpers', () => {
+  it('formats and validates cock entry barcodes for an event', () => {
+    const barcode = formatCockEntryBarcode(eventId, 1)
+    expect(parseCockEntryBarcodeSequence(barcode, eventId)).toBe(1)
+    expect(isCockEntryBarcodeForEvent(barcode, eventId)).toBe(true)
+    expect(normalizeCockEntryBarcodeInput(` ${barcode.toLowerCase()} `)).toBe(barcode)
   })
 })

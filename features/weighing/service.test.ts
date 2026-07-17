@@ -65,7 +65,7 @@ describe('createRoosterForEntry', () => {
     vi.clearAllMocks()
   })
 
-  it('creates pending inspection registration with unpaid entry fee and no auto weight verify', async () => {
+  it('creates submitted registration with unpaid entry fee when inspection is not required', async () => {
     vi.mocked(getEvent).mockResolvedValue({
       id: eventId,
       event_type: 'classic',
@@ -123,6 +123,8 @@ describe('createRoosterForEntry', () => {
               eligibility_enforcement_enabled: false,
               event_type: 'classic',
               rooster_entry_fee_enabled: true,
+              physical_inspection_required: false,
+              weight_verification_required: false,
             },
             error: null,
           })
@@ -147,10 +149,99 @@ describe('createRoosterForEntry', () => {
     expect(result.roosterId).toBe(registrationId)
     expect(insertRegistration).toHaveBeenCalledWith(
       expect.objectContaining({
-        registration_status: 'pending_inspection',
+        registration_status: 'submitted',
         reg_payment_status: 'unpaid',
         weight_verified: false,
         official_weight_grams: null,
+        inspection_status: 'not_required',
+      })
+    )
+  })
+
+  it('creates pending inspection registration when physical inspection is required', async () => {
+    vi.mocked(getEvent).mockResolvedValue({
+      id: eventId,
+      event_type: 'classic',
+      cocks_per_entry: 1,
+      min_weight: 1.5,
+      max_weight: 2.5,
+      rooster_entry_fee_enabled: false,
+      require_rooster_entry_approval: false,
+    } as Awaited<ReturnType<typeof getEvent>>)
+
+    vi.mocked(createRooster).mockResolvedValue({ roosterId: 'registry-rooster-id' })
+
+    const insertRegistration = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { id: registrationId },
+          error: null,
+        }),
+      }),
+    })
+
+    const from = vi.fn((table: string) => {
+      if (table === 'entries') {
+        return chain(() =>
+          Promise.resolve({
+            data: {
+              id: entryId,
+              entry_number: '001',
+              entry_name: 'Team Alpha',
+            },
+            error: null,
+          })
+        )
+      }
+
+      if (table === 'rooster_event_registrations') {
+        return {
+          select: vi.fn((columns?: string) => {
+            if (columns?.includes('cock_number')) {
+              return {
+                eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }
+            }
+            return chain(() => Promise.resolve({ data: null, error: null }))
+          }),
+          insert: insertRegistration,
+        }
+      }
+
+      if (table === 'events') {
+        return chain(() =>
+          Promise.resolve({
+            data: {
+              require_rooster_entry_approval: false,
+              eligibility_enforcement_enabled: false,
+              event_type: 'classic',
+              rooster_entry_fee_enabled: false,
+              physical_inspection_required: true,
+              weight_verification_required: false,
+            },
+            error: null,
+          })
+        )
+      }
+
+      return chain(() => Promise.resolve({ data: null, error: null }))
+    })
+
+    createClient.mockResolvedValue({ from })
+    createExtendedClient.mockResolvedValue({ from })
+
+    const result = await createRoosterForEntry('actor-1', {
+      eventId,
+      entryId,
+      entryName: 'Band One',
+      bandNumber: 'B-001',
+      weight: 2100,
+    })
+
+    expect(result.error).toBeUndefined()
+    expect(insertRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        registration_status: 'pending_inspection',
         inspection_status: 'pending',
       })
     )
