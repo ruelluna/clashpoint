@@ -20,7 +20,7 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient,
 }))
 
-import { inviteUser, updateUserModules, updateUserRole } from '@/features/users/service'
+import { inviteUser, reactivateUser, updateUserModules, updateUserRole } from '@/features/users/service'
 
 describe('inviteUser', () => {
   beforeEach(() => {
@@ -160,5 +160,69 @@ describe('updateUserModules', () => {
     })
 
     expect(result.error).toBe('Modules can only be updated for staff users')
+  })
+})
+
+describe('reactivateUser', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('sets is_active true and clears deactivated_at', async () => {
+    const profileUpdateEq = vi.fn().mockResolvedValue({ error: null })
+    const profileUpdate = vi.fn().mockReturnValue({ eq: profileUpdateEq })
+
+    createClient.mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { is_active: false },
+                }),
+              }),
+            }),
+            update: profileUpdate,
+          }
+        }
+
+        throw new Error(`Unexpected table ${table}`)
+      }),
+    })
+
+    const result = await reactivateUser('actor-1', {
+      userId: '00000000-0000-4000-8000-000000000001',
+      reason: 'Returned to organization',
+    })
+
+    expect(result.error).toBeUndefined()
+    expect(profileUpdate).toHaveBeenCalledWith({
+      is_active: true,
+      deactivated_at: null,
+    })
+    expect(writeAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.reactivated' })
+    )
+  })
+
+  it('rejects reactivating an already active user', async () => {
+    createClient.mockResolvedValue({
+      from: vi.fn(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { is_active: true },
+            }),
+          }),
+        }),
+      })),
+    })
+
+    const result = await reactivateUser('actor-1', {
+      userId: '00000000-0000-4000-8000-000000000001',
+    })
+
+    expect(result.error).toBe('User is already active')
   })
 })

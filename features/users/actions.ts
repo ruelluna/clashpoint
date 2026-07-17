@@ -6,12 +6,14 @@ import {
   deactivateUserSchema,
   inviteUserSchema,
   parseModulesFromFormData,
+  reactivateUserSchema,
   updateUserModulesSchema,
   updateUserRoleSchema,
 } from '@/features/users/schema'
 import {
   deactivateUser,
   inviteUser,
+  reactivateUser,
   updateUserModules,
   updateUserRole,
 } from '@/features/users/service'
@@ -112,4 +114,27 @@ export async function deactivateUserAction(
 
   revalidatePath('/dashboard/users')
   return { success: 'User deactivated' }
+}
+
+export async function reactivateUserAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const profile = await requirePermission('users.manage')
+
+  const parsed = reactivateUserSchema.safeParse({
+    userId: formData.get('userId'),
+    reason: formData.get('reason')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await reactivateUser(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  revalidatePath('/dashboard/users')
+  revalidatePath('/dashboard/audit')
+  return { success: 'User reactivated' }
 }

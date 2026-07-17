@@ -1,12 +1,33 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Input, NativeSelect, Stack, Text } from '@chakra-ui/react'
-import { useActionState, useState } from 'react'
+import {
+  Badge,
+  Box,
+  Button,
+  Checkbox,
+  Flex,
+  Input,
+  NativeSelect,
+  SimpleGrid,
+  Stack,
+  Text,
+} from '@chakra-ui/react'
+import { useActionState, useEffect, useState } from 'react'
+import Link from 'next/link'
 
-import { LAYOUT_GAP, FormField, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import {
+  ButtonGroup,
+  DetailFieldRow,
+  LAYOUT_GAP,
+  FormField,
+  PageHeader,
+  PageStack,
+  PanelCard,
+} from '@/components/dashboard'
 import {
   deactivateUserAction,
   inviteUserAction,
+  reactivateUserAction,
   updateUserModulesAction,
   updateUserRoleAction,
   type ActionState,
@@ -15,7 +36,6 @@ import { ROLE_LABELS, type UsersManageableRole } from '@/features/users/schema'
 import { ACCESS_MODULES } from '@/lib/auth/modules'
 import type { AccessModuleId } from '@/lib/auth/modules'
 import type { AppRole } from '@/lib/auth/types'
-import Link from 'next/link'
 
 type UserRow = {
   id: string
@@ -35,6 +55,8 @@ const manageableRoles = (
 
 const invitableRoles = manageableRoles
 
+const actionButtonSize = { base: 'md' as const, lg: 'sm' as const }
+
 function defaultRoleForUpdate(user: UserRow): UsersManageableRole {
   if (user.role === 'staff' || user.role === 'event_organizer' || user.role === 'system_owner') {
     return user.role
@@ -43,34 +65,34 @@ function defaultRoleForUpdate(user: UserRow): UsersManageableRole {
 }
 
 function ModuleCheckboxGrid({
+  idPrefix,
   defaultSelected = [],
 }: {
+  idPrefix: string
   defaultSelected?: AccessModuleId[]
 }) {
   return (
     <FormField label="Module access">
-      <Flex direction="column" gap={2}>
+      <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} gap={2}>
         {ACCESS_MODULES.map((mod) => (
-          <Flex key={mod.id} align="center" gap={2}>
-            <input
-              type="checkbox"
-              id={`module-${mod.id}`}
-              name="modules"
-              value={mod.id}
-              defaultChecked={defaultSelected.includes(mod.id)}
-            />
-            <label htmlFor={`module-${mod.id}`}>
-              <Text fontSize="sm">{mod.label}</Text>
-            </label>
-          </Flex>
+          <Checkbox.Root
+            key={mod.id}
+            id={`${idPrefix}-module-${mod.id}`}
+            defaultChecked={defaultSelected.includes(mod.id)}
+          >
+            <Checkbox.HiddenInput name="modules" value={mod.id} />
+            <Checkbox.Control />
+            <Checkbox.Label fontSize="sm">{mod.label}</Checkbox.Label>
+          </Checkbox.Root>
         ))}
-      </Flex>
+      </SimpleGrid>
     </FormField>
   )
 }
 
 export function UsersPageClient({ users }: { users: UserRow[] }) {
   const [inviteRole, setInviteRole] = useState<UsersManageableRole>('staff')
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [inviteState, inviteAction, invitePending] = useActionState(
     inviteUserAction,
     initialState
@@ -84,6 +106,16 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
     initialState
   )
   const [, deactivateAction] = useActionState(deactivateUserAction, initialState)
+  const [reactivateState, reactivateAction, reactivatePending] = useActionState(
+    reactivateUserAction,
+    initialState
+  )
+
+  useEffect(() => {
+    if (roleState.success || modulesState.success) {
+      setEditingUserId(null)
+    }
+  }, [roleState.success, modulesState.success])
 
   return (
     <PageStack>
@@ -94,7 +126,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
 
       <PanelCard title="Invite user">
         <form action={inviteAction}>
-          <Stack gap={LAYOUT_GAP.form} maxW="md">
+          <Stack gap={LAYOUT_GAP.form} maxW={inviteRole === 'staff' ? '3xl' : 'md'}>
             <FormField label="Email" required>
               <Input name="email" type="email" required />
             </FormField>
@@ -122,7 +154,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
               </NativeSelect.Root>
             </FormField>
             {inviteRole === 'staff' ? (
-              <ModuleCheckboxGrid />
+              <ModuleCheckboxGrid idPrefix="invite" />
             ) : (
               <Text fontSize="sm" color="fg.muted">
                 {inviteRole === 'event_organizer'
@@ -162,96 +194,191 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
           <Box flex="1">Status</Box>
           <Box flex="2">Actions</Box>
         </Flex>
-        {users.map((user) => (
-          <Flex
-            key={user.id}
-            px={4}
-            py={3}
-            borderBottomWidth="1px"
-            borderColor="border"
-            direction={{ base: 'column', lg: 'row' }}
-            gap={2}
-            align={{ lg: 'center' }}
-          >
-            <Box flex="2">
-              <Text fontWeight="medium">{user.display_name ?? '—'}</Text>
-              <Text fontSize="sm" color="fg.muted">
-                {user.email}
-              </Text>
-              {user.role === 'promoter' ? (
-                <Text fontSize="sm" color="fg.muted" mt={1}>
-                  Promoter login —{' '}
-                  <Link href="/dashboard/promoters">manage profile in Promoters</Link>.
-                </Text>
-              ) : null}
-              {user.role === 'staff' && user.modules.length > 0 ? (
-                <Flex gap={1} wrap="wrap" mt={1}>
-                  {user.modules.map((moduleId) => (
-                    <Badge key={moduleId} size="sm" variant="subtle">
-                      {ACCESS_MODULES.find((mod) => mod.id === moduleId)?.label ??
-                        moduleId}
+        {users.map((user) => {
+          const isEditing = editingUserId === user.id
+
+          return (
+            <Box
+              key={user.id}
+              px={4}
+              py={3}
+              borderBottomWidth="1px"
+              borderColor="border"
+            >
+              <Flex
+                direction={{ base: 'column', lg: 'row' }}
+                gap={2}
+                align={{ lg: 'center' }}
+              >
+                <Box flex="2">
+                  <Text fontWeight="medium">{user.display_name ?? '—'}</Text>
+                  <Text fontSize="sm" color="fg.muted">
+                    {user.email}
+                  </Text>
+                  {user.role === 'promoter' ? (
+                    <Text fontSize="sm" color="fg.muted" mt={1}>
+                      Promoter login —{' '}
+                      <Link href="/dashboard/promoters">manage profile in Promoters</Link>.
+                    </Text>
+                  ) : null}
+                </Box>
+
+                <Box flex="1">
+                  <Box display={{ base: 'block', lg: 'none' }}>
+                    <DetailFieldRow label="Role">
+                      <Badge>{ROLE_LABELS[user.role]}</Badge>
+                    </DetailFieldRow>
+                  </Box>
+                  <Box display={{ base: 'none', lg: 'block' }}>
+                    <Badge>{ROLE_LABELS[user.role]}</Badge>
+                  </Box>
+                </Box>
+
+                <Box flex="1">
+                  <Box display={{ base: 'block', lg: 'none' }}>
+                    <DetailFieldRow label="Status">
+                      <Badge colorPalette={user.is_active ? 'green' : 'red'}>
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </DetailFieldRow>
+                  </Box>
+                  <Box display={{ base: 'none', lg: 'block' }}>
+                    <Badge colorPalette={user.is_active ? 'green' : 'red'}>
+                      {user.is_active ? 'Active' : 'Inactive'}
                     </Badge>
-                  ))}
-                </Flex>
-              ) : null}
-            </Box>
-            <Box flex="1">
-              <Badge>{ROLE_LABELS[user.role]}</Badge>
-            </Box>
-            <Box flex="1">
-              <Badge colorPalette={user.is_active ? 'green' : 'red'}>
-                {user.is_active ? 'Active' : 'Inactive'}
-              </Badge>
-            </Box>
-            <Box flex="2">
-              {user.is_active ? (
-                <Stack gap={LAYOUT_GAP.form}>
-                  <form action={roleAction}>
-                    <Flex gap={2} align="center" wrap="wrap">
-                    <input type="hidden" name="userId" value={user.id} />
-                    <NativeSelect.Root size="sm">
-                      <NativeSelect.Field
-                        name="role"
-                        defaultValue={defaultRoleForUpdate(user)}
+                  </Box>
+                </Box>
+
+                <Box flex="2">
+                  {user.is_active && !isEditing ? (
+                    <ButtonGroup justify={{ base: 'flex-start', lg: 'flex-end' }}>
+                      <Button
+                        type="button"
+                        size={actionButtonSize}
+                        variant="outline"
+                        w={{ base: 'full', sm: 'auto' }}
+                        onClick={() => setEditingUserId(user.id)}
                       >
-                        {manageableRoles.map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </NativeSelect.Field>
-                    </NativeSelect.Root>
-                    <Button type="submit" size="sm" loading={rolePending}>
-                      Update role
-                    </Button>
-                    </Flex>
+                        Edit
+                      </Button>
+                      <form action={deactivateAction}>
+                        <input type="hidden" name="userId" value={user.id} />
+                        <input type="hidden" name="reason" value="Deactivated by admin" />
+                        <Button
+                          type="submit"
+                          size={actionButtonSize}
+                          variant="outline"
+                          colorPalette="red"
+                          w={{ base: 'full', sm: 'auto' }}
+                        >
+                          Deactivate
+                        </Button>
+                      </form>
+                    </ButtonGroup>
+                  ) : null}
+                  {!user.is_active ? (
+                    <ButtonGroup justify={{ base: 'flex-start', lg: 'flex-end' }}>
+                      <form action={reactivateAction}>
+                        <input type="hidden" name="userId" value={user.id} />
+                        <input
+                          type="hidden"
+                          name="reason"
+                          value="Reactivated by admin"
+                        />
+                        <Button
+                          type="submit"
+                          size={actionButtonSize}
+                          colorPalette="green"
+                          w={{ base: 'full', sm: 'auto' }}
+                          loading={reactivatePending}
+                        >
+                          Activate
+                        </Button>
+                      </form>
+                    </ButtonGroup>
+                  ) : null}
+                </Box>
+              </Flex>
+
+              {user.is_active && isEditing ? (
+                <Stack
+                  gap={LAYOUT_GAP.form}
+                  mt={3}
+                  borderWidth="1px"
+                  borderColor="border"
+                  rounded="md"
+                  p={3}
+                >
+                  <form action={roleAction}>
+                    <Stack gap={LAYOUT_GAP.form}>
+                      <input type="hidden" name="userId" value={user.id} />
+                      <FormField label="Role">
+                        <Flex
+                          gap={2}
+                          direction={{ base: 'column', sm: 'row' }}
+                          align={{ sm: 'center' }}
+                          wrap="wrap"
+                        >
+                          <NativeSelect.Root size="sm" flex="1" minW={{ sm: '12rem' }}>
+                            <NativeSelect.Field
+                              name="role"
+                              defaultValue={defaultRoleForUpdate(user)}
+                            >
+                              {manageableRoles.map(([value, label]) => (
+                                <option key={value} value={value}>
+                                  {label}
+                                </option>
+                              ))}
+                            </NativeSelect.Field>
+                          </NativeSelect.Root>
+                          <Button
+                            type="submit"
+                            size={actionButtonSize}
+                            loading={rolePending}
+                            alignSelf={{ base: 'stretch', sm: 'flex-start' }}
+                          >
+                            Update role
+                          </Button>
+                        </Flex>
+                      </FormField>
+                    </Stack>
                   </form>
+
                   {user.role === 'staff' ? (
                     <form action={modulesAction}>
                       <input type="hidden" name="userId" value={user.id} />
-                      <ModuleCheckboxGrid defaultSelected={user.modules} />
+                      <ModuleCheckboxGrid
+                        idPrefix={`user-${user.id}`}
+                        defaultSelected={user.modules}
+                      />
                       <Button
                         type="submit"
-                        size="sm"
+                        size={actionButtonSize}
                         loading={modulesPending}
                         mt={2}
+                        w={{ base: 'full', sm: 'auto' }}
                       >
                         Update modules
                       </Button>
                     </form>
                   ) : null}
-                  <form action={deactivateAction}>
-                    <input type="hidden" name="userId" value={user.id} />
-                    <input type="hidden" name="reason" value="Deactivated by admin" />
-                    <Button type="submit" size="sm" variant="outline" colorPalette="red">
-                      Deactivate
+
+                  <ButtonGroup>
+                    <Button
+                      type="button"
+                      size={actionButtonSize}
+                      variant="ghost"
+                      w={{ base: 'full', sm: 'auto' }}
+                      onClick={() => setEditingUserId(null)}
+                    >
+                      Cancel
                     </Button>
-                  </form>
+                  </ButtonGroup>
                 </Stack>
               ) : null}
             </Box>
-          </Flex>
-        ))}
+          )
+        })}
       </PanelCard>
 
       {roleState.error ? (
@@ -272,6 +399,16 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
       {modulesState.success ? (
         <Text color="fg.success" fontSize="sm">
           {modulesState.success}
+        </Text>
+      ) : null}
+      {reactivateState.error ? (
+        <Text color="fg.error" fontSize="sm">
+          {reactivateState.error}
+        </Text>
+      ) : null}
+      {reactivateState.success ? (
+        <Text color="fg.success" fontSize="sm">
+          {reactivateState.success}
         </Text>
       ) : null}
     </PageStack>

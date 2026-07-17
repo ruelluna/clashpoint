@@ -65,10 +65,16 @@ export const deactivateUserSchema = z.object({
   reason: z.string().min(3),
 })
 
+export const reactivateUserSchema = z.object({
+  userId: z.string().uuid(),
+  reason: z.string().min(3).optional(),
+})
+
 export type InviteUserInput = z.infer<typeof inviteUserSchema>
 export type UpdateUserRoleInput = z.infer<typeof updateUserRoleSchema>
 export type UpdateUserModulesInput = z.infer<typeof updateUserModulesSchema>
 export type DeactivateUserInput = z.infer<typeof deactivateUserSchema>
+export type ReactivateUserInput = z.infer<typeof reactivateUserSchema>
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   admin: 'Admin (legacy)',

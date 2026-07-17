@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   inviteUserSchema,
+  reactivateUserSchema,
   updateUserModulesSchema,
   updateUserRoleSchema,
 } from '@/features/users/schema'
@@ -78,5 +79,15 @@ describe('updateUserModulesSchema', () => {
     })
 
     expect(result.success).toBe(false)
+  })
+})
+
+describe('reactivateUserSchema', () => {
+  it('accepts userId without reason', () => {
+    const result = reactivateUserSchema.safeParse({
+      userId: '00000000-0000-4000-8000-000000000001',
+    })
+
+    expect(result.success).toBe(true)
   })
 })
