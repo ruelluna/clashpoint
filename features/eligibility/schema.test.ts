@@ -12,7 +12,6 @@ describe('parseEligibilityFieldKeys', () => {
   it('keeps only supported field keys', () => {
     expect(parseEligibilityFieldKeys(['banding', 'invalid', 'experience'])).toEqual([
       'banding',
-      'experience',
     ])
   })
 })
@@ -52,13 +51,13 @@ describe('upsertEligibilityPolicySchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('requires experience options when experience rules are enabled', () => {
+  it('accepts document rules when documents are enabled', () => {
     const result = upsertEligibilityPolicySchema.safeParse({
       eventId: TEST_EVENT_ID,
-      enabledFields: ['experience'],
-      allowedExperienceStatuses: [],
+      enabledFields: ['documents'],
+      documentVerificationRequired: true,
     })
 
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
   })
 })

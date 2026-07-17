@@ -22,6 +22,7 @@ import {
   resolveCocksPerEntry,
 } from '@/features/events/utils'
 import { getSystemSettings } from '@/features/settings/queries'
+import { createOpeningLedgerEntry } from '@/features/revolving-fund/service'
 import type { Json } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
 
@@ -57,6 +58,9 @@ async function toEventInsert(input: CreateEventInput | UpdateEventInput) {
     cash_bond_enabled: cashBondEnabled,
     cash_bond_amount: cashBondAmount,
     tax_per_fight: input.taxPerFight,
+    tax_commission: input.taxCommission,
+    physical_inspection_required: input.physicalInspectionRequired,
+    revolving_fund_initial: input.revolvingFundInitial,
     min_entries: null,
     max_entries: null,
     cocks_per_entry: resolveCocksPerEntry(
@@ -73,7 +77,7 @@ async function toEventInsert(input: CreateEventInput | UpdateEventInput) {
     house_deduction: 0,
     venue_share: 0,
     registration_rules: isClassic ? null : (input.registrationRules ?? null),
-    legal_authorized: input.legalAuthorized,
+    legal_authorized: true,
     is_public: input.isPublic,
     publish_matches: input.publishMatches,
     publish_standings: input.publishStandings,
@@ -114,6 +118,16 @@ export async function createEvent(
       await supabase.from('events').delete().eq('id', event.id)
       return { error: prizeError.message }
     }
+  }
+
+  const ledgerResult = await createOpeningLedgerEntry(
+    actorId,
+    event.id,
+    input.revolvingFundInitial
+  )
+  if (ledgerResult.error) {
+    await supabase.from('events').delete().eq('id', event.id)
+    return { error: ledgerResult.error }
   }
 
   await writeAuditLog({
@@ -319,7 +333,7 @@ export async function transitionStatus(
 
   const { data: existing, error: fetchError } = await supabase
     .from('events')
-    .select('status, name, legal_authorized')
+    .select('status, name')
     .eq('id', input.eventId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -336,13 +350,12 @@ export async function transitionStatus(
     }
   }
 
-  if (nextStatus === 'open' && !existing.legal_authorized) {
-    return { error: 'Legal authorization must be confirmed before opening registration' }
-  }
-
   const { error } = await supabase
     .from('events')
-    .update({ status: nextStatus })
+    .update({
+      status: nextStatus,
+      ...(nextStatus === 'open' ? { is_public: true } : {}),
+    })
     .eq('id', input.eventId)
 
   if (error) return { error: error.message }

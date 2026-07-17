@@ -5,6 +5,7 @@ import type {
   ChangePromoterStatusInput,
   CreatePromoterInput,
   LinkPromoterUserInput,
+  QuickCreatePromoterInput,
   UpdatePromoterInput,
 } from '@/features/promoters/schema'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -113,6 +114,44 @@ export async function createPromoter(
   })
 
   return { promoterId: data.id }
+}
+
+export async function quickCreatePromoter(
+  actorId: string,
+  input: QuickCreatePromoterInput
+): Promise<{ error?: string; promoterId?: string; name?: string }> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('promoters')
+    .insert({
+      name: input.name,
+      phone: input.phone,
+      status: 'active',
+      commission_type: 'none',
+      commission_value: null,
+      created_by: actorId,
+    })
+    .select('id, name')
+    .single()
+
+  if (error || !data) {
+    return { error: error?.message ?? 'Failed to create promoter' }
+  }
+
+  await writeAuditLog({
+    actorId,
+    action: 'promoter.created',
+    entityType: 'promoter',
+    entityId: data.id,
+    newValues: {
+      name: input.name,
+      status: 'active',
+      commission_type: 'none',
+      quick_create: true,
+    },
+  })
+
+  return { promoterId: data.id, name: data.name }
 }
 
 export async function updatePromoter(

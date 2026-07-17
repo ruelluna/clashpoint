@@ -66,8 +66,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
       ? await getDerbyEligibilityPolicy(id)
       : null
   const associations =
-    eligibilityContext &&
-    eligibilityContext.enabledFields.includes('association')
+    eligibilityPolicy?.approved_association_ids?.length
       ? await listAssociations()
       : []
   const approvedAssociationNames =

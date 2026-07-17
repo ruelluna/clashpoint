@@ -94,10 +94,16 @@ const eventFieldsSchema = z.object({
     .default(0),
   cashBondEnabled: z.coerce.boolean().default(false),
   cashBondAmount: z.coerce.number().nonnegative('Cash bond cannot be negative').default(0),
-  taxPerFight: z.coerce.number().nonnegative('Tax per fight cannot be negative').default(0),
-  cocksPerEntry: z.coerce.number().int().positive().default(5),
+  taxPerFight: z.coerce.number().nonnegative('Tax per fight cannot be negative').default(100),
+  taxCommission: z.coerce.number().nonnegative('Tax commission cannot be negative').default(0),
+  physicalInspectionRequired: z.coerce.boolean().default(false),
+  revolvingFundInitial: z.coerce
+    .number()
+    .nonnegative('Revolving fund cannot be negative')
+    .default(0),
+  cocksPerEntry: z.coerce.number().int().positive().default(2),
   registrationRules: z.string().max(50000).nullable().optional(),
-  legalAuthorized: z.boolean().default(false),
+  legalAuthorized: z.boolean().default(true),
   isPublic: z.boolean().default(false),
   publishMatches: z.boolean().default(false),
   publishStandings: z.boolean().default(false),
@@ -267,4 +273,8 @@ export const PRIZE_TYPE_LABELS: Record<z.infer<typeof prizeTypeSchema>, string> 
   percentage: 'Percentage',
   fixed: 'Fixed Amount',
   manual: 'Manual',
+}
+
+export function defaultTaxPerFight(eventType: z.infer<typeof eventTypeSchema>): number {
+  return eventType === 'classic' ? 50 : 100
 }

@@ -4,16 +4,18 @@ import {
   Badge,
   Box,
   Button,
-  Checkbox,
+  Dialog,
   Flex,
   Input,
   NativeSelect,
+  Portal,
   Stack,
-  Text,
   Switch,
+  Text,
   Textarea,
 } from '@chakra-ui/react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useActionState, useMemo, useState } from 'react'
 
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
@@ -25,6 +27,8 @@ import {
   PageStack,
   PanelCard,
 } from '@/components/dashboard'
+import { DerbyEligibilityConfigPanel } from '@/features/eligibility/components/derby-eligibility-config-panel'
+import type { DerbyEligibilityPolicyRow } from '@/features/eligibility/queries'
 import {
   createEventAction,
   transitionStatusAction,
@@ -36,6 +40,7 @@ import {
   getNextStatuses,
 } from '@/features/events/utils'
 import {
+  defaultTaxPerFight,
   DERBY_AGE_TYPE_LABELS,
   DERBY_FORMAT_LABELS,
   EVENT_STATUS_LABELS,
@@ -50,9 +55,7 @@ import type {
   PrizeConfigEntry,
   PrizeType,
 } from '@/features/events/types'
-import type { AssociationListItem } from '@/features/associations/queries'
-import { DerbyEligibilityConfigPanel } from '@/features/eligibility/components/derby-eligibility-config-panel'
-import type { DerbyEligibilityPolicyRow } from '@/features/eligibility/queries'
+import { quickCreatePromoterAction } from '@/features/promoters/actions'
 import type { PromoterListItem } from '@/features/promoters/types'
 
 type EventFormClientProps = {
@@ -61,8 +64,8 @@ type EventFormClientProps = {
   event?: EventWithPrize
   canManage: boolean
   eligibilityPolicy?: DerbyEligibilityPolicyRow | null
-  associations?: AssociationListItem[]
   canManageEligibility?: boolean
+  prizePoolTotal?: number
 }
 
 const initialState: ActionState = {}
@@ -72,6 +75,13 @@ const DEFAULT_PRIZE_TIERS: PrizeConfigEntry[] = [
   { place: 2, label: 'Runner-up', value: 30 },
   { place: 3, label: 'Third', value: 20 },
 ]
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'PHP',
+  }).format(amount)
+}
 
 function toDatetimeLocalValue(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -89,15 +99,101 @@ function buildInitialPrizeState(event?: EventWithPrize) {
   }
 }
 
+function PromoterQuickAddDialog({
+  onCreated,
+}: {
+  onCreated: (promoter: PromoterListItem) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+
+  async function handleSubmit() {
+    setPending(true)
+    setError(null)
+    const result = await quickCreatePromoterAction({ name, phone })
+    setPending(false)
+
+    if ('error' in result) {
+      setError(result.error ?? 'Failed to create promoter')
+      return
+    }
+
+    onCreated({
+      id: result.promoterId,
+      name: result.name,
+      status: 'active',
+      contact_person: null,
+      email: null,
+      phone,
+      commission_type: 'none',
+      commission_value: null,
+      user_id: null,
+      created_at: new Date().toISOString(),
+    })
+    setName('')
+    setPhone('')
+    setOpen(false)
+  }
+
+  return (
+    <>
+      <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>
+        Add promoter
+      </Button>
+      <Dialog.Root open={open} onOpenChange={(details) => setOpen(details.open)}>
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content maxW="md">
+              <Dialog.Header>
+                <Dialog.Title>Add promoter</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Stack gap={LAYOUT_GAP.form}>
+                  <FormField label="Name" required>
+                    <Input value={name} onChange={(event) => setName(event.target.value)} />
+                  </FormField>
+                  <FormField label="Phone" required>
+                    <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
+                  </FormField>
+                  {error ? (
+                    <Text color="fg.error" fontSize="sm">
+                      {error}
+                    </Text>
+                  ) : null}
+                </Stack>
+              </Dialog.Body>
+              <Dialog.Footer>
+                <ButtonGroup>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="button" loading={pending} onClick={handleSubmit}>
+                    Save promoter
+                  </Button>
+                </ButtonGroup>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+    </>
+  )
+}
+
 export function EventFormClient({
   mode,
-  promoters,
+  promoters: initialPromoters,
   event,
   canManage,
   eligibilityPolicy = null,
-  associations = [],
   canManageEligibility = false,
+  prizePoolTotal = 0,
 }: EventFormClientProps) {
+  const router = useRouter()
   const action = mode === 'create' ? createEventAction : updateEventAction
   const [formState, formAction, pending] = useActionState(action, initialState)
   const [statusState, statusAction, statusPending] = useActionState(
@@ -105,19 +201,29 @@ export function EventFormClient({
     initialState
   )
 
-  const [eventType, setEventType] = useState<EventType>(
-    () => event?.event_type ?? 'derby'
-  )
+  const [promoters, setPromoters] = useState(initialPromoters)
+  const [promoterId, setPromoterId] = useState(event?.promoter_id ?? '')
+  const [eventType, setEventType] = useState<EventType>(() => event?.event_type ?? 'derby')
   const isClassic = eventType === 'classic'
   const isDerby = eventType === 'derby'
 
-  const [derbyType, setDerbyType] = useState<DerbyType>(
-    () => event?.derby_type ?? '5_cock'
-  )
+  const [derbyType, setDerbyType] = useState<DerbyType>(() => event?.derby_type ?? '2_cock')
   const [derbyAgeType, setDerbyAgeType] = useState<DerbyAgeType>(
     () => event?.derby_age_type ?? 'open_derby'
   )
   const isCustomDerby = derbyType === 'custom'
+
+  const [taxPerFight, setTaxPerFight] = useState(
+    () => event?.tax_per_fight ?? defaultTaxPerFight(event?.event_type ?? 'derby')
+  )
+  const [taxCommission, setTaxCommission] = useState(() => event?.tax_commission ?? 0)
+  const [taxManuallySet, setTaxManuallySet] = useState(() => event != null)
+  const [physicalInspectionRequired, setPhysicalInspectionRequired] = useState(
+    () => event?.physical_inspection_required ?? false
+  )
+  const [revolvingFundInitial, setRevolvingFundInitial] = useState(
+    () => event?.revolving_fund_initial ?? 0
+  )
 
   const [prizeType, setPrizeType] = useState<PrizeType>(
     () => buildInitialPrizeState(event).prizeType
@@ -145,6 +251,13 @@ export function EventFormClient({
     derbyType !== 'custom' ? COCKS_PER_ENTRY_BY_DERBY_TYPE[derbyType] : null
 
   const nextStatuses = event ? getNextStatuses(event.status) : []
+
+  function handleEventTypeChange(nextType: EventType) {
+    setEventType(nextType)
+    if (!taxManuallySet) {
+      setTaxPerFight(defaultTaxPerFight(nextType))
+    }
+  }
 
   function updatePrizeTier(index: number, field: keyof PrizeConfigEntry, value: string) {
     setPrizeConfig((current) =>
@@ -241,6 +354,11 @@ export function EventFormClient({
           <Stack gap={LAYOUT_GAP.form}>
             {event ? <input type="hidden" name="eventId" value={event.id} /> : null}
             <input type="hidden" name="eventType" value={eventType} />
+            <input
+              type="hidden"
+              name="physicalInspectionRequired"
+              value={physicalInspectionRequired ? 'on' : 'off'}
+            />
             {isDerby ? (
               <>
                 <input type="hidden" name="prizeType" value={prizeType} />
@@ -276,7 +394,7 @@ export function EventFormClient({
                 <NativeSelect.Root>
                   <NativeSelect.Field
                     value={eventType}
-                    onChange={(e) => setEventType(e.currentTarget.value as EventType)}
+                    onChange={(e) => handleEventTypeChange(e.currentTarget.value as EventType)}
                   >
                     {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>
@@ -288,13 +406,113 @@ export function EventFormClient({
               </FormField>
             </Flex>
 
-            <FormField label="Tax per fight" flex="1">
+            {isDerby ? (
+              <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
+                <FormField label="Derby format" flex="1">
+                  <NativeSelect.Root>
+                    <NativeSelect.Field
+                      value={derbyType}
+                      onChange={(e) => setDerbyType(e.currentTarget.value as DerbyType)}
+                    >
+                      {Object.entries(DERBY_FORMAT_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                  </NativeSelect.Root>
+                </FormField>
+                <FormField label="Derby age profile" flex="1">
+                  <NativeSelect.Root>
+                    <NativeSelect.Field
+                      value={derbyAgeType}
+                      onChange={(e) =>
+                        setDerbyAgeType(e.currentTarget.value as DerbyAgeType)
+                      }
+                    >
+                      {Object.entries(DERBY_AGE_TYPE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                  </NativeSelect.Root>
+                </FormField>
+              </Flex>
+            ) : null}
+
+            <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
+              <FormField
+                label="Tax per fight"
+                flex="1"
+                helpText="Regulatory or venue tax collected per fight."
+              >
+                <Input
+                  name="taxPerFight"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={taxPerFight}
+                  onChange={(event) => {
+                    setTaxManuallySet(true)
+                    setTaxPerFight(Number(event.target.value) || 0)
+                  }}
+                />
+              </FormField>
+              <FormField
+                label="Tax commission"
+                flex="1"
+                helpText="Management or montón share collected per fight."
+              >
+                <Input
+                  name="taxCommission"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={taxCommission}
+                  onChange={(event) => setTaxCommission(Number(event.target.value) || 0)}
+                />
+              </FormField>
+            </Flex>
+
+            <Box borderWidth="1px" borderColor="border" rounded="md" p={4}>
+              <Flex justify="space-between" align="flex-start" gap={4}>
+                <Box flex="1">
+                  <Text fontWeight="medium" fontSize="sm">
+                    Physical inspection required
+                  </Text>
+                  <Text fontSize="sm" color="fg.muted">
+                    Roosters must pass inspection before matching. Shows the Inspection tab when
+                    enabled.
+                  </Text>
+                </Box>
+                <Switch.Root
+                  checked={physicalInspectionRequired}
+                  onCheckedChange={(details) => setPhysicalInspectionRequired(details.checked)}
+                >
+                  <Switch.Control />
+                </Switch.Root>
+              </Flex>
+            </Box>
+
+            <FormField
+              label="Revolving fund (initial)"
+              helpText={
+                mode === 'create'
+                  ? 'Opening balance for this event. Adjustments are recorded on the Revolving fund tab.'
+                  : 'Initial amount set at creation. Use the Revolving fund tab for adjustments.'
+              }
+            >
               <Input
-                name="taxPerFight"
+                name="revolvingFundInitial"
                 type="number"
                 min={0}
                 step="0.01"
-                defaultValue={event?.tax_per_fight ?? 0}
+                value={revolvingFundInitial}
+                onChange={(event) =>
+                  setRevolvingFundInitial(Number(event.target.value) || 0)
+                }
+                readOnly={mode === 'edit'}
               />
             </FormField>
 
@@ -309,19 +527,29 @@ export function EventFormClient({
                     />
                   </FormField>
                   <FormField label="Promoter" flex="1">
-                    <NativeSelect.Root>
-                      <NativeSelect.Field
-                        name="promoterId"
-                        defaultValue={event?.promoter_id ?? ''}
-                      >
-                        <option value="">None</option>
-                        {promoters.map((promoter) => (
-                          <option key={promoter.id} value={promoter.id}>
-                            {promoter.name}
-                          </option>
-                        ))}
-                      </NativeSelect.Field>
-                    </NativeSelect.Root>
+                    <Flex gap={2} align="flex-end" direction={{ base: 'column', sm: 'row' }}>
+                      <NativeSelect.Root flex="1">
+                        <NativeSelect.Field
+                          name="promoterId"
+                          value={promoterId}
+                          onChange={(event) => setPromoterId(event.currentTarget.value)}
+                        >
+                          <option value="">None</option>
+                          {promoters.map((promoter) => (
+                            <option key={promoter.id} value={promoter.id}>
+                              {promoter.name}
+                            </option>
+                          ))}
+                        </NativeSelect.Field>
+                      </NativeSelect.Root>
+                      <PromoterQuickAddDialog
+                        onCreated={(promoter) => {
+                          setPromoters((current) => [...current, promoter])
+                          setPromoterId(promoter.id)
+                          router.refresh()
+                        }}
+                      />
+                    </Flex>
                   </FormField>
                 </Flex>
 
@@ -428,40 +656,18 @@ export function EventFormClient({
                   <input type="hidden" name="entryFee" value={event?.entry_fee ?? 0} />
                 </Stack>
 
-                <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
-                  <FormField label="Derby format" flex="1">
-                    <NativeSelect.Root>
-                      <NativeSelect.Field
-                        value={derbyType}
-                        onChange={(e) =>
-                          setDerbyType(e.currentTarget.value as DerbyType)
-                        }
-                      >
-                        {Object.entries(DERBY_FORMAT_LABELS).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </NativeSelect.Field>
-                    </NativeSelect.Root>
-                  </FormField>
-                  <FormField label="Derby age profile" flex="1">
-                    <NativeSelect.Root>
-                      <NativeSelect.Field
-                        value={derbyAgeType}
-                        onChange={(e) =>
-                          setDerbyAgeType(e.currentTarget.value as DerbyAgeType)
-                        }
-                      >
-                        {Object.entries(DERBY_AGE_TYPE_LABELS).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </NativeSelect.Field>
-                    </NativeSelect.Root>
-                  </FormField>
-                </Flex>
+                <Box borderWidth="1px" borderColor="border" rounded="md" p={4}>
+                  <Text fontWeight="medium" fontSize="sm" mb={1}>
+                    Prize pool collected
+                  </Text>
+                  <Text fontSize="2xl" fontWeight="semibold">
+                    {formatCurrency(prizePoolTotal)}
+                  </Text>
+                  <Text fontSize="sm" color="fg.muted" mt={1}>
+                    Sum of registration and cock entry fees collected. Updates as payments are
+                    recorded.
+                  </Text>
+                </Box>
 
                 <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
                   {isCustomDerby ? (
@@ -470,15 +676,18 @@ export function EventFormClient({
                         name="cocksPerEntry"
                         type="number"
                         min={1}
-                        defaultValue={event?.cocks_per_entry ?? 5}
+                        defaultValue={event?.cocks_per_entry ?? 2}
                       />
                     </FormField>
                   ) : (
-                    <FormField label="Cocks per entry" flex="1">
-                      <Text fontSize="sm" color="fg.muted" pt={2}>
-                        {presetCocks} cocks per entry (from derby format)
-                      </Text>
-                    </FormField>
+                    <>
+                      <input type="hidden" name="cocksPerEntry" value={presetCocks ?? 2} />
+                      <FormField label="Cocks per entry" flex="1">
+                        <Text fontSize="sm" color="fg.muted" pt={2}>
+                          {presetCocks} cocks per entry (from derby format)
+                        </Text>
+                      </FormField>
+                    </>
                   )}
                 </Flex>
 
@@ -577,48 +786,11 @@ export function EventFormClient({
                       canManage={canManageEligibility}
                       eligibilityEnforcementEnabled={false}
                       policy={null}
-                      associations={associations}
                     />
                   </Box>
                 ) : null}
               </>
             ) : null}
-
-            <Flex direction="column" gap={2}>
-              <Checkbox.Root defaultChecked={event?.legal_authorized ?? false} name="legalAuthorized">
-                <Checkbox.HiddenInput name="legalAuthorized" />
-                <Checkbox.Control />
-                <Checkbox.Label>Legal authorization confirmed</Checkbox.Label>
-              </Checkbox.Root>
-              <Checkbox.Root defaultChecked={event?.is_public ?? false} name="isPublic">
-                <Checkbox.HiddenInput name="isPublic" />
-                <Checkbox.Control />
-                <Checkbox.Label>Public event listing</Checkbox.Label>
-              </Checkbox.Root>
-              <Checkbox.Root defaultChecked={event?.publish_matches ?? false} name="publishMatches">
-                <Checkbox.HiddenInput name="publishMatches" />
-                <Checkbox.Control />
-                <Checkbox.Label>Publish matches</Checkbox.Label>
-              </Checkbox.Root>
-              <Checkbox.Root defaultChecked={event?.publish_standings ?? false} name="publishStandings">
-                <Checkbox.HiddenInput name="publishStandings" />
-                <Checkbox.Control />
-                <Checkbox.Label>Publish standings</Checkbox.Label>
-              </Checkbox.Root>
-              <Checkbox.Root defaultChecked={event?.publish_winners ?? false} name="publishWinners">
-                <Checkbox.HiddenInput name="publishWinners" />
-                <Checkbox.Control />
-                <Checkbox.Label>Publish winners</Checkbox.Label>
-              </Checkbox.Root>
-              <Checkbox.Root
-                defaultChecked={event?.publish_prize_amounts ?? false}
-                name="publishPrizeAmounts"
-              >
-                <Checkbox.HiddenInput name="publishPrizeAmounts" />
-                <Checkbox.Control />
-                <Checkbox.Label>Publish prize amounts</Checkbox.Label>
-              </Checkbox.Root>
-            </Flex>
 
             <FormField label="Notes">
               <Textarea name="notes" rows={3} defaultValue={event?.notes ?? ''} />
@@ -656,8 +828,6 @@ export function EventFormClient({
           canManage={canManageEligibility}
           eligibilityEnforcementEnabled={event.eligibility_enforcement_enabled}
           policy={eligibilityPolicy}
-          associations={associations}
-          entryFee={event.entry_fee}
         />
       ) : null}
     </PageStack>

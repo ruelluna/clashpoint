@@ -1,5 +1,5 @@
 import { EventPageLayout } from '@/components/dashboard/event-page-layout'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import { InspectionStationClient } from '@/features/inspection/components/inspection-station-client'
 import { listInspectionQueue } from '@/features/inspection/queries'
@@ -18,9 +18,14 @@ export default async function InspectionPage({ params }: InspectionPageProps) {
     'entries.manage',
   ])
   const { id } = await params
-  const [event, items] = await Promise.all([getEvent(id), listInspectionQueue(id)])
+  const event = await getEvent(id)
 
   if (!event) notFound()
+  if (!event.physical_inspection_required) {
+    redirect(`/dashboard/events/${event.id}`)
+  }
+
+  const items = await listInspectionQueue(id)
 
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>

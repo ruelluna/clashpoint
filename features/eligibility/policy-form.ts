@@ -33,7 +33,7 @@ export function parseEligibilityPolicyFormData(
 
   const parsed = upsertEligibilityPolicySchema.safeParse({
     eventId: resolvedEventId,
-    policyStatus: formData.get('policyStatus') ?? 'draft',
+    policyStatus: formData.get('policyStatus')?.toString() ?? 'active',
     enabledFields,
     eligibilityEnforcementEnabled: formData.get('eligibilityEnforcementEnabled') === 'on',
     allowedAgeClasses: readStringArray(formData, 'allowedAgeClasses'),
@@ -73,15 +73,11 @@ export function buildEligibilityPolicyPayload(
   input: UpsertEligibilityPolicyInput,
   actorId: string
 ) {
-  const bandingEnabled = input.enabledFields.includes('banding')
-  const weightEnabled = input.enabledFields.includes('weight')
-  const ageEnabled = input.enabledFields.includes('age_class')
-  const experienceEnabled = input.enabledFields.includes('experience')
-  const originEnabled = input.enabledFields.includes('origin')
-  const associationEnabled = input.enabledFields.includes('association')
-  const inspectionEnabled = input.enabledFields.includes('inspection')
-  const documentsEnabled = input.enabledFields.includes('documents')
-  const paymentEnabled = input.enabledFields.includes('payment')
+  const enabledFields = input.enabledFields
+  const bandingEnabled = enabledFields.includes('banding')
+  const weightEnabled = enabledFields.includes('weight')
+  const ageEnabled = enabledFields.includes('age_class')
+  const documentsEnabled = enabledFields.includes('documents')
 
   return {
     event_id: input.eventId,
@@ -98,25 +94,19 @@ export function buildEligibilityPolicyPayload(
     accepted_band_organizations: bandingEnabled ? input.acceptedBandOrganizations : [],
     accepted_band_years: bandingEnabled ? input.acceptedBandYears : [],
     accepted_band_seasons: bandingEnabled ? input.acceptedBandSeasons : [],
-    allowed_experience_statuses: experienceEnabled ? input.allowedExperienceStatuses : [],
-    allowed_origin_types: originEnabled ? input.allowedOriginTypes : [],
-    allowed_breeding_relationships: originEnabled
-      ? input.allowedBreedingRelationships
-      : [],
-    association_members_only: associationEnabled ? input.associationMembersOnly : false,
-    approved_association_ids: associationEnabled ? input.approvedAssociationIds : [],
-    locally_bred_only: originEnabled ? input.locallyBredOnly : false,
-    imported_allowed: originEnabled ? input.importedAllowed : true,
-    origin_verification_required: originEnabled
-      ? input.originVerificationRequired
-      : false,
-    physical_inspection_required: inspectionEnabled
-      ? input.physicalInspectionRequired
-      : false,
+    allowed_experience_statuses: [],
+    allowed_origin_types: [],
+    allowed_breeding_relationships: [],
+    association_members_only: false,
+    approved_association_ids: [],
+    locally_bred_only: false,
+    imported_allowed: true,
+    origin_verification_required: false,
+    physical_inspection_required: false,
     document_verification_required: documentsEnabled
       ? input.documentVerificationRequired
       : false,
-    entry_fee_payment_required: paymentEnabled ? input.entryFeePaymentRequired : false,
+    entry_fee_payment_required: false,
     unknown_value_handling: input.unknownValueHandling,
     eligibility_notes: input.eligibilityNotes ?? null,
     updated_by: actorId,
