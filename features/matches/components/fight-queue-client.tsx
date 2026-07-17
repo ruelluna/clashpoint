@@ -85,7 +85,7 @@ function FightQueueRow({
       _last={{ borderBottomWidth: 0 }}
     >
       <Flex direction={{ base: 'column', lg: 'row' }} gap={4} align={{ lg: 'center' }}>
-        <Flex align="center" gap={3} minW="8rem">
+        <Flex align="center" gap={3} flexShrink={0}>
           <Text fontSize="lg" fontWeight="semibold">
             #{match.fight_number}
           </Text>
@@ -128,7 +128,7 @@ function FightQueueRow({
             <input type="hidden" name="matchId" value={match.id} />
             <input type="hidden" name="eventId" value={eventId} />
             <input type="hidden" name="queueStatus" value={nextStatus} />
-            <Button type="submit" size="sm" loading={pending}>
+            <Button type="submit" size="md" loading={pending} width={{ base: 'full', lg: 'auto' }}>
               Mark {FIGHT_QUEUE_STATUS_LABELS[nextStatus].toLowerCase()}
             </Button>
           </form>

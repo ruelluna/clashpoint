@@ -23,10 +23,11 @@ export function PortalShell({ displayName, children }: PortalShellProps) {
         <Flex
           maxW="6xl"
           mx="auto"
-          px={6}
+          px={{ base: 4, md: 6 }}
           py={4}
           justify="space-between"
-          align="center"
+          align={{ base: 'flex-start', sm: 'center' }}
+          direction={{ base: 'column', sm: 'row' }}
           gap={4}
         >
           <Box>
@@ -39,7 +40,7 @@ export function PortalShell({ displayName, children }: PortalShellProps) {
             <Link href="/">ClashPoint home</Link>
           </ChakraLink>
         </Flex>
-        <Flex maxW="6xl" mx="auto" px={6} pb={3} gap={2} flexWrap="wrap">
+        <Flex maxW="6xl" mx="auto" px={{ base: 4, md: 6 }} pb={3} gap={2} flexWrap="wrap">
           {navItems.map((item) => {
             const active = item.exact
               ? pathname === item.href
@@ -63,7 +64,7 @@ export function PortalShell({ displayName, children }: PortalShellProps) {
           })}
         </Flex>
       </Box>
-      <Box maxW="6xl" mx="auto" px={6} py={8}>
+      <Box maxW="6xl" mx="auto" px={{ base: 4, md: 6 }} py={{ base: 6, md: 8 }}>
         {children}
       </Box>
     </Box>

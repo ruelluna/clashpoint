@@ -1,11 +1,11 @@
----
+﻿---
 description: ClashPoint stack overview and request flow
 alwaysApply: true
 ---
 
 # Stack
 
-Next.js App Router · TypeScript strict · Supabase (Auth, Postgres, Storage, Realtime) · Server Actions · Zod · Tailwind / shadcn/ui
+Next.js App Router · TypeScript strict · Supabase (Auth, Postgres, Storage, Realtime) · Server Actions · Zod · Chakra UI v3 (dashboard) · Tailwind tokens (global only)
 
 ## Mutation Flow
 

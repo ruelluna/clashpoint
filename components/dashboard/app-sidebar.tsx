@@ -50,6 +50,7 @@ type AppSidebarProps = {
   avatarUrl?: string | null
   collapsed: boolean
   permissionIds: string[]
+  onNavigate?: () => void
 }
 
 function NavItem({
@@ -60,6 +61,7 @@ function NavItem({
   isActive,
   disabled,
   badge,
+  onNavigate,
 }: {
   collapsed: boolean
   label: string
@@ -68,6 +70,7 @@ function NavItem({
   isActive?: boolean
   disabled?: boolean
   badge?: string
+  onNavigate?: () => void
 }) {
   const button = disabled ? (
     <Button
@@ -99,7 +102,7 @@ function NavItem({
       px={3}
       colorPalette={isActive ? 'blue' : 'gray'}
     >
-      <Link href={href}>
+      <Link href={href} onClick={onNavigate}>
         <Icon asChild boxSize={4}>
           <NavIcon />
         </Icon>
@@ -129,7 +132,7 @@ function NavItem({
         colorPalette={isActive ? 'blue' : 'gray'}
         aria-label={label}
       >
-        <Link href={href}>
+        <Link href={href} onClick={onNavigate}>
           <Icon asChild boxSize={4}>
             <NavIcon />
           </Icon>
@@ -157,6 +160,7 @@ export function AppSidebar({
   avatarUrl,
   collapsed,
   permissionIds,
+  onNavigate,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const initials = getInitials(displayName)
@@ -172,7 +176,7 @@ export function AppSidebar({
       >
         {collapsed ? (
           <Flex justify="center">
-            <Link href="/dashboard" aria-label="ClashPoint dashboard">
+            <Link href="/dashboard" aria-label="ClashPoint dashboard" onClick={onNavigate}>
               <Flex
                 align="center"
                 justify="center"
@@ -197,7 +201,7 @@ export function AppSidebar({
             py={2}
             px={3}
           >
-            <Link href="/dashboard">
+            <Link href="/dashboard" onClick={onNavigate}>
               <Flex
                 align="center"
                 justify="center"
@@ -256,6 +260,7 @@ export function AppSidebar({
                 isActive={isActive}
                 disabled={item.disabled}
                 badge={item.badge}
+                onNavigate={onNavigate}
               />
             )
           })}

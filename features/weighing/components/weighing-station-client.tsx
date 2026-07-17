@@ -91,7 +91,7 @@ function CreateRoosterForm({
               <Input name="colorMarking" maxLength={200} />
             </FormField>
           </Flex>
-          <Button type="submit" size="sm" loading={pending} alignSelf="flex-start">
+          <Button type="submit" size="md" loading={pending} alignSelf={{ base: 'stretch', sm: 'flex-start' }}>
             Add rooster
           </Button>
           {state.error ? (
@@ -131,14 +131,14 @@ function RecordWeightForm({
     <form action={action}>
       <input type="hidden" name="eventId" value={eventId} />
       <input type="hidden" name="roosterRecordId" value={item.rooster_event_registration_id} />
-      <Flex gap={2} align="center" wrap="wrap">
+      <Flex gap={2} align="center" direction={{ base: 'column', sm: 'row' }} wrap="wrap">
         <Input
           name="officialWeight"
           type="number"
           step="0.01"
           min="0"
-          size="sm"
-          width="24"
+          size="md"
+          width={{ base: 'full', sm: '24' }}
           placeholder="kg"
           defaultValue={
             item.official_weight != null ? String(item.official_weight) : ''
@@ -146,7 +146,7 @@ function RecordWeightForm({
           required
           disabled={!!item.verified_at}
         />
-        <Button type="submit" size="sm" loading={pending} disabled={!!item.verified_at}>
+        <Button type="submit" size="md" loading={pending} disabled={!!item.verified_at} width={{ base: 'full', sm: 'auto' }}>
           Record
         </Button>
       </Flex>
@@ -184,10 +184,11 @@ function VerifyWeightForm({
       <input type="hidden" name="weighingId" value={item.weighing_id} />
       <Button
         type="submit"
-        size="sm"
+        size="md"
         variant="outline"
         loading={pending}
         disabled={item.official_weight == null}
+        width={{ base: 'full', sm: 'auto' }}
       >
         Verify
       </Button>
@@ -257,6 +258,15 @@ export function WeighingStationClient({
       ) : null}
 
       <PanelCard flush>
+        <Text
+          fontSize="sm"
+          color="fg.muted"
+          px={{ base: 4, lg: LAYOUT_GAP.cardPadding }}
+          pb={LAYOUT_GAP.cardTitle}
+          display={{ base: 'block', lg: 'none' }}
+        >
+          Swipe horizontally to see all weighing columns.
+        </Text>
         <Box overflowX="auto">
           <Box as="table" width="100%" fontSize="sm">
             <Box as="thead" bg="bg.subtle">

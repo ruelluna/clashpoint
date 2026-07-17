@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import {
   Box,
   Drawer,
@@ -13,8 +14,9 @@ import {
 import { PanelLeftIcon } from 'lucide-react'
 
 import { AppSidebar } from '@/components/dashboard/app-sidebar'
+import { LAYOUT_GAP } from '@/components/dashboard/spacing'
 import { ColorModeButton } from '@/components/ui/color-mode-button'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { useCompactShell } from '@/hooks/use-mobile'
 
 const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_COLLAPSED = '4rem'
@@ -32,18 +34,22 @@ export function DashboardShell({
   permissionIds,
   children,
 }: DashboardShellProps) {
-  const isMobile = useIsMobile()
+  const isCompactShell = useCompactShell()
+  const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     const stored = localStorage.getItem('dashboard-sidebar-collapsed')
     if (stored === 'true') {
-      // Restore persisted preference from localStorage after mount (SSR-safe).
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(true)
     }
   }, [])
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -57,14 +63,15 @@ export function DashboardShell({
     <AppSidebar
       displayName={displayName}
       avatarUrl={avatarUrl}
-      collapsed={isMobile ? false : collapsed}
+      collapsed={isCompactShell ? false : collapsed}
       permissionIds={permissionIds}
+      onNavigate={() => setMobileOpen(false)}
     />
   )
 
   return (
     <Flex minH="100vh" bg="bg">
-      {!isMobile ? (
+      {!isCompactShell ? (
         <Box
           as="aside"
           width={collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH}
@@ -107,9 +114,9 @@ export function DashboardShell({
           <IconButton
             aria-label="Toggle sidebar"
             variant="ghost"
-            size="sm"
+            size="md"
             onClick={() => {
-              if (isMobile) {
+              if (isCompactShell) {
                 setMobileOpen(true)
               } else {
                 toggleCollapsed()
@@ -129,7 +136,7 @@ export function DashboardShell({
           </Box>
         </Flex>
 
-        <Box as="main" flex="1" p={6}>
+        <Box as="main" flex="1" p={LAYOUT_GAP.pagePadding}>
           {children}
         </Box>
       </Flex>

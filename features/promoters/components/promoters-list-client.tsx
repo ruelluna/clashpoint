@@ -86,7 +86,7 @@ export function PromotersListClient({
           borderColor="border"
           fontWeight="medium"
           fontSize="sm"
-          display={{ base: 'none', md: 'flex' }}
+          display={{ base: 'none', lg: 'flex' }}
         >
           <Box flex="2">Promoter</Box>
           <Box flex="1">Status</Box>
@@ -105,9 +105,9 @@ export function PromotersListClient({
                 py={3}
                 borderBottomWidth="1px"
                 borderColor="border"
-                direction={{ base: 'column', md: 'row' }}
+                direction={{ base: 'column', lg: 'row' }}
                 gap={2}
-                align={{ md: 'center' }}
+                align={{ lg: 'center' }}
                 _hover={{ bg: 'bg.subtle' }}
               >
                 <Box flex="2">

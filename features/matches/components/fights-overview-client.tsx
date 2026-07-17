@@ -68,7 +68,7 @@ export function FightsOverviewClient({ summaries }: FightsOverviewClientProps) {
                   </Box>
                 </Flex>
 
-                <Button asChild size="sm" alignSelf={{ base: 'flex-start', md: 'auto' }}>
+                <Button asChild size="md" width={{ base: 'full', md: 'auto' }} alignSelf={{ base: 'stretch', md: 'auto' }}>
                   <Link href={`/dashboard/events/${summary.event_id}/fight-queue`}>
                     Open queue
                   </Link>

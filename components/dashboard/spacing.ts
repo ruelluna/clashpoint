@@ -5,4 +5,5 @@ export const LAYOUT_GAP = {
   buttons: 3,
   cardPadding: 6,
   cardTitle: 4,
+  pagePadding: { base: 4, md: 5, lg: 6 },
 } as const

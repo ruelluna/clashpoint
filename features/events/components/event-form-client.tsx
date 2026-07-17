@@ -519,7 +519,7 @@ export function EventFormClient({
                             updatePrizeTier(index, 'label', event.target.value)
                           }
                           flex="1"
-                          minW="40"
+                          minW={{ sm: '10rem' }}
                         />
                         {prizeType !== 'manual' ? (
                           <Input
