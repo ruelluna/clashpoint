@@ -1,10 +1,21 @@
 'use client'
 
-import { Badge, Box, Button, Collapsible, Flex, Input, NativeSelect, Stack, Text } from '@chakra-ui/react'
+import {
+  Badge,
+  Box,
+  Button,
+  Dialog,
+  Flex,
+  Input,
+  NativeSelect,
+  Portal,
+  Stack,
+  Text,
+} from '@chakra-ui/react'
 import Link from 'next/link'
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 
-import { FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { ButtonGroup, FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import type { EventFeeSettings } from '@/features/events/fee-utils'
 import { formatBandNumberForDisplay } from '@/features/entries/band-display'
 import { isBandNumberRequiredForEvent } from '@/features/entries/schema'
@@ -71,7 +82,9 @@ function inspectionColor(
   return 'gray'
 }
 
-function AddRoosterForm({
+function AddRoosterDialog({
+  open,
+  onOpenChange,
   eventId,
   eventType,
   entries,
@@ -81,6 +94,8 @@ function AddRoosterForm({
   eligibilityContext = null,
   initialEntryId = '',
 }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   eventId: string
   eventType: string
   entries: WeighingEntrySummary[]
@@ -96,6 +111,7 @@ function AddRoosterForm({
     {} as WeighingActionState
   )
   const [entryId, setEntryId] = useState(initialEntryId)
+  const [formKey, setFormKey] = useState(0)
   const isDerby = eventType === 'derby'
   const selectedEntry = entries.find((entry) => entry.entry_id === entryId) ?? null
   const canSubmit =
@@ -103,120 +119,105 @@ function AddRoosterForm({
     Boolean(entryId) &&
     (selectedEntry?.can_add_rooster ?? false)
 
-  return (
-    <PanelCard title="Add rooster">
-      <form action={action}>
-        <input type="hidden" name="eventId" value={eventId} />
-        <input type="hidden" name="eventType" value={eventType} />
-        <Stack gap={LAYOUT_GAP.form} maxW="2xl">
-          {isDerby ? (
-            <OwnerBarcodeScanRow eventId={eventId} onResolved={setEntryId} />
-          ) : null}
-          <EventOwnerEntryPicker
-            entries={entries}
-            cocksPerEntry={cocksPerEntry}
-            value={entryId}
-            onValueChange={setEntryId}
-          />
-          <OwnerRoosterCheckPanel
-            eventId={eventId}
-            entry={selectedEntry}
-            cocksPerEntry={cocksPerEntry}
-            registrations={registrations}
-          />
-          <FormField label="Rooster name" required>
-            <Input name="entryName" required maxLength={200} />
-          </FormField>
-          <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <FormField label="Band number" required={bandNumberRequired} flex="1">
-              <Input name="bandNumber" required={bandNumberRequired} maxLength={50} />
-            </FormField>
-            <FormField label="Declared weight (g, optional)" flex="1">
-              <Input name="weight" type="number" step="1" min="1" />
-            </FormField>
-          </Flex>
-          <FormField label="Handler name">
-            <Input name="handlerName" maxLength={200} />
-          </FormField>
-          <RoosterEntryCoreFields slotKey="" mode="staff" catalog={catalog} required />
-          {state.error ? (
-            <Text fontSize="sm" color="red.500">
-              {state.error}
-            </Text>
-          ) : null}
-          {state.success ? (
-            <Text fontSize="sm" color="green.600">
-              {state.success}
-            </Text>
-          ) : null}
-          <Button
-            type="submit"
-            loading={pending}
-            disabled={!canSubmit}
-            alignSelf="flex-start"
-            size="md"
-            data-testid="roosters-save-button"
-          >
-            Save rooster
-          </Button>
-        </Stack>
-      </form>
-    </PanelCard>
-  )
-}
-
-function CollapsibleAddRoosterSection({
-  eventId,
-  eventType,
-  entries,
-  cocksPerEntry,
-  registrations,
-  catalog,
-  eligibilityContext,
-  initialEntryId,
-}: {
-  eventId: string
-  eventType: string
-  entries: WeighingEntrySummary[]
-  cocksPerEntry: number
-  registrations: RegistrationListItem[]
-  catalog: RoosterEntryCatalog
-  eligibilityContext?: EntryFormEligibilityContext | null
-  initialEntryId?: string
-}) {
-  const [open, setOpen] = useState(Boolean(initialEntryId))
+  useEffect(() => {
+    if (open) {
+      setEntryId(initialEntryId)
+    }
+  }, [open, initialEntryId])
 
   useEffect(() => {
-    if (initialEntryId) setOpen(true)
-  }, [initialEntryId])
+    if (state.success) {
+      onOpenChange(false)
+    }
+  }, [state.success, onOpenChange])
+
+  function handleOpenChange(nextOpen: boolean) {
+    onOpenChange(nextOpen)
+    if (!nextOpen) {
+      setEntryId('')
+      setFormKey((key) => key + 1)
+    }
+  }
 
   return (
-    <Collapsible.Root open={open} onOpenChange={(details) => setOpen(details.open)}>
-      <Collapsible.Trigger asChild>
-        <Button
-          variant="outline"
-          size="md"
-          alignSelf="flex-start"
-          data-testid="roosters-add-toggle"
-        >
-          {open ? 'Hide form' : 'Add rooster'}
-        </Button>
-      </Collapsible.Trigger>
-      <Collapsible.Content>
-        <Box pt={LAYOUT_GAP.section}>
-          <AddRoosterForm
-            eventId={eventId}
-            eventType={eventType}
-            entries={entries}
-            cocksPerEntry={cocksPerEntry}
-            registrations={registrations}
-            catalog={catalog}
-            eligibilityContext={eligibilityContext}
-            initialEntryId={initialEntryId}
-          />
-        </Box>
-      </Collapsible.Content>
-    </Collapsible.Root>
+    <Dialog.Root open={open} onOpenChange={(details) => handleOpenChange(details.open)}>
+      <Portal>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content maxW="2xl">
+            <form key={formKey} action={action}>
+              <input type="hidden" name="eventId" value={eventId} />
+              <input type="hidden" name="eventType" value={eventType} />
+              <Dialog.Header>
+                <Dialog.Title>Add rooster</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Stack gap={LAYOUT_GAP.form}>
+                  {isDerby ? (
+                    <OwnerBarcodeScanRow eventId={eventId} onResolved={setEntryId} />
+                  ) : null}
+                  <EventOwnerEntryPicker
+                    entries={entries}
+                    cocksPerEntry={cocksPerEntry}
+                    value={entryId}
+                    onValueChange={setEntryId}
+                  />
+                  <OwnerRoosterCheckPanel
+                    eventId={eventId}
+                    entry={selectedEntry}
+                    cocksPerEntry={cocksPerEntry}
+                    registrations={registrations}
+                  />
+                  <FormField label="Rooster name" required>
+                    <Input name="entryName" required maxLength={200} />
+                  </FormField>
+                  <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
+                    <FormField label="Band number" required={bandNumberRequired} flex="1">
+                      <Input name="bandNumber" required={bandNumberRequired} maxLength={50} />
+                    </FormField>
+                    <FormField label="Declared weight (g, optional)" flex="1">
+                      <Input name="weight" type="number" step="1" min="1" />
+                    </FormField>
+                  </Flex>
+                  <FormField label="Handler name">
+                    <Input name="handlerName" maxLength={200} />
+                  </FormField>
+                  <RoosterEntryCoreFields slotKey="" mode="staff" catalog={catalog} required />
+                  {state.error ? (
+                    <Text fontSize="sm" color="red.500">
+                      {state.error}
+                    </Text>
+                  ) : null}
+                  {state.success ? (
+                    <Text fontSize="sm" color="green.600">
+                      {state.success}
+                    </Text>
+                  ) : null}
+                </Stack>
+              </Dialog.Body>
+              <Dialog.Footer>
+                <ButtonGroup>
+                  <Dialog.ActionTrigger asChild>
+                    <Button variant="outline" type="button">
+                      Cancel
+                    </Button>
+                  </Dialog.ActionTrigger>
+                  <Button
+                    type="submit"
+                    loading={pending}
+                    disabled={!canSubmit}
+                    size="md"
+                    data-testid="roosters-save-button"
+                  >
+                    Save rooster
+                  </Button>
+                </ButtonGroup>
+              </Dialog.Footer>
+            </form>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
   )
 }
 
@@ -318,7 +319,12 @@ export function EventRoostersClient({
   highlightId,
   initialEntryId,
 }: EventRoostersClientProps) {
+  const [addOpen, setAddOpen] = useState(Boolean(initialEntryId))
   const [statusFilter, setStatusFilter] = useState<'' | RegistrationWorkflowStatus>('')
+
+  useEffect(() => {
+    if (initialEntryId) setAddOpen(true)
+  }, [initialEntryId])
 
   const filtered = useMemo(() => {
     return registrations.filter((row) => {
@@ -334,7 +340,19 @@ export function EventRoostersClient({
         description={`${eventName} · ${registrations.length} cock${registrations.length === 1 ? '' : 's'} registered. Entry fees stay pending until Payments.`}
       />
 
-      <CollapsibleAddRoosterSection
+      <Button
+        variant="outline"
+        size="md"
+        alignSelf="flex-start"
+        data-testid="roosters-add-toggle"
+        onClick={() => setAddOpen(true)}
+      >
+        Add rooster
+      </Button>
+
+      <AddRoosterDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
         eventId={eventId}
         eventType={eventType}
         entries={entries}

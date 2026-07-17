@@ -9,7 +9,6 @@ import { OwnersListClient } from '@/features/entries/components/owners-list-clie
 import {
     PageHeader,
     PageStack,
-    PanelCard,
 } from '@/components/dashboard'
 import { Button } from '@chakra-ui/react'
 import { requireAnyPermission } from '@/lib/auth/permissions'
@@ -56,14 +55,12 @@ export default async function OwnersListPage({ params, searchParams }: OwnersLis
                     }
                 />
 
-                <PanelCard title="Registered owners">
-                    <OwnersListClient
-                        eventId={event.id}
-                        eventType={event.event_type}
-                        entries={entries}
-                        eventFeeSettings={eventFeeSettings}
-                    />
-                </PanelCard>
+                <OwnersListClient
+                    eventId={event.id}
+                    eventType={event.event_type}
+                    entries={entries}
+                    eventFeeSettings={eventFeeSettings}
+                />
             </PageStack>
         </EventPageLayout>
     )

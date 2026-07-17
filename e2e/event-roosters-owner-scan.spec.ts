@@ -66,6 +66,7 @@ test.describe('Event roosters owner scan @auth', () => {
     await page.goto(`/dashboard/events/${eventId}/roosters`)
     await expect(page.getByRole('heading', { name: 'Roosters' })).toBeVisible()
     await page.getByTestId('roosters-add-toggle').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
     await expect(page.getByTestId('event-owner-entry-picker')).toBeVisible()
 
     await page.getByTestId('owner-barcode-scan-input').fill(barcodeText)
@@ -86,6 +87,7 @@ test.describe('Event roosters owner scan @auth', () => {
 
     await page.goto(`/dashboard/events/${eventId}/roosters`)
     await page.getByTestId('roosters-add-toggle').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
     await page.getByTestId('owner-barcode-scan-input').fill(barcodeText)
     await page.getByRole('button', { name: 'Look up barcode' }).click()
 
@@ -105,6 +107,7 @@ test.describe('Event roosters owner scan @auth', () => {
 
     await page.goto(`/dashboard/events/${eventId}/roosters`)
     await page.getByTestId('roosters-add-toggle').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
     const ownerPicker = page.getByTestId('event-owner-entry-picker').getByRole('combobox')
     await ownerPicker.fill(ownerName)
     await page.getByRole('option', { name: new RegExp(ownerName) }).click()
