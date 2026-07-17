@@ -65,7 +65,6 @@ type EventFormClientProps = {
   canManage: boolean
   eligibilityPolicy?: DerbyEligibilityPolicyRow | null
   canManageEligibility?: boolean
-  prizePoolTotal?: number
 }
 
 const initialState: ActionState = {}
@@ -75,13 +74,6 @@ const DEFAULT_PRIZE_TIERS: PrizeConfigEntry[] = [
   { place: 2, label: 'Runner-up', value: 30 },
   { place: 3, label: 'Third', value: 20 },
 ]
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'PHP',
-  }).format(amount)
-}
 
 function toDatetimeLocalValue(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -191,7 +183,6 @@ export function EventFormClient({
   canManage,
   eligibilityPolicy = null,
   canManageEligibility = false,
-  prizePoolTotal = 0,
 }: EventFormClientProps) {
   const router = useRouter()
   const action = mode === 'create' ? createEventAction : updateEventAction
@@ -354,11 +345,6 @@ export function EventFormClient({
           <Stack gap={LAYOUT_GAP.form}>
             {event ? <input type="hidden" name="eventId" value={event.id} /> : null}
             <input type="hidden" name="eventType" value={eventType} />
-            <input
-              type="hidden"
-              name="physicalInspectionRequired"
-              value={physicalInspectionRequired ? 'on' : 'off'}
-            />
             {isDerby ? (
               <>
                 <input type="hidden" name="prizeType" value={prizeType} />
@@ -490,6 +476,7 @@ export function EventFormClient({
                   checked={physicalInspectionRequired}
                   onCheckedChange={(details) => setPhysicalInspectionRequired(details.checked)}
                 >
+                  <Switch.HiddenInput name="physicalInspectionRequired" />
                   <Switch.Control />
                 </Switch.Root>
               </Flex>
@@ -655,19 +642,6 @@ export function EventFormClient({
                   </Box>
                   <input type="hidden" name="entryFee" value={event?.entry_fee ?? 0} />
                 </Stack>
-
-                <Box borderWidth="1px" borderColor="border" rounded="md" p={4}>
-                  <Text fontWeight="medium" fontSize="sm" mb={1}>
-                    Prize pool collected
-                  </Text>
-                  <Text fontSize="2xl" fontWeight="semibold">
-                    {formatCurrency(prizePoolTotal)}
-                  </Text>
-                  <Text fontSize="sm" color="fg.muted" mt={1}>
-                    Sum of registration and cock entry fees collected. Updates as payments are
-                    recorded.
-                  </Text>
-                </Box>
 
                 <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
                   {isCustomDerby ? (

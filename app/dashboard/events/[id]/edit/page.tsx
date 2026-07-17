@@ -1,7 +1,5 @@
 import { notFound } from 'next/navigation'
 
-import { EventPageLayout } from '@/components/dashboard/event-page-layout'
-import { getEventPrizePoolCollected } from '@/features/events/prize-pool'
 import { EventFormClient } from '@/features/events/components/event-form-client'
 import { getEventWithPrize } from '@/features/events/queries'
 import { getDerbyEligibilityPolicy } from '@/features/eligibility/queries'
@@ -16,12 +14,11 @@ type EditEventPageProps = {
 export default async function EditEventPage({ params }: EditEventPageProps) {
   await requirePermission('events.view')
   const { id } = await params
-  const [event, promoters, user, policy, prizePoolTotal] = await Promise.all([
+  const [event, promoters, user, policy] = await Promise.all([
     getEventWithPrize(id),
     listPromoters('active'),
     getUser(),
     getDerbyEligibilityPolicy(id),
-    getEventPrizePoolCollected(id),
   ])
 
   if (!event) notFound()
@@ -41,7 +38,6 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
       canManage={canManage}
       eligibilityPolicy={policy}
       canManageEligibility={canManageEligibility}
-      prizePoolTotal={prizePoolTotal}
     />
   )
 }

@@ -122,6 +122,7 @@ test.describe('Event creation type @auth', () => {
 
     await expect(page.getByText('Derby format', { exact: true })).toBeVisible()
     await expect(page.getByText('Prize structure', { exact: true })).toBeVisible()
+    await expect(page.getByText('Prize pool collected', { exact: true })).toHaveCount(0)
   })
 
   test('shows cocks per entry only for custom derby type', async ({ page }) => {
@@ -176,6 +177,38 @@ test.describe('Event creation type @auth', () => {
 
     await page.waitForURL(eventDetailUrl)
     await expect(page.getByText('Derby · 2-Cock')).toBeVisible()
+    await expect(page.getByText('Prize pool collected', { exact: true })).toBeVisible()
+  })
+
+  test('toggles physical inspection on create and persists on edit', async ({ page }) => {
+    test.skip(
+      !(await canRunSeededEventTests()),
+      'Set valid PLAYWRIGHT_ADMIN_EMAIL/PASSWORD or apply service_role E2E grants migration'
+    )
+
+    const organizer = await signInForEventTests(page)
+    disposableUserId = organizer?.id ?? null
+    await page.goto('/dashboard/events/new')
+
+    const inspectionSection = page
+      .locator('div')
+      .filter({ hasText: 'Physical inspection required' })
+      .first()
+    await inspectionSection.getByRole('switch').click()
+    await expect(inspectionSection.getByRole('switch')).toHaveAttribute('data-checked', '')
+
+    const eventName = `E2E Inspection Toggle ${Date.now()}`
+    await fillBaseEventFields(page, eventName)
+    await eventTypeSelect(page).selectOption('classic')
+    await page.getByRole('button', { name: 'Create event' }).click()
+    await page.waitForURL(eventDetailUrl)
+
+    await expect(page.getByRole('link', { name: 'Inspection' })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Edit event' }).click()
+    await page.waitForURL(eventEditUrl)
+    await expect(page.getByText('Prize pool collected', { exact: true })).toHaveCount(0)
+    await expect(inspectionSection.getByRole('switch')).toHaveAttribute('data-checked', '')
   })
 
   test('saves formatted registration rules on derby events', async ({ page }) => {
