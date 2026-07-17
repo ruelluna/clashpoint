@@ -71,19 +71,19 @@ export function RoosterProfileClient({
         <Box flex="1">
           <PanelCard title="Profile">
           <Stack gap={3} fontSize="sm">
-            <Flex justify="space-between" gap={4}>
+            <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Age class</Text>
               <Badge variant="subtle">
                 {AGE_CLASS_LABELS[rooster.age_class as AgeClass]}
               </Badge>
             </Flex>
-            <Flex justify="space-between" gap={4}>
+            <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Competition class</Text>
               <Text>
                 {COMPETITION_CLASS_LABELS[rooster.competition_class as CompetitionClass]}
               </Text>
             </Flex>
-            <Flex justify="space-between" gap={4}>
+            <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Experience</Text>
               <Text>
                 {
@@ -93,24 +93,24 @@ export function RoosterProfileClient({
                 }
               </Text>
             </Flex>
-            <Flex justify="space-between" gap={4}>
+            <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Origin</Text>
               <Text textTransform="capitalize">{rooster.origin_type.replace(/_/g, ' ')}</Text>
             </Flex>
             {rooster.breed ? (
-              <Flex justify="space-between" gap={4}>
+              <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
                 <Text color="fg.muted">Breed</Text>
                 <Text>{rooster.breed}</Text>
               </Flex>
             ) : null}
             {rooster.bloodline ? (
-              <Flex justify="space-between" gap={4}>
+              <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
                 <Text color="fg.muted">Bloodline</Text>
                 <Text>{rooster.bloodline}</Text>
               </Flex>
             ) : null}
             {rooster.hatch_date ? (
-              <Flex justify="space-between" gap={4}>
+              <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
                 <Text color="fg.muted">Hatch date</Text>
                 <Text>
                   {rooster.hatch_date}

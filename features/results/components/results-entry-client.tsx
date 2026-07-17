@@ -125,7 +125,7 @@ export function ResultsEntryClient({
                 <Checkbox.Control />
                 <Checkbox.Label>Under protest</Checkbox.Label>
               </Checkbox.Root>
-              <Button type="submit" loading={recordPending} alignSelf="flex-start">
+              <Button type="submit" loading={recordPending} alignSelf={{ base: 'stretch', sm: 'flex-start' }} size="md" width={{ base: 'full', sm: 'auto' }}>
                 Submit result
               </Button>
               </Stack>
@@ -135,8 +135,12 @@ export function ResultsEntryClient({
       ) : null}
 
       <PanelCard flush title="Recorded results">
-        <Text fontSize="sm" color="fg.muted" px={LAYOUT_GAP.cardPadding} pb={LAYOUT_GAP.cardTitle}>
+        <Text fontSize="sm" color="fg.muted" px={{ base: 4, lg: LAYOUT_GAP.cardPadding }} pb={LAYOUT_GAP.cardTitle}>
           Verified results update event standings.
+          <Text as="span" display={{ base: 'inline', lg: 'none' }}>
+            {' '}
+            Swipe horizontally to see all columns.
+          </Text>
         </Text>
         {results.length === 0 ? (
           <Box p={4}>
@@ -197,9 +201,10 @@ export function ResultsEntryClient({
                           <input type="hidden" name="eventId" value={eventId} />
                           <Button
                             type="submit"
-                            size="xs"
+                            size="md"
                             variant="outline"
                             loading={verifyPending}
+                            width={{ base: 'full', sm: 'auto' }}
                           >
                             Verify
                           </Button>

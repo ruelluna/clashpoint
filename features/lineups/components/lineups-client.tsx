@@ -73,6 +73,15 @@ export function LineupsClient({
       />
 
       <PanelCard flush>
+        <Text
+          fontSize="sm"
+          color="fg.muted"
+          px={{ base: 4, lg: LAYOUT_GAP.cardPadding }}
+          pb={LAYOUT_GAP.cardTitle}
+          display={{ base: 'block', lg: 'none' }}
+        >
+          Swipe horizontally to browse entries.
+        </Text>
         <Box overflowX="auto">
           <Box as="table" width="100%" fontSize="sm">
             <Box as="thead" bg="bg.subtle">
@@ -167,15 +176,15 @@ export function LineupsClient({
                       <Text fontSize="sm" fontWeight="medium" mb={3}>
                         Cock #{cockNumber}
                       </Text>
-                      <Flex gap={LAYOUT_GAP.form} wrap="wrap">
-                        <FormField label="Band number" required flex="1" minW="140px">
+                      <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }} wrap="wrap">
+                        <FormField label="Band number" required flex="1" minW={{ sm: '140px' }}>
                           <Input
                             name={`bandNumber_${cockNumber}`}
                             defaultValue={existing?.band_number ?? ''}
                             required
                           />
                         </FormField>
-                        <FormField label="Declared weight (kg)" flex="1" minW="120px">
+                        <FormField label="Declared weight (kg)" flex="1" minW={{ sm: '120px' }}>
                           <Input
                             name={`declaredWeight_${cockNumber}`}
                             type="number"
@@ -188,13 +197,13 @@ export function LineupsClient({
                             }
                           />
                         </FormField>
-                        <FormField label="Category" flex="1" minW="120px">
+                        <FormField label="Category" flex="1" minW={{ sm: '120px' }}>
                           <Input
                             name={`category_${cockNumber}`}
                             defaultValue={existing?.category ?? ''}
                           />
                         </FormField>
-                        <FormField label="Color / marking" flex="1" minW="140px">
+                        <FormField label="Color / marking" flex="1" minW={{ sm: '140px' }}>
                           <Input
                             name={`colorMarking_${cockNumber}`}
                             defaultValue={existing?.color_marking ?? ''}
@@ -206,7 +215,7 @@ export function LineupsClient({
                 })}
 
                 <ButtonGroup wrap="wrap" align="center">
-                  <Button type="submit" loading={pending}>
+                  <Button type="submit" loading={pending} size="md" width={{ base: 'full', sm: 'auto' }}>
                     Submit lineup
                   </Button>
                   {eligibleEntries.length > 1 ? (

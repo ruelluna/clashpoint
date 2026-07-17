@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Flex, Link as ChakraLink, Text } from '@chakra-ui/react'
+import { Box, Flex, Link as ChakraLink, Tabs, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -25,6 +25,32 @@ const DEFAULT_TABS: EventTabItem[] = [
   { slug: 'reports', label: 'Reports' },
 ]
 
+function tabValue(slug: string) {
+  return slug || 'overview'
+}
+
+function resolveActiveTabValue(
+  pathname: string,
+  basePath: string,
+  visibleTabs: EventTabItem[]
+): string {
+  const sorted = [...visibleTabs].sort((a, b) => b.slug.length - a.slug.length)
+
+  for (const tab of sorted) {
+    if (!tab.slug) {
+      if (pathname === basePath) return tabValue(tab.slug)
+      continue
+    }
+
+    const href = `${basePath}/${tab.slug}`
+    if (pathname === href || pathname.startsWith(`${href}/`)) {
+      return tabValue(tab.slug)
+    }
+  }
+
+  return tabValue(visibleTabs[0]?.slug ?? '')
+}
+
 type EventDetailTabsProps = {
   eventId: string
   eventName: string
@@ -38,6 +64,7 @@ export function EventDetailTabs({
 }: EventDetailTabsProps) {
   const pathname = usePathname()
   const basePath = `/dashboard/events/${eventId}`
+  const activeValue = resolveActiveTabValue(pathname, basePath, visibleTabs)
 
   return (
     <Flex direction="column" gap={4}>
@@ -50,34 +77,21 @@ export function EventDetailTabs({
         </ChakraLink>
       </Box>
 
-      <Box overflowX="auto" borderBottomWidth="1px" borderColor="border">
-        <Flex gap={1} minW="max-content" pb={1}>
-          {visibleTabs.map((tab) => {
-            const href = tab.slug ? `${basePath}/${tab.slug}` : basePath
-            const isActive = tab.slug
-              ? pathname === href || pathname.startsWith(`${href}/`)
-              : pathname === basePath
+      <Tabs.Root value={activeValue} variant="outline" size="sm">
+        <Box overflowX="auto">
+          <Tabs.List minW="max-content" borderBottomWidth="1px" borderColor="border">
+            {visibleTabs.map((tab) => {
+              const href = tab.slug ? `${basePath}/${tab.slug}` : basePath
 
-            return (
-              <ChakraLink
-                key={tab.slug || 'overview'}
-                asChild
-                px={3}
-                py={2}
-                rounded="md"
-                fontSize="sm"
-                fontWeight={isActive ? 'semibold' : 'medium'}
-                color={isActive ? 'fg' : 'fg.muted'}
-                bg={isActive ? 'bg.subtle' : 'transparent'}
-                whiteSpace="nowrap"
-                _hover={{ bg: 'bg.subtle', color: 'fg' }}
-              >
-                <Link href={href}>{tab.label}</Link>
-              </ChakraLink>
-            )
-          })}
-        </Flex>
-      </Box>
+              return (
+                <Tabs.Trigger key={tabValue(tab.slug)} value={tabValue(tab.slug)} asChild>
+                  <Link href={href}>{tab.label}</Link>
+                </Tabs.Trigger>
+              )
+            })}
+          </Tabs.List>
+        </Box>
+      </Tabs.Root>
     </Flex>
   )
 }

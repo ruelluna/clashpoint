@@ -1,4 +1,4 @@
----
+﻿---
 description: React Server vs Client Component patterns
 globs: "**/*.{tsx,jsx}"
 alwaysApply: false
@@ -17,7 +17,7 @@ Default to Server Components. Add `'use client'` only when the component needs:
 Push the client boundary as far down the tree as possible.
 
 ```tsx
-// âœ… GOOD â€” small client island inside server page
+// GOOD — small client island inside server page
 export default async function EventPage({ params }: Props) {
   const event = await getEvent(params.id)
   return (
@@ -40,9 +40,12 @@ export default async function EventPage({ params }: Props) {
 
 - Keep components under ~150 lines; extract subcomponents when growing
 - Colocate feature-specific components in `features/{module}/components/`
-- Shared UI primitives live in `components/ui/` (shadcn)
+- Shared layout primitives live in `components/dashboard/`; color mode and hybrids in `components/ui/`
 
 ## Styling
 
-- Tailwind utility classes; use `cn()` from `lib/utils` for conditional classes
-- Do not use inline styles except for dynamic values
+- **Chakra UI v3** is the primary component layer for app and dashboard UI
+- Use `components/dashboard/` primitives (`PageStack`, `PanelCard`, `DetailFieldRow`, `ButtonGroup`) before bespoke layout
+- Every client component that touches layout must satisfy `responsive-ui.mdc` (mobile-first breakpoints, touch targets)
+- Tailwind is for global tokens and root layout classes only — not responsive dashboard/feature UI
+- Use `cn()` from `lib/utils` only where Tailwind classes are already in use (e.g. rich text)

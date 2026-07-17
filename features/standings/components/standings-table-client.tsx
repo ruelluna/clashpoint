@@ -12,8 +12,12 @@ export function StandingsTableClient({
 }) {
   return (
     <PanelCard flush title="Event standings">
-      <Text fontSize="sm" color="fg.muted" px={LAYOUT_GAP.cardPadding} pb={LAYOUT_GAP.cardTitle}>
+      <Text fontSize="sm" color="fg.muted" px={{ base: 4, lg: LAYOUT_GAP.cardPadding }} pb={LAYOUT_GAP.cardTitle}>
         Ranked by points, then wins. Win = 1 pt, draw = 0.5 pt, loss = 0 pt.
+        <Text as="span" display={{ base: 'inline', lg: 'none' }}>
+          {' '}
+          Swipe horizontally to see all columns.
+        </Text>
       </Text>
       {standings.length === 0 ? (
         <Box p={4}>

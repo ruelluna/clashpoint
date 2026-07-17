@@ -62,7 +62,7 @@ function ReleasePayoutForm({
 
   if (!open) {
     return (
-      <Button size="xs" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="md" variant="outline" onClick={() => setOpen(true)} width={{ base: 'full', sm: 'auto' }}>
         Release payout
       </Button>
     )
@@ -153,6 +153,15 @@ export function PayoutsClient({
       </PanelCard>
 
       <PanelCard flush title="Prize payouts">
+        <Text
+          fontSize="sm"
+          color="fg.muted"
+          px={{ base: 4, lg: LAYOUT_GAP.cardPadding }}
+          pb={LAYOUT_GAP.cardTitle}
+          display={{ base: 'block', lg: 'none' }}
+        >
+          Swipe horizontally to see all columns.
+        </Text>
         {payouts.length === 0 ? (
           <Box p={4}>
             <Text fontSize="sm" color="fg.muted">

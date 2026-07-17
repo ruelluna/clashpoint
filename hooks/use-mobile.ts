@@ -1,21 +1,26 @@
-import * as React from "react"
+import * as React from 'react'
 
-const MOBILE_BREAKPOINT = 768
+/** Drawer shell below lg (992px); persistent sidebar at lg+. */
+export const COMPACT_SHELL_BREAKPOINT = 992
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+export function useCompactShell() {
+  const [isCompact, setIsCompact] = React.useState<boolean | undefined>(undefined)
 
   React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+    const mql = window.matchMedia(`(max-width: ${COMPACT_SHELL_BREAKPOINT - 1}px)`)
     const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      setIsCompact(window.innerWidth < COMPACT_SHELL_BREAKPOINT)
     }
-    mql.addEventListener("change", onChange)
-    // Initial read of a browser-only API after mount (SSR-safe).
+    mql.addEventListener('change', onChange)
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
+    setIsCompact(window.innerWidth < COMPACT_SHELL_BREAKPOINT)
+    return () => mql.removeEventListener('change', onChange)
   }, [])
 
-  return !!isMobile
+  return !!isCompact
+}
+
+/** @deprecated Use useCompactShell */
+export function useIsMobile() {
+  return useCompactShell()
 }

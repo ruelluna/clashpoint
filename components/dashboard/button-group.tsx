@@ -6,9 +6,14 @@ type ButtonGroupProps = FlexProps & {
   children: React.ReactNode
 }
 
-export function ButtonGroup({ children, gap = LAYOUT_GAP.buttons, ...props }: ButtonGroupProps) {
+export function ButtonGroup({
+  children,
+  gap = LAYOUT_GAP.buttons,
+  direction = { base: 'column', sm: 'row' },
+  ...props
+}: ButtonGroupProps) {
   return (
-    <Flex gap={gap} wrap="wrap" {...props}>
+    <Flex gap={gap} wrap="wrap" direction={direction} {...props}>
       {children}
     </Flex>
   )

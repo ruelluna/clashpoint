@@ -192,7 +192,7 @@ function FightQueueRow({
   return (
     <Box px={4} py={3} borderBottomWidth="1px" borderColor="border" _last={{ borderBottomWidth: 0 }}>
       <Flex direction={{ base: 'column', lg: 'row' }} gap={4} align={{ lg: 'center' }}>
-        <Flex align="center" gap={3} minW="8rem">
+        <Flex align="center" gap={3} flexShrink={0}>
           <Text fontSize="lg" fontWeight="semibold">
             #{match.fight_number}
           </Text>

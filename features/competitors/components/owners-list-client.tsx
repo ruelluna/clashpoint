@@ -66,7 +66,7 @@ export function OwnersListClient({ owners, canManage }: OwnersListClientProps) {
           borderColor="border"
           fontWeight="medium"
           fontSize="sm"
-          display={{ base: 'none', md: 'flex' }}
+          display={{ base: 'none', lg: 'flex' }}
         >
           <Box flex="2">Owner / game farm</Box>
           <Box flex="1">Contact</Box>
@@ -88,9 +88,9 @@ export function OwnersListClient({ owners, canManage }: OwnersListClientProps) {
                 py={3}
                 borderBottomWidth="1px"
                 borderColor="border"
-                direction={{ base: 'column', md: 'row' }}
+                direction={{ base: 'column', lg: 'row' }}
                 gap={2}
-                align={{ md: 'center' }}
+                align={{ lg: 'center' }}
                 _hover={{ bg: 'bg.subtle' }}
               >
                 <Box flex="2">

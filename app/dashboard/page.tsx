@@ -63,6 +63,8 @@ export default async function DashboardPage() {
               <Flex
                 key={log.id}
                 justify="space-between"
+                direction={{ base: 'column', sm: 'row' }}
+                gap={{ base: 1, sm: 0 }}
                 fontSize="sm"
                 borderBottomWidth="1px"
                 borderColor="border"
