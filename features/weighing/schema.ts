@@ -1,7 +1,11 @@
 import { z } from 'zod'
 
-import { entryRoosterRegistryFieldsSchema } from '@/features/entries/schema'
-import { weightGramsSchema } from '@/features/entries/schema'
+import {
+  buildRoosterEntryItemSchema,
+  entryRoosterRegistryFieldsSchema,
+  roosterColorMarkingSchema,
+  weightGramsSchema,
+} from '@/features/entries/schema'
 import type { WeightStatus } from '@/features/weighing/types'
 
 export const weightStatusSchema = z.enum([
@@ -14,7 +18,7 @@ export const weightStatusSchema = z.enum([
 export const recordWeightSchema = z.object({
   eventId: z.string().uuid(),
   roosterRecordId: z.string().uuid(),
-  officialWeight: z.coerce.number().positive('Weight must be greater than zero'),
+  officialWeight: weightGramsSchema,
   notes: z
     .string()
     .max(500)
@@ -42,23 +46,40 @@ const optionalText = (max: number) =>
     .or(z.literal(''))
     .transform((value) => value || undefined)
 
-export const createRoosterSchema = z
-  .object({
-    eventId: z.string().uuid(),
-    entryId: z.string().uuid(),
-    entryName: optionalText(200),
-    bandNumber: z.string().min(1, 'Band number is required').max(50),
-    weight: z.preprocess(
-      (value) =>
-        value === '' || value === null || value === undefined ? undefined : value,
-      weightGramsSchema.optional()
-    ),
-    colorMarking: optionalText(200),
-    handlerName: optionalText(200),
-    notes: optionalText(2000),
-  })
-  .extend(entryRoosterRegistryFieldsSchema)
+const requiredText = (max: number, message: string) =>
+  z
+    .string()
+    .min(1, message)
+    .max(max, `Must be at most ${max} characters`)
 
+export function buildCreateRoosterSchema(bandingRequired: boolean) {
+  return z
+    .object({
+      eventId: z.string().uuid(),
+      entryId: z.string().uuid(),
+      entryName: requiredText(200, 'Rooster name is required'),
+      bandNumber: bandingRequired
+        ? z.string().min(1, 'Band number is required').max(50)
+        : z
+            .string()
+            .max(50)
+            .optional()
+            .or(z.literal(''))
+            .transform((value) => value?.trim() || undefined),
+      weight: z.preprocess(
+        (value) =>
+          value === '' || value === null || value === undefined ? undefined : value,
+        weightGramsSchema.optional()
+      ),
+      breed: requiredText(100, 'Breed is required'),
+      colorMarking: roosterColorMarkingSchema,
+      handlerName: optionalText(200),
+      notes: requiredText(2000, 'Notes are required'),
+    })
+    .extend(entryRoosterRegistryFieldsSchema)
+}
+
+export const createRoosterSchema = buildCreateRoosterSchema(true)
 export type RecordWeightInput = z.infer<typeof recordWeightSchema>
 export type VerifyWeightInput = z.infer<typeof verifyWeightSchema>
 export type CreateRoosterInput = z.infer<typeof createRoosterSchema>

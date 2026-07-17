@@ -34,6 +34,7 @@ import type { EntryRoosterEditItem } from '@/features/entries/queries'
 import { ENTRY_SOURCE_LABELS } from '@/features/entries/schema'
 import type { EntryRow } from '@/features/entries/types'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
+import type { RoosterEntryCatalog } from '@/features/reference-values/catalog'
 import type { PromoterListItem } from '@/features/promoters/types'
 
 type EntryEditClientProps = {
@@ -47,6 +48,7 @@ type EntryEditClientProps = {
   linkedCompetitor: CompetitorSearchResult | null
   minWeightGrams: number | null
   maxWeightGrams: number | null
+  catalog: RoosterEntryCatalog
   eligibilityContext?: EntryFormEligibilityContext | null
 }
 
@@ -68,6 +70,7 @@ export function EntryEditClient({
   linkedCompetitor,
   minWeightGrams,
   maxWeightGrams,
+  catalog,
   eligibilityContext = null,
 }: EntryEditClientProps) {
   const [formState, formAction, pending] = useActionState(updateEntryAction, initialState)
@@ -186,6 +189,7 @@ export function EntryEditClient({
             mode="edit"
             eventType={eventType}
             cocksPerEntry={cocksPerEntry}
+            catalog={catalog}
             eligibilityContext={eligibilityContext}
             existingRoosters={roosters}
           />

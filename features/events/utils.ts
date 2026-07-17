@@ -16,8 +16,8 @@ export function resolveCocksPerEntry(
   customValue?: number
 ): number {
   if (eventType === 'classic') return 1
-  if (derbyType == null) return 5
-  if (derbyType === 'custom') return customValue ?? 5
+  if (derbyType == null) return 2
+  if (derbyType === 'custom') return customValue ?? 2
   return COCKS_PER_ENTRY_BY_DERBY_TYPE[derbyType]
 }
 

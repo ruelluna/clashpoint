@@ -33,8 +33,9 @@ export function RegistrationShareLink({
   return (
     <Stack gap={3} fontSize="sm">
       <Text color="fg.muted">
-        Share this link so entrants can register online. Submissions are accepted only while
-        the event is <strong>Open</strong> and before the registration deadline.
+        Share this link so entrants can register online in two steps: game farm details, then
+        rooster registration. Submissions are accepted only while the event is{' '}
+        <strong>Open</strong> and before the registration deadline when one is set.
       </Text>
       <Flex gap={2} align="center" wrap="wrap">
         <Input readOnly value={fullUrl} flex="1" minW="16rem" fontSize="sm" />

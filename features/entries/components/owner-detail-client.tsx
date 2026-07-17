@@ -47,11 +47,16 @@ type OwnerDetailClientProps = {
 
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <Flex justify="space-between" gap={4} fontSize="sm">
+    <Flex
+      justify="space-between"
+      direction={{ base: 'column', sm: 'row' }}
+      gap={2}
+      fontSize="sm"
+    >
       <Text color="fg.muted" flexShrink={0}>
         {label}
       </Text>
-      <Box textAlign="right">{children}</Box>
+      <Box textAlign={{ base: 'left', sm: 'right' }}>{children}</Box>
     </Flex>
   )
 }
@@ -100,7 +105,7 @@ export function OwnerDetailClient({
         description={`${eventName} · ${roosterSlotsUsed} of ${cocksPerEntry} cock slot(s) used`}
         actions={
           <ButtonGroup>
-            {eventType === 'derby' && entry.owner_barcode ? (
+            {entry.owner_barcode ? (
               <Button asChild size="sm" variant="outline">
                 <Link href={`/dashboard/events/${eventId}/owners/${entry.id}/print`}>
                   Print OWNER slip
@@ -271,15 +276,13 @@ export function OwnerDetailClient({
                       View on Roosters
                     </Link>
                   </Button>
-                  {eventType === 'derby' ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link
-                        href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}
-                      >
-                        Print slip
-                      </Link>
-                    </Button>
-                  ) : null}
+                  <Button asChild size="sm" variant="outline">
+                    <Link
+                      href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}
+                    >
+                      Print slip
+                    </Link>
+                  </Button>
                 </ButtonGroup>
               </Flex>
             ))}

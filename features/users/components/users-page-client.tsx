@@ -155,7 +155,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
           borderColor="border"
           fontWeight="medium"
           fontSize="sm"
-          display={{ base: 'none', md: 'flex' }}
+          display={{ base: 'none', lg: 'flex' }}
         >
           <Box flex="2">User</Box>
           <Box flex="1">Role</Box>
@@ -169,9 +169,9 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
             py={3}
             borderBottomWidth="1px"
             borderColor="border"
-            direction={{ base: 'column', md: 'row' }}
+            direction={{ base: 'column', lg: 'row' }}
             gap={2}
-            align={{ md: 'center' }}
+            align={{ lg: 'center' }}
           >
             <Box flex="2">
               <Text fontWeight="medium">{user.display_name ?? '—'}</Text>

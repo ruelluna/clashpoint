@@ -90,6 +90,7 @@ export type EligibilityEvaluationContext = {
   eventMaxWeightGrams: number | null
   eventWeightVerificationRequired: boolean
   eventUnknownValueHandling: UnknownValueHandling
+  eventPhysicalInspectionRequired: boolean
   policy: DerbyEligibilityPolicy | null
   eligibilityEnforcementEnabled: boolean
 }

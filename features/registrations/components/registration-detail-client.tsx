@@ -167,7 +167,7 @@ export function RegistrationDetailClient({
         <Box flex="1">
           <PanelCard title="Registration status">
           <Stack gap={3} fontSize="sm">
-            <Flex justify="space-between" gap={4}>
+            <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Workflow</Text>
               <Badge variant="subtle">
                 {
@@ -177,26 +177,26 @@ export function RegistrationDetailClient({
                 }
               </Badge>
             </Flex>
-            <Flex justify="space-between" gap={4}>
+            <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Approval</Text>
               <Text>
                 {APPROVAL_STATUS_LABELS[registration.approval_status as RoosterApprovalStatus]}
               </Text>
             </Flex>
-            <Flex justify="space-between" gap={4}>
+            <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Eligibility</Text>
               <Badge variant="subtle">
                 {ELIGIBILITY_STATUS_LABELS[registration.eligibility_status as EligibilityStatus]}
               </Badge>
             </Flex>
-            <Flex justify="space-between" gap={4}>
+            <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Entry</Text>
               <Text>
                 #{registration.entry_number} · {registration.owner_name}
               </Text>
             </Flex>
             {registration.official_weight_grams != null ? (
-              <Flex justify="space-between" gap={4}>
+              <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
                 <Text color="fg.muted">Official weight</Text>
                 <Text>{gramsToKg(registration.official_weight_grams)} kg</Text>
               </Flex>
@@ -209,13 +209,13 @@ export function RegistrationDetailClient({
           <PanelCard title="Rooster profile">
           <Stack gap={3} fontSize="sm">
             {registration.age_class ? (
-              <Flex justify="space-between" gap={4}>
+              <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
                 <Text color="fg.muted">Age class</Text>
                 <Text>{AGE_CLASS_LABELS[registration.age_class as AgeClass]}</Text>
               </Flex>
             ) : null}
             {registration.competition_class ? (
-              <Flex justify="space-between" gap={4}>
+              <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
                 <Text color="fg.muted">Competition class</Text>
                 <Text>
                   {COMPETITION_CLASS_LABELS[registration.competition_class as CompetitionClass]}
@@ -223,7 +223,7 @@ export function RegistrationDetailClient({
               </Flex>
             ) : null}
             {registration.calculated_experience_status ? (
-              <Flex justify="space-between" gap={4}>
+              <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
                 <Text color="fg.muted">Experience</Text>
                 <Text>
                   {
@@ -235,7 +235,7 @@ export function RegistrationDetailClient({
               </Flex>
             ) : null}
             {registration.origin_type ? (
-              <Flex justify="space-between" gap={4}>
+              <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
                 <Text color="fg.muted">Origin</Text>
                 <Text textTransform="capitalize">
                   {registration.origin_type.replace(/_/g, ' ')}

@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
+import { resolveRegistrationBandNumber } from '@/features/entries/band-display'
 import { getCompetitor } from '@/features/competitors/queries'
 import { applyRegistrationEligibility } from '@/features/eligibility/registration-bridge'
 import {
@@ -29,13 +30,18 @@ import { isRegistrationOpen } from '@/features/events/utils'
 import { createRoosterForEntry } from '@/features/weighing/service'
 import { evaluateWeightStatusGrams } from '@/features/weighing/schema'
 import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
-import { catalogReferenceValues } from '@/features/reference-values/service'
+import {
+  ReferenceValueNotInCatalogError,
+  resolveEntryReferenceValues,
+  type CatalogResolutionOptions,
+} from '@/features/reference-values/service'
 import { createExtendedClient } from '@/lib/supabase/extended'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 type EntryWriteOptions = {
   useAdminClient?: boolean
+  catalogResolution?: CatalogResolutionOptions
 }
 
 async function resolveWriteClient(options?: EntryWriteOptions) {
@@ -175,17 +181,27 @@ export async function createEntry(
     return { error: 'Registrations are only accepted while the event is open' }
   }
 
-  const competitorResult = actorId
-    ? await resolveEntryCompetitor(actorId, input)
-    : { competitorId: null as string | null }
-  if (competitorResult.error) {
-    return { error: competitorResult.error }
+  let competitorId: string | null = null
+  if (actorId) {
+    const competitorResult = await resolveEntryCompetitor(actorId, input)
+    if (competitorResult.error) {
+      return { error: competitorResult.error }
+    }
+    competitorId = competitorResult.competitorId ?? null
+  } else if (input.competitorId) {
+    const competitor = await getCompetitor(input.competitorId, {
+      useAdminClient: options?.useAdminClient,
+    })
+    if (!competitor) {
+      return { error: 'Selected game farm was not found' }
+    }
+    competitorId = competitor.id
   }
 
   const duplicateResult = await assertOwnerNotAlreadyRegistered(
     input.eventId,
     input.ownerName,
-    competitorResult.competitorId,
+    competitorId,
     options
   )
   if (duplicateResult.error) {
@@ -210,14 +226,9 @@ export async function createEntry(
   const entryNumber = getNextEntryNumber(existingNumbers)
 
   const isDerby = event.event_type === 'derby'
-  let ownerBarcode: string | null = null
-  let feeSnapshot: Record<string, unknown> | null = null
-
-  if (isDerby) {
-    const existingBarcodes = await listOwnerBarcodesForEvent(input.eventId, options)
-    ownerBarcode = getNextOwnerBarcode(input.eventId, existingBarcodes)
-    feeSnapshot = snapshotFromSettings(eventFeeSettingsFromRow(event))
-  }
+  const existingBarcodes = await listOwnerBarcodesForEvent(input.eventId, options)
+  const ownerBarcode = getNextOwnerBarcode(input.eventId, existingBarcodes)
+  const feeSnapshot = isDerby ? snapshotFromSettings(eventFeeSettingsFromRow(event)) : null
 
   const feeSettings = eventFeeSettingsFromRow(event)
   const paymentStatus = feeSettings.registrationFeeEnabled ? 'unpaid' : 'paid'
@@ -227,7 +238,7 @@ export async function createEntry(
     .insert({
       event_id: input.eventId,
       referred_by_promoter_id: input.referredByPromoterId ?? null,
-      competitor_id: competitorResult.competitorId ?? null,
+      competitor_id: competitorId,
       entry_number: entryNumber,
       entry_name: input.ownerName,
       owner_name: input.ownerName,
@@ -262,7 +273,7 @@ export async function createEntry(
       entry_number: entryNumber,
       entry_name: input.ownerName,
       owner_name: input.ownerName,
-      competitor_id: competitorResult.competitorId ?? null,
+      competitor_id: competitorId,
       owner_barcode: ownerBarcode,
       ...(input.entrySource === 'online' ? { source: 'online' } : {}),
     },
@@ -298,7 +309,7 @@ function toCreateRoosterInput(
     bandOrganization: 'bandOrganization' in rooster ? rooster.bandOrganization : undefined,
     bandYear: 'bandYear' in rooster ? rooster.bandYear : undefined,
     bandSeason: 'bandSeason' in rooster ? rooster.bandSeason : undefined,
-    breed: 'breed' in rooster ? rooster.breed : undefined,
+    breed: rooster.breed,
     bloodline: 'bloodline' in rooster ? rooster.bloodline : undefined,
     competitionClass: 'competitionClass' in rooster ? rooster.competitionClass : undefined,
     hatchDate: 'hatchDate' in rooster ? rooster.hatchDate : undefined,
@@ -387,10 +398,11 @@ export async function createEntryWithRooster(
 }
 
 export async function addEntryRoosters(
-  actorId: string,
+  actorId: string | null,
   eventId: string,
   entryId: string,
-  roosters: NewEntryRosterItemInput[]
+  roosters: NewEntryRosterItemInput[],
+  options?: EntryWriteOptions
 ): Promise<{ error?: string; roosterIds?: string[] }> {
   if (roosters.length === 0) return {}
 
@@ -399,7 +411,8 @@ export async function addEntryRoosters(
   for (const rooster of roosters) {
     const roosterResult = await createRoosterForEntry(
       actorId,
-      toCreateRoosterInput(eventId, entryId, rooster)
+      toCreateRoosterInput(eventId, entryId, rooster),
+      options
     )
 
     if (roosterResult.error || !roosterResult.roosterId) {
@@ -515,18 +528,26 @@ export async function updateEntryRoosters(
     if (recordError) return { error: recordError.message }
     if (!record) return { error: 'Rooster not found for this entry' }
 
-    const band = rooster.bandNumber.trim()
-    const { data: bandConflict, error: bandError } = await supabase
-      .from('rooster_event_registrations')
-      .select('id')
-      .eq('event_id', eventId)
-      .ilike('band_number', band)
-      .neq('id', rooster.roosterId)
-      .maybeSingle()
+    const userBand = rooster.bandNumber?.trim() ?? ''
+    const band = resolveRegistrationBandNumber({
+      bandNumber: userBand,
+      entryId,
+      cockNumber: Number(record.cock_number),
+    })
 
-    if (bandError) return { error: bandError.message }
-    if (bandConflict) {
-      return { error: `Band number ${band} is already registered for this event` }
+    if (userBand) {
+      const { data: bandConflict, error: bandError } = await supabase
+        .from('rooster_event_registrations')
+        .select('id')
+        .eq('event_id', eventId)
+        .ilike('band_number', userBand)
+        .neq('id', rooster.roosterId)
+        .maybeSingle()
+
+      if (bandError) return { error: bandError.message }
+      if (bandConflict) {
+        return { error: `Band number ${userBand} is already registered for this event` }
+      }
     }
 
     const weightGrams = Math.round(rooster.weight)
@@ -538,11 +559,22 @@ export async function updateEntryRoosters(
     )
     const ageClass = rooster.ageClass ?? 'unknown'
 
-    const cataloged = await catalogReferenceValues({
-      breed: rooster.breed,
-      bloodline: rooster.bloodline,
-      colorMarking: rooster.colorMarking,
-    })
+    let cataloged: Awaited<ReturnType<typeof resolveEntryReferenceValues>>
+    try {
+      cataloged = await resolveEntryReferenceValues(
+        {
+          breed: rooster.breed,
+          bloodline: rooster.bloodline,
+          colorMarking: rooster.colorMarking,
+        },
+        { mode: 'strict' }
+      )
+    } catch (error) {
+      if (error instanceof ReferenceValueNotInCatalogError) {
+        return { error: error.message }
+      }
+      throw error
+    }
 
     const { error: roosterUpdateError } = await extended
       .from('rooster_event_registrations')

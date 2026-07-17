@@ -46,17 +46,16 @@ describe('buildEligibilityPolicySummary', () => {
     expect(summary.items[1]?.configuredOptions[1]).toContain('verification')
   })
 
-  it('includes approved association names when association is enabled', () => {
+  it('adds workflow notes when physical inspection is enabled on the event', () => {
     const context: EntryFormEligibilityContext = {
       ...baseContext,
-      enabledFields: ['association'],
-      associationMembersOnly: true,
+      enabledFields: [],
+      physicalInspectionRequired: true,
     }
 
-    const summary = buildEligibilityPolicySummary(context, null, ['NFGBA', 'Cebu Gamefowl'])
+    const summary = buildEligibilityPolicySummary(context, null)
 
-    expect(summary.items[0]?.configuredOptions[0]).toContain('NFGBA')
-    expect(summary.items[0]?.entryFieldsToFill[0]).toContain('saved competitor')
+    expect(summary.workflowNotes).toContain('Physical inspection required')
   })
 })
 

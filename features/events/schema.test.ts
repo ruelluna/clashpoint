@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createEventSchema } from '@/features/events/schema'
+import { createEventSchema, defaultTaxPerFight } from '@/features/events/schema'
 
 const basePrizeStructure = {
   prizeType: 'percentage' as const,
@@ -109,26 +109,40 @@ describe('createEventSchema event_type', () => {
     }
   })
 
-  it('defaults entry fee to zero and rejects negative values', () => {
-    const valid = createEventSchema.safeParse({
+  it('defaults legal authorization to true and cocks per entry to 2', () => {
+    const result = createEventSchema.safeParse({
       ...baseEvent,
-      derbyType: '5_cock',
+      derbyType: '2_cock',
       prizeStructure: basePrizeStructure,
-      entryFee: 250,
     })
 
-    expect(valid.success).toBe(true)
-    if (valid.success) {
-      expect(valid.data.entryFee).toBe(250)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.legalAuthorized).toBe(true)
+      expect(result.data.cocksPerEntry).toBe(2)
     }
+  })
 
-    const invalid = createEventSchema.safeParse({
+  it('accepts tax commission and inspection fields', () => {
+    const result = createEventSchema.safeParse({
       ...baseEvent,
-      derbyType: '5_cock',
-      prizeStructure: basePrizeStructure,
-      entryFee: -1,
+      eventType: 'classic',
+      cocksPerEntry: 1,
+      taxCommission: 25,
+      physicalInspectionRequired: true,
+      revolvingFundInitial: 500,
     })
 
-    expect(invalid.success).toBe(false)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.taxCommission).toBe(25)
+      expect(result.data.physicalInspectionRequired).toBe(true)
+      expect(result.data.revolvingFundInitial).toBe(500)
+    }
+  })
+
+  it('uses type-aware default tax per fight helper', () => {
+    expect(defaultTaxPerFight('classic')).toBe(50)
+    expect(defaultTaxPerFight('derby')).toBe(100)
   })
 })

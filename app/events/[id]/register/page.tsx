@@ -8,9 +8,14 @@ import {
   EVENT_TYPE_LABELS,
 } from '@/features/events/schema'
 import { getRegistrationClosedReason } from '@/features/events/utils'
-import { PublicEntryFormClient } from '@/features/public/components/public-entry-form-client'
+import { PublicRegistrationWizard } from '@/features/public/components/public-registration-wizard'
 import { PublicEventNav } from '@/features/public/components/public-event-nav'
+import { getPublicRegistrationEntryContext } from '@/features/public/owner-registration-service'
 import { getPublicRegistrationEvent } from '@/features/public/queries'
+import {
+  getPublicReferenceOptions,
+  getRoosterEntryCatalog,
+} from '@/features/reference-values/catalog'
 import { sanitizeHtml } from '@/lib/sanitize-html'
 
 type PublicRegisterPageProps = {
@@ -40,6 +45,14 @@ export default async function PublicRegisterPage({ params }: PublicRegisterPageP
   const eligibilityContext = await getEntryFormEligibilityContext(id, {
     useAdminClient: true,
   })
+
+  const [catalog, publicReferenceOptions, sessionContext] = await Promise.all([
+    getRoosterEntryCatalog(),
+    getPublicReferenceOptions(),
+    event.registration_open
+      ? getPublicRegistrationEntryContext(id)
+      : Promise.resolve(null),
+  ])
 
   const navEvent = {
     id: event.id,
@@ -160,17 +173,22 @@ export default async function PublicRegisterPage({ params }: PublicRegisterPageP
               </Box>
             ) : null}
             <Text color="fg.muted" fontSize="xs">
-              One registration per owner. You cannot submit twice with the same owner name.
+              One registration per game farm. Existing farms must verify by email before adding
+              roosters.
             </Text>
           </Stack>
 
-          <PublicEntryFormClient
+          <PublicRegistrationWizard
             eventId={event.id}
             eventName={event.name}
+            eventType={event.event_type}
             cocksPerEntry={event.cocks_per_entry}
             minWeightGrams={event.min_weight_grams}
             maxWeightGrams={event.max_weight_grams}
+            catalog={catalog}
+            publicReferenceOptions={publicReferenceOptions}
             eligibilityContext={eligibilityContext}
+            sessionContext={sessionContext}
           />
         </Stack>
       )}

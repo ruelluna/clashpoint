@@ -5,6 +5,7 @@ import { Badge, Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
 
 import {
   ButtonGroup,
+  DetailFieldRow,
   LAYOUT_GAP,
   PanelCard,
 } from '@/components/dashboard'
@@ -17,6 +18,7 @@ import {
 } from '@/features/eligibility/policy-summary'
 import { getEntryFormEligibilityContext } from '@/features/eligibility/registration-bridge'
 import { getEventWithPrize } from '@/features/events/queries'
+import { getEventPrizePoolCollected } from '@/features/events/prize-pool'
 import {
   DERBY_TYPE_LABELS,
   EVENT_STATUS_LABELS,
@@ -55,9 +57,11 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
 
   if (!event) notFound()
 
+  const isDerby = event.event_type === 'derby'
+  const prizePoolCollected = isDerby ? await getEventPrizePoolCollected(id) : null
+
   const user = await getUser()
   const canManage = user ? await hasPermission(user.id, 'events.manage') : false
-  const isDerby = event.event_type === 'derby'
 
   const eligibilityContext = isDerby ? await getEntryFormEligibilityContext(id) : null
   const eligibilityPolicy =
@@ -65,8 +69,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
       ? await getDerbyEligibilityPolicy(id)
       : null
   const associations =
-    eligibilityContext &&
-    eligibilityContext.enabledFields.includes('association')
+    eligibilityPolicy?.approved_association_ids?.length
       ? await listAssociations()
       : []
   const approvedAssociationNames =
@@ -105,48 +108,45 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
 
         <PanelCard title="Event details">
           <Stack gap={LAYOUT_GAP.form} fontSize="sm">
-            <Flex gap={4}>
-              <Text color="fg.muted" minW="40">Venue</Text>
-              <Text>{event.venue}</Text>
-            </Flex>
-            <Flex gap={4}>
-              <Text color="fg.muted" minW="40">Date</Text>
-              <Text>{formatDate(event.event_date)}</Text>
-            </Flex>
+            <DetailFieldRow label="Venue">{event.venue}</DetailFieldRow>
+            <DetailFieldRow label="Date">{formatDate(event.event_date)}</DetailFieldRow>
             {isDerby ? (
-              <Flex gap={4}>
-                <Text color="fg.muted" minW="40">Registration deadline</Text>
-                <Text>{formatDate(event.registration_deadline)}</Text>
-              </Flex>
+              <DetailFieldRow label="Registration deadline">
+                {formatDate(event.registration_deadline)}
+              </DetailFieldRow>
             ) : null}
-            <Flex gap={4}>
-              <Text color="fg.muted" minW="40">Event type</Text>
-              <Text>
-                {EVENT_TYPE_LABELS[event.event_type]}
-                {isDerby && event.derby_type
-                  ? ` · ${DERBY_TYPE_LABELS[event.derby_type]}`
-                  : ''}
-              </Text>
-            </Flex>
+            <DetailFieldRow label="Event type">
+              {EVENT_TYPE_LABELS[event.event_type]}
+              {isDerby && event.derby_type
+                ? ` · ${DERBY_TYPE_LABELS[event.derby_type]}`
+                : ''}
+            </DetailFieldRow>
             {isDerby ? (
-              <Flex gap={4}>
-                <Text color="fg.muted" minW="40">Promoter</Text>
-                <Text>{event.promoter_name ?? '—'}</Text>
-              </Flex>
+              <DetailFieldRow label="Promoter">
+                {event.promoter_name ?? '—'}
+              </DetailFieldRow>
             ) : null}
-            <Flex gap={4}>
-              <Text color="fg.muted" minW="40">Tax per fight</Text>
-              <Text>{formatCurrency(event.tax_per_fight)}</Text>
-            </Flex>
-            <Flex gap={4}>
-              <Text color="fg.muted" minW="40">Cocks per entry</Text>
-              <Text>{event.cocks_per_entry}</Text>
-            </Flex>
+            <DetailFieldRow label="Tax per fight">
+              {formatCurrency(event.tax_per_fight)}
+            </DetailFieldRow>
+            <DetailFieldRow label="Cocks per entry">
+              {event.cocks_per_entry}
+            </DetailFieldRow>
+            {isDerby && prizePoolCollected != null ? (
+              <DetailFieldRow label="Prize pool collected">
+                <Stack gap={0}>
+                  <Text fontWeight="semibold">{formatCurrency(prizePoolCollected)}</Text>
+                  <Text color="fg.muted" fontSize="xs">
+                    Sum of registration and cock entry fees collected. Updates as payments are
+                    recorded.
+                  </Text>
+                </Stack>
+              </DetailFieldRow>
+            ) : null}
             {event.notes ? (
-              <Flex gap={4}>
-                <Text color="fg.muted" minW="40">Notes</Text>
+              <DetailFieldRow label="Notes">
                 <Text whiteSpace="pre-wrap">{event.notes}</Text>
-              </Flex>
+              </DetailFieldRow>
             ) : null}
             {isDerby && event.registration_rules ? (
               <Box>
@@ -172,7 +172,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           />
         ) : null}
 
-        {isDerby ? (
+        {event.is_public ? (
           <PanelCard title="Registration link">
             <RegistrationShareLink eventId={event.id} />
           </PanelCard>
@@ -184,8 +184,14 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           >
             <Stack gap={LAYOUT_GAP.form}>
               {event.prize_structure.config.map((tier) => (
-                <Flex key={tier.place} gap={4} fontSize="sm">
-                  <Text fontWeight="medium" minW="16">
+                <Flex
+                  key={tier.place}
+                  gap={4}
+                  fontSize="sm"
+                  direction={{ base: 'column', sm: 'row' }}
+                  align={{ sm: 'center' }}
+                >
+                  <Text fontWeight="medium" flexShrink={0}>
                     #{tier.place}
                   </Text>
                   <Text flex="1">{tier.label}</Text>

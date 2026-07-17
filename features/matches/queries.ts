@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { isRoosterRegistrationMatchable } from '@/features/compatibility/matchability'
+import type { ConditionallyApprovedMatchHandling } from '@/lib/derby/enums'
 import type {
   EligibleRooster,
   FightQueueSummary,
@@ -7,7 +9,6 @@ import type {
   MatchRow,
   MatchStatus,
 } from '@/features/matches/types'
-import { isRoosterEligibleForMatching } from '@/features/matches/utils'
 import { createClient } from '@/lib/supabase/server'
 
 type MatchQueryRow = {
@@ -48,6 +49,12 @@ type RoosterQueryRow = {
   band_number: string
   category: string | null
   status: string
+  registration_status: string
+  approval_status: string
+  eligibility_status: string
+  inspection_status: string
+  reg_payment_status: string
+  weight_verified: boolean | null
   entries: {
     entry_number: string
     entry_name: string
@@ -167,32 +174,56 @@ export async function getEligibleRoostersForMatching(
 ): Promise<EligibleRooster[]> {
   const supabase = await createClient()
 
-  const [{ data: roosters, error: roosterError }, { data: matches, error: matchError }] =
-    await Promise.all([
-      supabase
-        .from('rooster_event_registrations')
-        .select(
-          `
+  const [
+    { data: roosters, error: roosterError },
+    { data: matches, error: matchError },
+    { data: event, error: eventError },
+    { data: policy, error: policyError },
+  ] = await Promise.all([
+    supabase
+      .from('rooster_event_registrations')
+      .select(
+        `
           id,
           entry_id,
           cock_number,
           band_number,
           category,
           status,
+          registration_status,
+          approval_status,
+          eligibility_status,
+          inspection_status,
+          reg_payment_status,
+          weight_verified,
           entries ( entry_number, entry_name ),
           weighings ( official_weight, weight_status )
         `
-        )
-        .eq('event_id', eventId)
-        .order('cock_number', { ascending: true }),
-      supabase
-        .from('matches')
-        .select('meron_rooster_id, wala_rooster_id, status')
-        .eq('event_id', eventId),
-    ])
+      )
+      .eq('event_id', eventId)
+      .order('cock_number', { ascending: true }),
+    supabase
+      .from('matches')
+      .select('meron_rooster_id, wala_rooster_id, status')
+      .eq('event_id', eventId),
+    supabase
+      .from('events')
+      .select(
+        'weight_verification_required, physical_inspection_required, conditionally_approved_match_handling'
+      )
+      .eq('id', eventId)
+      .maybeSingle(),
+    supabase
+      .from('derby_eligibility_policies')
+      .select('physical_inspection_required, entry_fee_payment_required')
+      .eq('event_id', eventId)
+      .maybeSingle(),
+  ])
 
   if (roosterError) throw roosterError
   if (matchError) throw matchError
+  if (eventError) throw eventError
+  if (policyError) throw policyError
 
   const usedIds = new Set<string>()
   for (const match of matches ?? []) {
@@ -202,16 +233,42 @@ export async function getEligibleRoostersForMatching(
     usedIds.add(match.wala_rooster_id as string)
   }
 
+  const eventRow = event as {
+    weight_verification_required?: boolean | null
+    physical_inspection_required?: boolean | null
+    conditionally_approved_match_handling?: ConditionallyApprovedMatchHandling | null
+  } | null
+  const policyRow = policy as {
+    physical_inspection_required?: boolean | null
+    entry_fee_payment_required?: boolean | null
+  } | null
+
+  const physicalInspectionRequired = Boolean(
+    eventRow?.physical_inspection_required || policyRow?.physical_inspection_required
+  )
+  const entryFeePaymentRequired = Boolean(policyRow?.entry_fee_payment_required)
+  const conditionallyApprovedMatchHandling =
+    eventRow?.conditionally_approved_match_handling ?? 'exclude'
+
   return ((roosters ?? []) as unknown as RoosterQueryRow[])
-    .filter((row) =>
-      isRoosterEligibleForMatching({
-        rooster_id: row.id,
-        entry_id: row.entry_id,
-        event_id: eventId,
-        lineup_status: row.status,
-        weight_status: row.weighings?.weight_status ?? null,
+    .filter((row) => {
+      const matchability = isRoosterRegistrationMatchable({
+        registrationStatus: row.registration_status as never,
+        approvalStatus: row.approval_status,
+        eligibilityStatus: row.eligibility_status,
+        weightVerified: Boolean(row.weight_verified),
+        weightVerificationRequired: Boolean(eventRow?.weight_verification_required),
+        inspectionStatus: row.inspection_status,
+        physicalInspectionRequired,
+        regPaymentStatus: row.reg_payment_status,
+        entryFeePaymentRequired,
+        conditionallyApprovedMatchHandling,
       })
-    )
+      if (!matchability.matchable) return false
+      if (row.status !== 'verified') return false
+      if ((row.weighings?.weight_status ?? null) !== 'passed') return false
+      return true
+    })
     .filter((row) => !usedIds.has(row.id))
     .map((row) => ({
       rooster_id: row.id,

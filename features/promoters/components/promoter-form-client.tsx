@@ -279,8 +279,8 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
         <PanelCard title="Quick status change">
           <form action={statusAction}>
             <input type="hidden" name="promoterId" value={promoter?.id ?? ''} />
-            <Flex gap={LAYOUT_GAP.form} wrap="wrap" align="flex-end">
-              <FormField label="New status" minW="48">
+            <Flex gap={LAYOUT_GAP.form} wrap="wrap" align="flex-end" direction={{ base: 'column', sm: 'row' }}>
+              <FormField label="New status" minW={{ sm: '12rem' }}>
                 <NativeSelect.Root size="sm">
                   <NativeSelect.Field name="status" defaultValue={promoter?.status}>
                     {promoterStatuses.map(([value, label]) => (
@@ -291,10 +291,10 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                   </NativeSelect.Field>
                 </NativeSelect.Root>
               </FormField>
-              <FormField label="Reason (optional)" flex="1" minW="48">
+              <FormField label="Reason (optional)" flex="1" minW={{ sm: '12rem' }}>
                 <Input name="reason" placeholder="Reason for status change" />
               </FormField>
-              <Button type="submit" size="sm" loading={statusPending}>
+              <Button type="submit" size="md" loading={statusPending} width={{ base: 'full', sm: 'auto' }}>
                 Update status
               </Button>
             </Flex>

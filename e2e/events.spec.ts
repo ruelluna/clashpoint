@@ -70,7 +70,6 @@ async function enableEligibilityField(page: Page, fieldLabel: string) {
     'Origin & breeding': 'Control locally bred',
     'Association membership': 'Require competitors to belong',
     'Physical inspection': 'Require a passed physical inspection',
-    'Document verification': 'Require verified supporting documents',
     'Entry fee payment': 'Registration fee must be paid',
   }
 
@@ -123,6 +122,7 @@ test.describe('Event creation type @auth', () => {
 
     await expect(page.getByText('Derby format', { exact: true })).toBeVisible()
     await expect(page.getByText('Prize structure', { exact: true })).toBeVisible()
+    await expect(page.getByText('Prize pool collected', { exact: true })).toHaveCount(0)
   })
 
   test('shows cocks per entry only for custom derby type', async ({ page }) => {
@@ -176,7 +176,39 @@ test.describe('Event creation type @auth', () => {
     await page.getByRole('button', { name: 'Create event' }).click()
 
     await page.waitForURL(eventDetailUrl)
-    await expect(page.getByText('Derby · 5-Cock')).toBeVisible()
+    await expect(page.getByText('Derby · 2-Cock')).toBeVisible()
+    await expect(page.getByText('Prize pool collected', { exact: true })).toBeVisible()
+  })
+
+  test('toggles physical inspection on create and persists on edit', async ({ page }) => {
+    test.skip(
+      !(await canRunSeededEventTests()),
+      'Set valid PLAYWRIGHT_ADMIN_EMAIL/PASSWORD or apply service_role E2E grants migration'
+    )
+
+    const organizer = await signInForEventTests(page)
+    disposableUserId = organizer?.id ?? null
+    await page.goto('/dashboard/events/new')
+
+    const inspectionSection = page
+      .locator('div')
+      .filter({ hasText: 'Physical inspection required' })
+      .first()
+    await inspectionSection.getByRole('switch').click()
+    await expect(inspectionSection.getByRole('switch')).toHaveAttribute('data-checked', '')
+
+    const eventName = `E2E Inspection Toggle ${Date.now()}`
+    await fillBaseEventFields(page, eventName)
+    await eventTypeSelect(page).selectOption('classic')
+    await page.getByRole('button', { name: 'Create event' }).click()
+    await page.waitForURL(eventDetailUrl)
+
+    await expect(page.getByRole('link', { name: 'Inspection' })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Edit event' }).click()
+    await page.waitForURL(eventEditUrl)
+    await expect(page.getByText('Prize pool collected', { exact: true })).toHaveCount(0)
+    await expect(inspectionSection.getByRole('switch')).toHaveAttribute('data-checked', '')
   })
 
   test('saves formatted registration rules on derby events', async ({ page }) => {
@@ -332,17 +364,6 @@ test.describe('Event creation type @auth', () => {
     await bandRequired.click()
     await expect(bandRequired).toBeChecked()
 
-    await enableEligibilityField(page, 'Entry fee payment')
-    const paymentRequired = page.getByRole('checkbox', {
-      name: 'Registration fee must be paid before approval',
-    })
-    await paymentRequired.click()
-    await expect(paymentRequired).toBeChecked()
-    await expect(
-      page.getByText('Uses the registration entry fee set on this form.')
-    ).toBeVisible()
-
-    await page.locator('input[name="entryFee"]').fill('500')
     await page.getByRole('button', { name: 'Create event' }).click()
     await page.waitForURL(eventDetailUrl)
 
@@ -353,12 +374,6 @@ test.describe('Event creation type @auth', () => {
       page.getByRole('checkbox', { name: 'Require official weight verification' })
     ).toBeChecked()
     await expect(page.getByRole('checkbox', { name: 'Band is required' })).toBeChecked()
-    await expect(
-      page.getByRole('checkbox', {
-        name: 'Registration fee must be paid before approval',
-      })
-    ).toBeChecked()
-    await expect(page.getByText(/Current entry fee:/)).toBeVisible()
   })
 
   test('saves eligibility sub-checkboxes via standalone panel on edit', async ({ page }) => {
@@ -380,25 +395,26 @@ test.describe('Event creation type @auth', () => {
     await page.getByRole('link', { name: 'Edit event' }).click()
     await page.waitForURL(eventEditUrl)
 
-    await enableEligibilityField(page, 'Physical inspection')
-    const inspectionRequired = page.getByRole('checkbox', {
-      name: 'Physical inspection required before matching',
-    })
-    await inspectionRequired.click()
-    await expect(inspectionRequired).toBeChecked()
+    const inspectionSection = page
+      .locator('div')
+      .filter({ hasText: 'Physical inspection required' })
+      .first()
+    await inspectionSection.getByRole('switch').click()
 
-    await enableEligibilityField(page, 'Document verification')
-    const documentRequired = page.getByRole('checkbox', {
-      name: 'Document verification required in registration workflow',
+    await enableEligibilityField(page, 'Weight limits')
+    const weightVerification = page.getByRole('checkbox', {
+      name: 'Require official weight verification',
     })
-    await documentRequired.click()
-    await expect(documentRequired).toBeChecked()
+    await weightVerification.click()
+    await expect(weightVerification).toBeChecked()
 
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect(page.getByText('Event updated')).toBeVisible()
     await page.getByRole('button', { name: 'Save eligibility settings' }).click()
     await expect(page.getByText('Eligibility settings saved')).toBeVisible()
 
     await page.reload()
-    await expect(inspectionRequired).toBeChecked()
-    await expect(documentRequired).toBeChecked()
+    await expect(inspectionSection.getByRole('switch')).toHaveAttribute('data-checked', '')
+    await expect(weightVerification).toBeChecked()
   })
 })

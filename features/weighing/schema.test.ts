@@ -40,11 +40,11 @@ describe('evaluateWeightStatus', () => {
 })
 
 describe('recordWeightSchema', () => {
-  it('accepts valid weight input', () => {
+  it('accepts valid weight input in grams', () => {
     const result = recordWeightSchema.safeParse({
       eventId,
       roosterRecordId: roosterId,
-      officialWeight: 2.15,
+      officialWeight: 2150,
     })
 
     expect(result.success).toBe(true)
@@ -55,6 +55,16 @@ describe('recordWeightSchema', () => {
       eventId,
       roosterRecordId: roosterId,
       officialWeight: 0,
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects weight above 9999 g', () => {
+    const result = recordWeightSchema.safeParse({
+      eventId,
+      roosterRecordId: roosterId,
+      officialWeight: 10000,
     })
 
     expect(result.success).toBe(false)
@@ -77,12 +87,41 @@ describe('createRoosterSchema', () => {
     const result = createRoosterSchema.safeParse({
       eventId,
       entryId,
+      entryName: 'Thunder',
       bandNumber: 'B-101',
       weight: 2150,
+      breed: 'Talisayon',
       colorMarking: 'Red',
+      notes: 'Staff encoded',
     })
 
     expect(result.success).toBe(true)
+  })
+
+  it('requires rooster name', () => {
+    const result = createRoosterSchema.safeParse({
+      eventId,
+      entryId,
+      bandNumber: 'B-101',
+      breed: 'Talisayon',
+      colorMarking: 'Red',
+      notes: 'Staff encoded',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects missing breed, color, or notes', () => {
+    const result = createRoosterSchema.safeParse({
+      eventId,
+      entryId,
+      bandNumber: 'B-101',
+      weight: 2150,
+      colorMarking: 'Red',
+      notes: 'Staff encoded',
+    })
+
+    expect(result.success).toBe(false)
   })
 
   it('rejects missing band number', () => {
@@ -90,7 +129,7 @@ describe('createRoosterSchema', () => {
       eventId,
       entryId,
       bandNumber: '',
-      weight: 2.15,
+      weight: 2150,
     })
 
     expect(result.success).toBe(false)

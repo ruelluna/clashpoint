@@ -227,6 +227,9 @@ export type Database = {
           cash_bond_enabled: boolean
           cash_bond_amount: number
           tax_per_fight: number
+          tax_commission: number
+          physical_inspection_required: boolean
+          revolving_fund_initial: number
           min_entries: number | null
           max_entries: number | null
           cocks_per_entry: number
@@ -283,6 +286,9 @@ export type Database = {
           cash_bond_enabled?: boolean
           cash_bond_amount?: number
           tax_per_fight?: number
+          tax_commission?: number
+          physical_inspection_required?: boolean
+          revolving_fund_initial?: number
           min_entries?: number | null
           max_entries?: number | null
           cocks_per_entry?: number
@@ -339,6 +345,9 @@ export type Database = {
           cash_bond_enabled?: boolean
           cash_bond_amount?: number
           tax_per_fight?: number
+          tax_commission?: number
+          physical_inspection_required?: boolean
+          revolving_fund_initial?: number
           min_entries?: number | null
           max_entries?: number | null
           cocks_per_entry?: number
@@ -605,6 +614,47 @@ export type Database = {
             columns: ['entry_id']
             isOneToOne: false
             referencedRelation: 'entries'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      event_revolving_fund_ledger: {
+        Row: {
+          id: string
+          event_id: string
+          entry_type: Database['public']['Enums']['revolving_fund_entry_type']
+          amount: number
+          balance_after: number
+          description: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          entry_type: Database['public']['Enums']['revolving_fund_entry_type']
+          amount: number
+          balance_after: number
+          description?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          entry_type?: Database['public']['Enums']['revolving_fund_entry_type']
+          amount?: number
+          balance_after?: number
+          description?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'event_revolving_fund_ledger_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
             referencedColumns: ['id']
           },
         ]
@@ -1483,6 +1533,7 @@ export type Database = {
         | 'cash_bond'
         | 'adjustment'
         | 'legacy'
+      revolving_fund_entry_type: 'opening' | 'adjustment'
       registration_payment_status:
         | 'not_required'
         | 'unpaid'

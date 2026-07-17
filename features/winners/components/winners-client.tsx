@@ -53,6 +53,15 @@ export function WinnersClient({ eventId, summary, canManage }: WinnersClientProp
       </PanelCard>
 
       <PanelCard flush title="Rankings & champions">
+        <Text
+          fontSize="sm"
+          color="fg.muted"
+          px={{ base: 4, lg: LAYOUT_GAP.cardPadding }}
+          pb={LAYOUT_GAP.cardTitle}
+          display={{ base: 'block', lg: 'none' }}
+        >
+          Swipe horizontally to see all columns.
+        </Text>
         {summary.winners.length === 0 ? (
           <Box p={4}>
             <Text fontSize="sm" color="fg.muted">

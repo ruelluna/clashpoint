@@ -3,11 +3,10 @@
 import { Badge, Button, Flex, Input, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { ButtonGroup } from '@/components/dashboard'
-import { lookupOwnerEntryByBarcodeAction } from '@/features/entries/actions'
-import { OwnerBarcodeScannerDialog } from '@/features/entries/components/owner-barcode-scanner-dialog'
+import { OwnerBarcodeScanRow } from '@/features/entries/components/owner-barcode-scan-row'
 import type { EntryListItem } from '@/features/entries/types'
 import type { EventFeeSettings } from '@/features/events/fee-utils'
 import type { EntryFeeSnapshot } from '@/features/events/fee-utils'
@@ -15,26 +14,17 @@ import { getOwnerRegistrationPaymentDisplay } from '@/features/payments/display-
 
 type OwnersListClientProps = {
   eventId: string
-  eventType: string
   entries: EntryListItem[]
   eventFeeSettings: EventFeeSettings
 }
 
 export function OwnersListClient({
   eventId,
-  eventType,
   entries,
   eventFeeSettings,
 }: OwnersListClientProps) {
   const router = useRouter()
-  const scanInputRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState('')
-  const [scanValue, setScanValue] = useState('')
-  const [scanError, setScanError] = useState<string | null>(null)
-  const [scanPending, setScanPending] = useState(false)
-  const [scannerOpen, setScannerOpen] = useState(false)
-
-  const isDerby = eventType === 'derby'
 
   const filteredEntries = useMemo(() => {
     const trimmed = search.trim().toLowerCase()
@@ -58,38 +48,6 @@ export function OwnersListClient({
     })
   }, [entries, search])
 
-  const resolveBarcode = useCallback(
-    async (rawBarcode: string) => {
-      const trimmed = rawBarcode.trim()
-      if (!trimmed) {
-        setScanError('Enter a barcode to scan')
-        return
-      }
-
-      setScanPending(true)
-      setScanError(null)
-
-      const result = await lookupOwnerEntryByBarcodeAction(eventId, trimmed)
-      setScanPending(false)
-
-      if (result.error || !result.entryId) {
-        setScanError(result.error ?? 'No owner found for this barcode')
-        scanInputRef.current?.select()
-        return
-      }
-
-      setScanValue('')
-      router.push(`/dashboard/events/${eventId}/owners/${result.entryId}`)
-    },
-    [eventId, router]
-  )
-
-  async function handleScanKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== 'Enter') return
-    event.preventDefault()
-    await resolveBarcode(scanValue)
-  }
-
   if (entries.length === 0) {
     return <Text color="fg.muted">No owners registered yet.</Text>
   }
@@ -108,56 +66,13 @@ export function OwnersListClient({
         />
       </Flex>
 
-      {isDerby ? (
-        <Flex direction="column" gap={2} maxW="md">
-          <Flex align="center" gap={3}>
-            <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
-              Scan
-            </Text>
-            <Input
-              ref={scanInputRef}
-              size="sm"
-              placeholder="Scan OWNER barcode or type and press Enter"
-              value={scanValue}
-              onChange={(event) => {
-                setScanValue(event.target.value)
-                if (scanError) setScanError(null)
-              }}
-              onKeyDown={handleScanKeyDown}
-              disabled={scanPending}
-            />
-          </Flex>
-          <Flex gap={2} wrap="wrap">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setScannerOpen(true)}
-              disabled={scanPending}
-            >
-              Scan with camera
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void resolveBarcode(scanValue)}
-              loading={scanPending}
-              disabled={!scanValue.trim()}
-            >
-              Look up barcode
-            </Button>
-          </Flex>
-          {scanError ? (
-            <Text fontSize="sm" color="red.500">
-              {scanError}
-            </Text>
-          ) : null}
-          <OwnerBarcodeScannerDialog
-            open={scannerOpen}
-            onOpenChange={setScannerOpen}
-            onScan={(barcode) => void resolveBarcode(barcode)}
-          />
-        </Flex>
-      ) : null}
+      <OwnerBarcodeScanRow
+        eventId={eventId}
+        maxW="md"
+        onResolved={(entryId) => {
+          router.push(`/dashboard/events/${eventId}/owners/${entryId}`)
+        }}
+      />
 
       {filteredEntries.length === 0 ? (
         <Text color="fg.muted">No owners match this search.</Text>
@@ -225,7 +140,7 @@ export function OwnersListClient({
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/dashboard/events/${eventId}/owners/${entry.id}`}>View</Link>
                   </Button>
-                  {isDerby && entry.owner_barcode ? (
+                  {entry.owner_barcode ? (
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/dashboard/events/${eventId}/owners/${entry.id}/print`}>
                         Print OWNER slip
@@ -241,3 +156,4 @@ export function OwnersListClient({
     </Flex>
   )
 }
+

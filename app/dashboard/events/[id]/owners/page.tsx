@@ -30,7 +30,7 @@ export default async function OwnersListPage({ params, searchParams }: OwnersLis
   const event = await getEvent(id)
   if (!event) notFound()
 
-  if (rawBarcode && event.event_type === 'derby') {
+  if (rawBarcode) {
     const barcode = normalizeOwnerBarcodeInput(rawBarcode)
     if (barcode && isOwnerBarcodeForEvent(barcode, id)) {
       const entryId = await getEntryIdByOwnerBarcode(id, barcode)
@@ -59,7 +59,6 @@ export default async function OwnersListPage({ params, searchParams }: OwnersLis
         <PanelCard title="Registered owners">
           <OwnersListClient
             eventId={event.id}
-            eventType={event.event_type}
             entries={entries}
             eventFeeSettings={eventFeeSettings}
           />

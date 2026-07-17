@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
+import { promoteInspectionClearedAfterPayment } from '@/features/inspection/service'
 import type { EntryFeeSnapshot } from '@/features/events/fee-utils'
 import {
   computeCategoryAmountDue,
@@ -160,6 +161,10 @@ async function syncRegistrationPaymentStatus(
     .from('rooster_event_registrations')
     .update({ reg_payment_status: regPaymentStatus })
     .eq('entry_id', entryId)
+
+  if (regPaymentStatus === 'paid') {
+    await promoteInspectionClearedAfterPayment(entryId)
+  }
 }
 
 async function getEntryAmountDue(

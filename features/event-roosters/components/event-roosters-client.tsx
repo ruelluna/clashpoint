@@ -5,6 +5,15 @@ import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
 
 import { FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { GramWeightInput } from '@/features/entries/components/gram-weight-input'
+import { formatBandNumberForDisplay } from '@/features/entries/band-display'
+import { isBandNumberRequiredForEvent } from '@/features/entries/schema'
+import { EventOwnerEntryPicker } from '@/features/entries/components/event-owner-entry-picker'
+import { OwnerBarcodeScanRow } from '@/features/entries/components/owner-barcode-scan-row'
+import { OwnerRoosterCheckPanel } from '@/features/entries/components/owner-rooster-check-panel'
+import { RoosterEntryCoreFields } from '@/features/entries/components/rooster-entry-core-fields'
+import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
+import type { RoosterEntryCatalog } from '@/features/reference-values/catalog'
 import { createRoosterAction, type WeighingActionState } from '@/features/weighing/actions'
 import type { RegistrationListItem } from '@/features/registrations/types'
 import type { WeighingEntrySummary } from '@/features/weighing/types'
@@ -22,7 +31,10 @@ type EventRoostersClientProps = {
   feeSettings: EventFeeSettings
   registrations: RegistrationListItem[]
   entries: WeighingEntrySummary[]
+  eligibilityContext?: EntryFormEligibilityContext | null
+  catalog: RoosterEntryCatalog
   highlightId?: string
+  initialEntryId?: string
 }
 
 import type { EventFeeSettings } from '@/features/events/fee-utils'
@@ -46,54 +58,69 @@ function eligibilityColor(
 
 function AddRoosterForm({
   eventId,
+  eventType,
   entries,
   cocksPerEntry,
+  registrations,
+  catalog,
+  eligibilityContext = null,
+  initialEntryId = '',
 }: {
   eventId: string
+  eventType: string
   entries: WeighingEntrySummary[]
   cocksPerEntry: number
+  registrations: RegistrationListItem[]
+  catalog: RoosterEntryCatalog
+  eligibilityContext?: EntryFormEligibilityContext | null
+  initialEntryId?: string
 }) {
+  const bandNumberRequired = isBandNumberRequiredForEvent(eventType, eligibilityContext)
   const [state, action, pending] = useActionState(
     createRoosterAction,
     {} as WeighingActionState
   )
-  const [entryId, setEntryId] = useState('')
-  const addableEntries = entries.filter((entry) => entry.can_add_rooster)
+  const [entryId, setEntryId] = useState(initialEntryId)
+  const selectedEntry = entries.find((entry) => entry.entry_id === entryId) ?? null
+  const canSubmit =
+    entries.some((entry) => entry.can_add_rooster) &&
+    Boolean(entryId) &&
+    (selectedEntry?.can_add_rooster ?? false)
 
   return (
     <PanelCard title="Add rooster">
       <form action={action}>
         <input type="hidden" name="eventId" value={eventId} />
+        <input type="hidden" name="eventType" value={eventType} />
         <Stack gap={LAYOUT_GAP.form} maxW="2xl">
-          <FormField label="Entry" required>
-            <NativeSelect.Root>
-              <NativeSelect.Field
-                name="entryId"
-                value={entryId}
-                onChange={(event) => setEntryId(event.currentTarget.value)}
-              >
-                <option value="">Select entry</option>
-                {addableEntries.map((entry) => (
-                  <option key={entry.entry_id} value={entry.entry_id}>
-                    #{entry.entry_number} {entry.entry_name} · {entry.owner_name} (
-                    {entry.rooster_count}/{cocksPerEntry} cock
-                    {cocksPerEntry === 1 ? '' : 's'})
-                  </option>
-                ))}
-              </NativeSelect.Field>
-            </NativeSelect.Root>
+          <OwnerBarcodeScanRow eventId={eventId} onResolved={setEntryId} />
+          <EventOwnerEntryPicker
+            entries={entries}
+            cocksPerEntry={cocksPerEntry}
+            value={entryId}
+            onValueChange={setEntryId}
+          />
+          <OwnerRoosterCheckPanel
+            eventId={eventId}
+            entry={selectedEntry}
+            cocksPerEntry={cocksPerEntry}
+            registrations={registrations}
+          />
+          <FormField label="Rooster name" required>
+            <Input name="entryName" required maxLength={200} />
           </FormField>
           <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <FormField label="Band number" required flex="1">
-              <Input name="bandNumber" required maxLength={50} />
+            <FormField label="Band number" required={bandNumberRequired} flex="1">
+              <Input name="bandNumber" required={bandNumberRequired} maxLength={50} />
             </FormField>
             <FormField label="Declared weight (g, optional)" flex="1">
-              <Input name="weight" type="number" step="1" min="1" />
+              <GramWeightInput name="weight" />
             </FormField>
           </Flex>
           <FormField label="Handler name">
             <Input name="handlerName" maxLength={200} />
           </FormField>
+          <RoosterEntryCoreFields slotKey="" mode="staff" catalog={catalog} required />
           {state.error ? (
             <Text fontSize="sm" color="red.500">
               {state.error}
@@ -104,7 +131,7 @@ function AddRoosterForm({
               {state.success}
             </Text>
           ) : null}
-          <Button type="submit" loading={pending} disabled={!addableEntries.length} alignSelf="flex-start">
+          <Button type="submit" loading={pending} disabled={!canSubmit} alignSelf="flex-start">
             Add rooster
           </Button>
         </Stack>
@@ -121,7 +148,10 @@ export function EventRoostersClient({
   feeSettings,
   registrations,
   entries,
+  catalog,
+  eligibilityContext = null,
   highlightId,
+  initialEntryId,
 }: EventRoostersClientProps) {
   const [statusFilter, setStatusFilter] = useState<'' | RegistrationWorkflowStatus>('')
 
@@ -139,7 +169,16 @@ export function EventRoostersClient({
         description={`${eventName} · ${registrations.length} cock${registrations.length === 1 ? '' : 's'} registered. Entry fees stay pending until Payments.`}
       />
 
-      <AddRoosterForm eventId={eventId} entries={entries} cocksPerEntry={cocksPerEntry} />
+      <AddRoosterForm
+        eventId={eventId}
+        eventType={eventType}
+        entries={entries}
+        cocksPerEntry={cocksPerEntry}
+        registrations={registrations}
+        catalog={catalog}
+        eligibilityContext={eligibilityContext}
+        initialEntryId={initialEntryId}
+      />
 
       <Flex align="center" gap={3} maxW="xs">
         <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
@@ -177,7 +216,7 @@ export function EventRoostersClient({
           display={{ base: 'none', lg: 'flex' }}
         >
           <Box flex="0.5">Cock</Box>
-          <Box flex="1.2">Entry</Box>
+          <Box flex="1.2">Owner</Box>
           <Box flex="0.7">Payment</Box>
           <Box flex="0.9">Registration</Box>
           <Box flex="0.8">Eligibility</Box>
@@ -206,8 +245,15 @@ export function EventRoostersClient({
                 <Box flex="0.5">
                   <Text fontWeight="semibold">#{registration.cock_number}</Text>
                   <Text fontSize="xs" color="fg.muted">
-                    {registration.band_number}
+                    {formatBandNumberForDisplay(registration.band_number)}
                   </Text>
+                  {registration.breed || registration.color_marking ? (
+                    <Text fontSize="xs" color="fg.muted">
+                      {[registration.breed, registration.color_marking]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                  ) : null}
                 </Box>
                 <Box flex="1.2">
                   <Text fontWeight="medium">
@@ -244,13 +290,11 @@ export function EventRoostersClient({
                 </Box>
                 <Box flex="0.6">
                   <Flex justify={{ base: 'flex-start', lg: 'flex-end' }} gap={2}>
-                    {eventType === 'derby' ? (
-                      <Button asChild size="xs" variant="outline">
-                        <Link href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}>
-                          Print slip
-                        </Link>
-                      </Button>
-                    ) : null}
+                    <Button asChild size="xs" variant="outline">
+                      <Link href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}>
+                        Print slip
+                      </Link>
+                    </Button>
                   </Flex>
                 </Box>
               </Flex>

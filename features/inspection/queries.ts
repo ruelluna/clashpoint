@@ -2,7 +2,9 @@ import 'server-only'
 
 import type { InspectionStatus } from '@/lib/derby/enums'
 import type { EligibilityStatus, RegistrationWorkflowStatus } from '@/lib/derby/enums'
+import type { RegistrationPaymentStatus } from '@/lib/derby/enums'
 import type { WeightStatus } from '@/features/weighing/types'
+import { resolveStoredWeightGrams } from '@/features/entries/weight-utils'
 import { createClient } from '@/lib/supabase/server'
 
 export type InspectionQueueItem = {
@@ -12,11 +14,14 @@ export type InspectionQueueItem = {
   entryName: string
   bandNumber: string
   cockNumber: number
+  handlerName: string | null
+  cockEntryBarcode: string | null
   inspectionStatus: InspectionStatus
   inspectionId: string | null
   inspectedAt: string | null
   notes: string | null
   declaredWeight: number | null
+  /** Whole grams */
   officialWeight: number | null
   weightVerified: boolean
   weighingId: string | null
@@ -24,6 +29,7 @@ export type InspectionQueueItem = {
   weightVerifiedAt: string | null
   eligibilityStatus: EligibilityStatus
   registrationStatus: RegistrationWorkflowStatus
+  regPaymentStatus: RegistrationPaymentStatus
 }
 
 type InspectionQueueRow = {
@@ -31,11 +37,15 @@ type InspectionQueueRow = {
   entry_id: string
   cock_number: number
   band_number: string
+  handler_name: string | null
+  cock_entry_barcode: string | null
   inspection_status: InspectionStatus
   declared_weight: number | null
+  declared_weight_grams: number | null
   weight_verified: boolean | null
   eligibility_status: EligibilityStatus
   registration_status: RegistrationWorkflowStatus
+  reg_payment_status: RegistrationPaymentStatus
   entries: { entry_number: string; entry_name: string } | null
   physical_inspections:
     | {
@@ -55,16 +65,34 @@ type InspectionQueueRow = {
     | {
         id: string
         official_weight: number | null
+        official_weight_grams: number | null
         weight_status: WeightStatus
         verified_at: string | null
       }
     | Array<{
         id: string
         official_weight: number | null
+        official_weight_grams: number | null
         weight_status: WeightStatus
         verified_at: string | null
       }>
     | null
+}
+
+export async function getRegistrationIdByCockEntryBarcode(
+  eventId: string,
+  barcode: string
+): Promise<string | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('rooster_event_registrations')
+    .select('id')
+    .eq('event_id', eventId)
+    .eq('cock_entry_barcode', barcode)
+    .maybeSingle()
+
+  if (error) throw error
+  return data?.id ?? null
 }
 
 export async function listInspectionQueue(eventId: string): Promise<InspectionQueueItem[]> {
@@ -78,11 +106,15 @@ export async function listInspectionQueue(eventId: string): Promise<InspectionQu
       entry_id,
       cock_number,
       band_number,
+      handler_name,
+      cock_entry_barcode,
       inspection_status,
       declared_weight,
+      declared_weight_grams,
       weight_verified,
       eligibility_status,
       registration_status,
+      reg_payment_status,
       entries ( entry_number, entry_name ),
       physical_inspections (
         id,
@@ -93,6 +125,7 @@ export async function listInspectionQueue(eventId: string): Promise<InspectionQu
       weighings (
         id,
         official_weight,
+        official_weight_grams,
         weight_status,
         verified_at
       )
@@ -119,19 +152,27 @@ export async function listInspectionQueue(eventId: string): Promise<InspectionQu
       entryName: entry?.entry_name ?? '',
       bandNumber: row.band_number,
       cockNumber: row.cock_number,
+      handlerName: row.handler_name,
+      cockEntryBarcode: row.cock_entry_barcode,
       inspectionStatus: row.inspection_status,
       inspectionId: inspection?.id ?? null,
       inspectedAt: inspection?.inspected_at ?? null,
       notes: inspection?.notes ?? null,
-      declaredWeight: row.declared_weight != null ? Number(row.declared_weight) : null,
-      officialWeight:
-        weighing?.official_weight != null ? Number(weighing.official_weight) : null,
+      declaredWeight: resolveStoredWeightGrams(
+        row.declared_weight_grams,
+        row.declared_weight
+      ),
+      officialWeight: resolveStoredWeightGrams(
+        weighing?.official_weight_grams ?? null,
+        weighing?.official_weight ?? null
+      ),
       weightVerified: Boolean(row.weight_verified),
       weighingId: weighing?.id ?? null,
       weightStatus: weighing?.weight_status ?? null,
       weightVerifiedAt: weighing?.verified_at ?? null,
       eligibilityStatus: row.eligibility_status,
       registrationStatus: row.registration_status,
+      regPaymentStatus: row.reg_payment_status,
     }
   })
 }

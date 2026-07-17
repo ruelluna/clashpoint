@@ -76,7 +76,7 @@ export async function getEntryFormEligibilityContext(
   const { data: event } = await supabase
     .from('events')
     .select(
-      'event_type, eligibility_enforcement_enabled, allowed_age_classes, min_weight_grams, max_weight_grams, weight_verification_required, unknown_value_handling'
+      'event_type, eligibility_enforcement_enabled, allowed_age_classes, min_weight_grams, max_weight_grams, weight_verification_required, unknown_value_handling, physical_inspection_required'
     )
     .eq('id', eventId)
     .is('deleted_at', null)
@@ -137,7 +137,7 @@ export async function getEntryFormEligibilityContext(
       (policy?.allowed_breeding_relationships as string[]) ?? []
     ),
     associationMembersOnly: Boolean(policy?.association_members_only),
-    physicalInspectionRequired: Boolean(policy?.physical_inspection_required),
+    physicalInspectionRequired: Boolean(event.physical_inspection_required),
     documentVerificationRequired: Boolean(policy?.document_verification_required),
     entryFeePaymentRequired: Boolean(policy?.entry_fee_payment_required),
   }
@@ -160,7 +160,7 @@ export async function getEventWorkflowConfig(
   const { data, error } = await supabase
     .from('events')
     .select(
-      'id, weight_verification_required, require_rooster_entry_approval, allow_conditional_approval, eligibility_enforcement_enabled'
+      'id, weight_verification_required, require_rooster_entry_approval, allow_conditional_approval, eligibility_enforcement_enabled, physical_inspection_required'
     )
     .eq('id', eventId)
     .is('deleted_at', null)
@@ -172,7 +172,7 @@ export async function getEventWorkflowConfig(
   const { data: policy } = await supabase
     .from('derby_eligibility_policies')
     .select(
-      'physical_inspection_required, document_verification_required, band_verification_required'
+      'document_verification_required, band_verification_required'
     )
     .eq('event_id', eventId)
     .maybeSingle()
@@ -183,7 +183,7 @@ export async function getEventWorkflowConfig(
       require_rooster_entry_approval: Boolean(data.require_rooster_entry_approval),
       allow_conditional_approval: Boolean(data.allow_conditional_approval),
       eligibility_enforcement_enabled: Boolean(data.eligibility_enforcement_enabled),
-      physical_inspection_required: Boolean(policy?.physical_inspection_required),
+      physical_inspection_required: Boolean(data.physical_inspection_required),
       document_verification_required: Boolean(policy?.document_verification_required),
       band_verification_required: Boolean(policy?.band_verification_required),
     },

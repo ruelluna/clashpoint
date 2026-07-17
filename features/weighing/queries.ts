@@ -6,6 +6,7 @@ import type {
   WeighingRow,
   WeighingStationItem,
 } from '@/features/weighing/types'
+import { resolveStoredWeightGrams } from '@/features/entries/weight-utils'
 import { createClient } from '@/lib/supabase/server'
 
 export async function listWeighingStationItems(
@@ -22,10 +23,12 @@ export async function listWeighingStationItems(
       cock_number,
       band_number,
       declared_weight,
+      declared_weight_grams,
       entries ( entry_number, entry_name ),
       weighings (
         id,
         official_weight,
+        official_weight_grams,
         weight_status,
         verified_at
       )
@@ -50,13 +53,15 @@ export async function listWeighingStationItems(
       entry_name: entry?.entry_name ?? '',
       cock_number: row.cock_number as number,
       band_number: row.band_number as string,
-      declared_weight:
-        row.declared_weight != null ? Number(row.declared_weight) : null,
+      declared_weight: resolveStoredWeightGrams(
+        row.declared_weight_grams as number | null,
+        row.declared_weight != null ? Number(row.declared_weight) : null
+      ),
       weighing_id: (weighing?.id as string | undefined) ?? null,
-      official_weight:
-        weighing?.official_weight != null
-          ? Number(weighing.official_weight)
-          : null,
+      official_weight: resolveStoredWeightGrams(
+        (weighing?.official_weight_grams as number | null | undefined) ?? null,
+        weighing?.official_weight != null ? Number(weighing.official_weight) : null
+      ),
       weight_status: (weighing?.weight_status as WeighingStationItem['weight_status']) ?? null,
       verified_at: (weighing?.verified_at as string | null) ?? null,
     }
@@ -187,7 +192,7 @@ export async function listWeighingEntrySummaries(
 
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('id, entry_number, entry_name, owner_name')
+    .select('id, entry_number, entry_name, owner_name, owner_barcode')
     .eq('event_id', eventId)
     .is('deleted_at', null)
     .order('entry_number', { ascending: true })
@@ -214,6 +219,7 @@ export async function listWeighingEntrySummaries(
       entry_number: entry.entry_number as string,
       entry_name: entry.entry_name as string,
       owner_name: entry.owner_name as string,
+      owner_barcode: (entry.owner_barcode as string | null) ?? null,
       rooster_count: roosterCount,
       can_add_rooster: roosterCount < cocksPerEntry,
     }

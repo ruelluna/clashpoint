@@ -11,9 +11,14 @@ type PanelCardProps = {
 export function PanelCard({ title, children, flush = false }: PanelCardProps) {
   return (
     <Card.Root overflow={flush ? 'hidden' : undefined}>
-      <Card.Body p={flush ? 0 : LAYOUT_GAP.cardPadding}>
+      <Card.Body p={flush ? 0 : { base: 4, lg: LAYOUT_GAP.cardPadding }}>
         {title ? (
-          <Text fontWeight="medium" mb={LAYOUT_GAP.cardTitle} px={flush ? LAYOUT_GAP.cardPadding : 0} pt={flush ? LAYOUT_GAP.cardPadding : 0}>
+          <Text
+            fontWeight="medium"
+            mb={LAYOUT_GAP.cardTitle}
+            px={flush ? { base: 4, lg: LAYOUT_GAP.cardPadding } : 0}
+            pt={flush ? { base: 4, lg: LAYOUT_GAP.cardPadding } : 0}
+          >
             {title}
           </Text>
         ) : null}

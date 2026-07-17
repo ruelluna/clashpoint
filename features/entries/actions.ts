@@ -45,7 +45,12 @@ export async function lookupOwnerEntryByBarcodeAction(
   eventId: string,
   rawBarcode: string
 ): Promise<OwnerBarcodeLookupResult> {
-  await requireAnyPermission(['owner_registration.manage', 'entries.manage', 'events.view'])
+  await requireAnyPermission([
+    'owner_registration.manage',
+    'entries.manage',
+    'events.view',
+    'cock_entry.manage',
+  ])
 
   const barcode = normalizeOwnerBarcodeInput(rawBarcode)
   if (!barcode) {
@@ -213,7 +218,7 @@ export async function createOwnerEntryAction(
   revalidateEntryPaths(schemaResult.data.eventId)
   revalidatePath(`/dashboard/events/${schemaResult.data.eventId}/owners`)
 
-  if (event.event_type === 'derby') {
+  if (result.ownerBarcode) {
     redirect(
       `/dashboard/events/${schemaResult.data.eventId}/owners/${result.entryId}/print`
     )

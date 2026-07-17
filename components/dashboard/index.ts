@@ -1,4 +1,5 @@
 export { ButtonGroup } from '@/components/dashboard/button-group'
+export { DetailFieldRow } from '@/components/dashboard/detail-field-row'
 export { FormField } from '@/components/dashboard/form-field'
 export { OptionListField } from '@/components/dashboard/option-list-field'
 export { PageHeader } from '@/components/dashboard/page-header'

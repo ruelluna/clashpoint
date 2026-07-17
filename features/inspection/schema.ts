@@ -10,12 +10,25 @@ const optionalText = (max: number) =>
     .or(z.literal(''))
     .transform((value) => value || undefined)
 
-export const recordInspectionSchema = z.object({
-  eventId: z.string().uuid(),
-  registrationId: z.string().uuid(),
-  inspectionStatus: inspectionStatusSchema.default('pending'),
-  notes: optionalText(2000),
-})
+export const recordInspectionSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    registrationId: z.string().uuid(),
+    inspectionStatus: inspectionStatusSchema.default('pending'),
+    notes: optionalText(2000),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      (data.inspectionStatus === 'failed' || data.inspectionStatus === 'for_review') &&
+      !data.notes
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Notes are required for failed or for-review inspection',
+        path: ['notes'],
+      })
+    }
+  })
 
 export const approveInspectionSchema = z.object({
   eventId: z.string().uuid(),

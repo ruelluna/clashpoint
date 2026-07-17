@@ -15,6 +15,8 @@ export async function updateSystemSettings(
     { key: 'default_venue', value: input.defaultVenue },
     { key: 'legal_disclaimer', value: input.legalDisclaimer },
     { key: 'terms_accepted', value: input.termsAccepted },
+    { key: 'allow_public_breed_add', value: input.allowPublicBreedAdd },
+    { key: 'allow_public_color_add', value: input.allowPublicColorAdd },
   ]
 
   for (const { key, value } of updates) {

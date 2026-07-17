@@ -1,0 +1,94 @@
+﻿---
+description: Mobile-first responsive UX — Chakra breakpoints, touch targets, dashboard layout at small viewports
+globs: "{app/**,features/**/components/**,components/**}/*.{tsx,jsx}"
+alwaysApply: false
+---
+
+# Responsive UI (mobile & tablet first)
+
+ClashPoint is used primarily on **phones and tablets** at events. Default every layout to phone (`base`), then widen at `sm` / `md` / `lg`. See also `layout-spacing.mdc` for spacing tokens.
+
+## Breakpoint map (Chakra `defaultSystem`)
+
+| Token | px | Use in ClashPoint |
+|-------|-----|-------------------|
+| `base` | 0+ | Phone portrait — single column, full-width actions |
+| `sm` | 480 | Form field pairs side-by-side |
+| `md` | 768 | Two-column grids, matching-board rows |
+| `lg` | 992 | Persistent sidebar; list table headers appear |
+
+## Shell & navigation
+
+- Use `useCompactShell()` from `hooks/use-mobile.ts` (drawer below 992px). **Never** hardcode `768` for nav behavior.
+- Dashboard drawer must close after navigation (`onNavigate` on `AppSidebar`).
+- Public site: hamburger + drawer below `lg` (`PublicSiteHeader`).
+
+## Layout primitives (prefer before bespoke Flex)
+
+```ts
+import {
+  ButtonGroup,
+  DetailFieldRow,
+  LAYOUT_GAP,
+  PageHeader,
+  PageStack,
+  PanelCard,
+} from '@/components/dashboard'
+```
+
+| Primitive | Responsive behavior |
+|-----------|---------------------|
+| `PageHeader` | Title and actions stack on `base`, row on `sm+` |
+| `ButtonGroup` | Actions stack column on `base`, row on `sm+`; `wrap` enabled |
+| `PanelCard` | Padding `base: 4`, `lg: 6` |
+| `DetailFieldRow` | Label/value stack on `base`, row on `sm+` — **no fixed `minW` on labels** |
+| Dashboard `main` | `p={{ base: 4, md: 5, lg: 6 }}` |
+
+## List pages (canonical pattern)
+
+Reference: `features/events/components/events-list-client.tsx`
+
+```tsx
+// Header — hidden on phone/tablet portrait lists
+<Flex display={{ base: 'none', lg: 'flex' }}>...</Flex>
+
+// Row — stacked card on small screens
+<Flex direction={{ base: 'column', lg: 'row' }} align={{ lg: 'center' }} gap={2}>
+  ...
+  <ButtonGroup justify={{ base: 'flex-start', lg: 'flex-end' }}>...</ButtonGroup>
+</Flex>
+```
+
+Prefer card lists for operator workflows (weighing, entries, fights). Use horizontal scroll only when a true table is required (standings).
+
+## Detail & forms
+
+- Label/value rows: `DetailFieldRow` — never raw `Flex` + `minW="40"`.
+- Field groups: `direction={{ base: 'column', sm: 'row' }}` with `gap={LAYOUT_GAP.form}`.
+- Page actions with 2+ buttons: `ButtonGroup` (stacks on `base`).
+
+## Tabs
+
+- Many tabs (event detail): `overflowX="auto"` + inner `minW="max-content"`.
+- Few tabs (portal): `flexWrap="wrap"`.
+
+## Touch targets
+
+- Primary actions on event-day screens: `Button size="md"` minimum.
+- Shell menu toggle: `IconButton size="md"`.
+- Avoid `size="sm"` for the main action on a touch-first screen.
+
+## Tables without card fallback
+
+Wrap in `Box overflowX="auto"`. Add brief helper text on `base` when users must scroll horizontally.
+
+## Do not
+
+- Tailwind responsive classes (`md:flex`, `lg:hidden`) on dashboard or feature UI — use Chakra object props.
+- `Flex justify="space-between"` without `wrap` or `direction={{ base: 'column', sm: 'row' }}` on mixed-length content.
+- Fixed `minW` on labels or fields without a column fallback on `base`.
+- Desktop-only layouts that assume persistent sidebar below 992px.
+
+## Generic Chakra API
+
+For component-level responsive props beyond this guide, see `.claude/skills/chakra-ui-builder`.

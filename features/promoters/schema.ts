@@ -136,6 +136,13 @@ export type UpdatePromoterInput = z.infer<typeof updatePromoterSchema>
 export type ChangePromoterStatusInput = z.infer<typeof changePromoterStatusSchema>
 export type LinkPromoterUserInput = z.infer<typeof linkPromoterUserSchema>
 
+export const quickCreatePromoterSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(200),
+  phone: z.string().min(1, 'Phone is required').max(50),
+})
+
+export type QuickCreatePromoterInput = z.infer<typeof quickCreatePromoterSchema>
+
 export const PROMOTER_STATUS_LABELS: Record<PromoterStatus, string> = {
   active: 'Active',
   inactive: 'Inactive',

@@ -10,7 +10,6 @@ import { getRegistrationWithRelations } from '@/features/registrations/queries'
 import { resolveEffectiveExperienceStatus } from '@/features/roosters/experience'
 import {
   ELIGIBILITY_FIELD_LABELS,
-  isEligibilityFieldEnabled,
   type EligibilityFieldKey,
 } from '@/lib/derby/eligibility-fields'
 import type {
@@ -46,15 +45,42 @@ function buildCheck(
   }
 }
 
+const LEGACY_ELIGIBILITY_FIELD_LABELS: Record<string, string> = {
+  experience: 'Experience',
+  origin: 'Origin & breeding',
+  association: 'Association membership',
+  payment: 'Entry fee payment',
+}
+
 function buildSkippedCheck(
-  field: EligibilityFieldKey,
+  field: string,
   check: EligibilityCheckResult['check']
 ): EligibilityCheckResult {
-  return buildCheck(
-    check,
-    'pass',
-    `${ELIGIBILITY_FIELD_LABELS[field]} rules are not enabled for this event`
-  )
+  const label =
+    ELIGIBILITY_FIELD_LABELS[field as EligibilityFieldKey] ??
+    LEGACY_ELIGIBILITY_FIELD_LABELS[field] ??
+    field
+  return buildCheck(check, 'pass', `${label} rules are not enabled for this event`)
+}
+
+function isPolicyFieldEnabled(
+  enabledFields: string[] | null | undefined,
+  field: string
+): boolean {
+  if (!enabledFields?.length) return false
+  return enabledFields.includes(field)
+}
+
+function maybeRunCheck(
+  context: EligibilityEvaluationContext,
+  field: string,
+  check: EligibilityCheckResult['check'],
+  runner: () => EligibilityCheckResult
+): EligibilityCheckResult {
+  if (!isPolicyFieldEnabled(context.policy?.enabled_eligibility_fields, field)) {
+    return buildSkippedCheck(field, check)
+  }
+  return runner()
 }
 
 function isBandingRulesActive(context: EligibilityEvaluationContext): boolean {
@@ -82,18 +108,6 @@ function isOriginRulesActive(context: EligibilityEvaluationContext): boolean {
     policy.allowed_origin_types.length > 0 ||
     policy.allowed_breeding_relationships.length > 0
   )
-}
-
-function maybeRunCheck(
-  context: EligibilityEvaluationContext,
-  field: EligibilityFieldKey,
-  check: EligibilityCheckResult['check'],
-  runner: () => EligibilityCheckResult
-): EligibilityCheckResult {
-  if (!isEligibilityFieldEnabled(context.policy?.enabled_eligibility_fields, field)) {
-    return buildSkippedCheck(field, check)
-  }
-  return runner()
 }
 
 function checkAge(context: EligibilityEvaluationContext): EligibilityCheckResult {
@@ -364,7 +378,7 @@ function checkAssociation(context: EligibilityEvaluationContext): EligibilityChe
 }
 
 function checkInspection(context: EligibilityEvaluationContext): EligibilityCheckResult {
-  if (!context.policy?.physical_inspection_required) {
+  if (!context.eventPhysicalInspectionRequired) {
     return buildCheck('inspection', 'pass', 'Physical inspection is not required')
   }
 
@@ -430,7 +444,9 @@ export function evaluateEligibilityFromContext(
     maybeRunCheck(context, 'experience', 'experience', () => checkExperience(context)),
     maybeRunCheck(context, 'origin', 'origin', () => checkOrigin(context)),
     maybeRunCheck(context, 'association', 'association', () => checkAssociation(context)),
-    maybeRunCheck(context, 'inspection', 'inspection', () => checkInspection(context)),
+    context.eventPhysicalInspectionRequired
+      ? checkInspection(context)
+      : buildCheck('inspection', 'pass', 'Physical inspection is not required'),
     maybeRunCheck(context, 'payment', 'payment', () => checkPayment(context)),
   ]
 
@@ -479,7 +495,7 @@ export async function evaluateDerbyEligibility(
     supabase
       .from('events')
       .select(
-        'allowed_age_classes, min_weight_grams, max_weight_grams, weight_verification_required, unknown_value_handling, eligibility_enforcement_enabled'
+        'allowed_age_classes, min_weight_grams, max_weight_grams, weight_verification_required, unknown_value_handling, eligibility_enforcement_enabled, physical_inspection_required'
       )
       .eq('id', eventId)
       .maybeSingle(),
@@ -561,6 +577,7 @@ export async function evaluateDerbyEligibility(
     eventWeightVerificationRequired: Boolean(event?.weight_verification_required),
     eventUnknownValueHandling:
       (event?.unknown_value_handling as UnknownValueHandling) ?? 'approval_required',
+    eventPhysicalInspectionRequired: Boolean(event?.physical_inspection_required),
     policy: (policy as EligibilityEvaluationContext['policy']) ?? null,
     eligibilityEnforcementEnabled: Boolean(event?.eligibility_enforcement_enabled),
   }

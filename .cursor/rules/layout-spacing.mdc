@@ -1,5 +1,5 @@
 ﻿---
-description: Dashboard layout spacing — use shared Chakra primitives for consistent gaps between sections, cards, and buttons.
+description: Dashboard layout spacing - use shared Chakra primitives for consistent gaps between sections, cards, and buttons.
 globs: app/dashboard/**/*.tsx,features/**/components/*-client.tsx,components/dashboard/**
 alwaysApply: false
 ---
@@ -8,11 +8,14 @@ alwaysApply: false
 
 Use Chakra `Stack` / `Flex` with `gap` from shared layout primitives. Do **not** use Tailwind `space-y-*` on dashboard pages.
 
+See `responsive-ui.mdc` for breakpoint behavior on phones and tablets.
+
 ## Imports
 
 ```ts
 import {
   ButtonGroup,
+  DetailFieldRow,
   EventPageLayout,
   LAYOUT_GAP,
   PageHeader,
@@ -29,8 +32,14 @@ import {
 | `section` | 6 | Between sibling cards |
 | `form` | 4 | Form fields / field groups |
 | `buttons` | 3 | Adjacent action buttons |
-| `cardPadding` | 6 | Inside `PanelCard` |
+| `cardPadding` | 6 | Inside `PanelCard` (at `lg+`; `base` uses 4) |
 | `cardTitle` | 4 | Below card titles |
+| `pagePadding` | `{ base: 4, md: 5, lg: 6 }` | Dashboard main content padding |
+
+## Responsive spacing
+
+- `PageStack`, `PanelCard`, and dashboard `main` use responsive padding: `base: 4`, `md: 5`, `lg: 6`.
+- `PageHeader` actions must stack on `base` (title block above actions).
 
 ## Page wrappers
 
@@ -60,7 +69,8 @@ return (
 
 - **`PageHeader`** — page title, optional description, optional actions slot
 - **`PanelCard`** — bordered card sections (replaces `Box borderWidth="1px"`)
-- **`ButtonGroup`** — two or more adjacent buttons
+- **`DetailFieldRow`** — label/value rows that stack on `base`
+- **`ButtonGroup`** — two or more adjacent buttons (stacks on `base`)
 - **`Stack gap={LAYOUT_GAP.form}`** — inside forms between fields
 
 ## Do not

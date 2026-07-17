@@ -4,6 +4,7 @@ import { Badge, Box, Button, Flex, Input, NativeSelect, Stack, Text } from '@cha
 import { useActionState, useMemo, useState } from 'react'
 
 import { LAYOUT_GAP, FormField, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { GramWeightInput } from '@/features/entries/components/gram-weight-input'
 import {
   createRoosterAction,
   recordWeightAction,
@@ -15,8 +16,8 @@ import type { WeighingEntrySummary, WeighingStationItem } from '@/features/weigh
 
 type WeighingStationClientProps = {
   eventId: string
-  minWeight: number | null
-  maxWeight: number | null
+  minWeightGrams: number | null
+  maxWeightGrams: number | null
   cocksPerEntry: number
   entries: WeighingEntrySummary[]
   items: WeighingStationItem[]
@@ -76,8 +77,8 @@ function CreateRoosterForm({
             <FormField label="Band number" required flex="1">
               <Input name="bandNumber" required maxLength={50} />
             </FormField>
-            <FormField label="Weight (kg)" required flex="1">
-              <Input name="weight" type="number" step="0.01" min="0" required />
+            <FormField label="Weight (g)" required flex="1">
+              <GramWeightInput name="weight" required />
             </FormField>
           </Flex>
           <FormField label="Handler name">
@@ -91,7 +92,7 @@ function CreateRoosterForm({
               <Input name="colorMarking" maxLength={200} />
             </FormField>
           </Flex>
-          <Button type="submit" size="sm" loading={pending} alignSelf="flex-start">
+          <Button type="submit" size="md" loading={pending} alignSelf={{ base: 'stretch', sm: 'flex-start' }}>
             Add rooster
           </Button>
           {state.error ? (
@@ -131,22 +132,22 @@ function RecordWeightForm({
     <form action={action}>
       <input type="hidden" name="eventId" value={eventId} />
       <input type="hidden" name="roosterRecordId" value={item.rooster_event_registration_id} />
-      <Flex gap={2} align="center" wrap="wrap">
-        <Input
+      <Flex gap={2} align="center" direction={{ base: 'column', sm: 'row' }} wrap="wrap">
+        <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
+          Official weight (g)
+        </Text>
+        <GramWeightInput
           name="officialWeight"
-          type="number"
-          step="0.01"
-          min="0"
-          size="sm"
-          width="24"
-          placeholder="kg"
+          size="md"
+          width={{ base: 'full', sm: '24' }}
+          placeholder="g"
           defaultValue={
             item.official_weight != null ? String(item.official_weight) : ''
           }
           required
           disabled={!!item.verified_at}
         />
-        <Button type="submit" size="sm" loading={pending} disabled={!!item.verified_at}>
+        <Button type="submit" size="md" loading={pending} disabled={!!item.verified_at} width={{ base: 'full', sm: 'auto' }}>
           Record
         </Button>
       </Flex>
@@ -184,10 +185,11 @@ function VerifyWeightForm({
       <input type="hidden" name="weighingId" value={item.weighing_id} />
       <Button
         type="submit"
-        size="sm"
+        size="md"
         variant="outline"
         loading={pending}
         disabled={item.official_weight == null}
+        width={{ base: 'full', sm: 'auto' }}
       >
         Verify
       </Button>
@@ -207,16 +209,16 @@ function VerifyWeightForm({
 
 export function WeighingStationClient({
   eventId,
-  minWeight,
-  maxWeight,
+  minWeightGrams,
+  maxWeightGrams,
   cocksPerEntry,
   entries,
   items,
   embedded = false,
 }: WeighingStationClientProps) {
   const weightRange =
-    minWeight != null || maxWeight != null
-      ? `${minWeight ?? '—'} – ${maxWeight ?? '—'} kg`
+    minWeightGrams != null || maxWeightGrams != null
+      ? `${minWeightGrams ?? '—'} – ${maxWeightGrams ?? '—'} g`
       : 'No weight limits configured'
 
   const sortedItems = useMemo(
@@ -257,6 +259,15 @@ export function WeighingStationClient({
       ) : null}
 
       <PanelCard flush>
+        <Text
+          fontSize="sm"
+          color="fg.muted"
+          px={{ base: 4, lg: LAYOUT_GAP.cardPadding }}
+          pb={LAYOUT_GAP.cardTitle}
+          display={{ base: 'block', lg: 'none' }}
+        >
+          Swipe horizontally to see all weighing columns.
+        </Text>
         <Box overflowX="auto">
           <Box as="table" width="100%" fontSize="sm">
             <Box as="thead" bg="bg.subtle">
@@ -305,7 +316,7 @@ export function WeighingStationClient({
                     </Box>
                     <Box as="td" px={3} py={3}>
                       {item.official_weight != null
-                        ? `${item.official_weight} kg`
+                        ? `${item.official_weight} g`
                         : '—'}
                     </Box>
                     <Box as="td" px={3} py={3}>

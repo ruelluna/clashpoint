@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { hasAdminCredentials, signInAsAdmin } from './fixtures/auth'
+import { fillStaffRoosterCoreFields } from './helpers/rooster-core-fields'
 
 const eventDetailUrl = /\/dashboard\/events\/[0-9a-f-]{36}/
 
@@ -16,8 +17,16 @@ async function createClassicEvent(page: Page, name: string) {
     .locator('select')
     .filter({ has: page.locator('option', { hasText: 'Classic' }) })
     .selectOption('classic')
+
+  const inspectionSection = page
+    .locator('div')
+    .filter({ hasText: 'Physical inspection required' })
+    .first()
+  await inspectionSection.getByRole('switch').click()
+
   await page.getByRole('button', { name: 'Create event' }).click()
   await page.waitForURL(eventDetailUrl)
+  await expect(page.getByRole('link', { name: 'Inspection' })).toBeVisible()
   return page.url().replace(/.*\/events\//, '').replace(/\/.*$/, '')
 }
 
@@ -35,16 +44,21 @@ async function registerOwner(page: Page, eventId: string, ownerName: string) {
 
 async function addRooster(page: Page, eventId: string, band: string) {
   await page.goto(`/dashboard/events/${eventId}/roosters`)
-  await page.locator('select[name="entryId"]').selectOption({ index: 1 })
+  const ownerPicker = page.getByTestId('event-owner-entry-picker').getByRole('combobox')
+  await ownerPicker.click()
+  await page.getByRole('option').first().click()
   await page.locator('input[name="bandNumber"]').fill(band)
+  await fillStaffRoosterCoreFields(page, band)
   await page.getByRole('button', { name: 'Add rooster' }).click()
   await expect(page.getByText(band)).toBeVisible({ timeout: 15_000 })
 }
 
-async function completeInspectionForBand(page: Page, eventId: string, band: string) {
+async function completeInspectionForEntry(page: Page, eventId: string, searchText: string) {
   await page.goto(`/dashboard/events/${eventId}/inspection`)
-  const row = page.locator('div').filter({ hasText: `Band ${band}` }).first()
-  await row.locator('input[name="officialWeight"]').fill('2.1')
+  await page.getByTestId('inspection-rooster-search-input').fill(searchText)
+  await page.getByRole('button', { name: 'Find' }).click()
+  const row = page.locator('[data-registration-id]').first()
+  await row.locator('input[name="officialWeight"]').fill('2100')
   await row.getByRole('button', { name: 'Record' }).click()
   await expect(row.getByText('Weight recorded', { exact: false })).toBeVisible({
     timeout: 15_000,
@@ -72,13 +86,16 @@ test.describe('Owners → roosters → inspection → matching @auth', () => {
     await signInAsAdmin(page)
     const eventId = await createClassicEvent(page, eventName)
 
-    await registerOwner(page, eventId, `Meron Owner ${suffix}`)
-    await addRooster(page, eventId, `M-${suffix}`)
-    await completeInspectionForBand(page, eventId, `M-${suffix}`)
+    const meronOwner = `Meron Owner ${suffix}`
+    const walaOwner = `Wala Owner ${suffix}`
 
-    await registerOwner(page, eventId, `Wala Owner ${suffix}`)
+    await registerOwner(page, eventId, meronOwner)
+    await addRooster(page, eventId, `M-${suffix}`)
+    await completeInspectionForEntry(page, eventId, meronOwner)
+
+    await registerOwner(page, eventId, walaOwner)
     await addRooster(page, eventId, `W-${suffix}`)
-    await completeInspectionForBand(page, eventId, `W-${suffix}`)
+    await completeInspectionForEntry(page, eventId, walaOwner)
 
     await page.goto(`/dashboard/events/${eventId}/matching`)
     await expect(page.getByText('Matching', { exact: true })).toBeVisible()

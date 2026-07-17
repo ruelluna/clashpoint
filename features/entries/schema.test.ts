@@ -3,15 +3,21 @@ import { describe, expect, it } from 'vitest'
 import {
   CONTACT_NUMBER_PATTERN,
   CONTACT_NUMBER_PREFIX,
+  buildRoosterEntryItemSchema,
   createEntrySchema,
   deleteEntrySchema,
   entryMetadataSchema,
   formatEntryNumber,
+  formatCockEntryBarcode,
   formatOwnerBarcode,
   getNextEntryNumber,
   getNextOwnerBarcode,
+  isBandNumberRequiredForEvent,
+  isCockEntryBarcodeForEvent,
   isOwnerBarcodeForEvent,
+  normalizeCockEntryBarcodeInput,
   normalizeOwnerBarcodeInput,
+  parseCockEntryBarcodeSequence,
   parseCreateEntryFromFormData,
   parseEntryNumber,
   parseOwnerBarcodeSequence,
@@ -65,17 +71,61 @@ describe('contactNumberSchema', () => {
 })
 
 describe('roosterEntryItemSchema', () => {
+  const validRooster = {
+    entryName: 'Thunder',
+    bandNumber: 'B-101',
+    weight: 2150,
+    breed: 'Talisayon',
+    colorMarking: 'Black',
+    notes: 'Ready for weigh-in',
+  }
+
   it('accepts optional handler name per rooster', () => {
     const result = roosterEntryItemSchema.safeParse({
-      entryName: 'Thunder',
-      bandNumber: 'B-101',
-      weight: 2150,
+      ...validRooster,
       handlerName: 'Pedro',
     })
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.handlerName).toBe('Pedro')
     }
+  })
+
+  it('requires breed, color, and notes', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 2150,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('allows optional band when banding is not required', () => {
+    const schema = buildRoosterEntryItemSchema(false)
+    const result = schema.safeParse({
+      entryName: 'Thunder',
+      weight: 2150,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+      notes: 'No band yet',
+    })
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('isBandNumberRequiredForEvent', () => {
+  it('requires band for classic events', () => {
+    expect(isBandNumberRequiredForEvent('classic', null)).toBe(true)
+  })
+
+  it('requires band for derby only when banding policy is enabled', () => {
+    expect(
+      isBandNumberRequiredForEvent('derby', {
+        enabledFields: ['banding'],
+        bandingRequired: true,
+      } as never)
+    ).toBe(true)
+    expect(isBandNumberRequiredForEvent('derby', null)).toBe(false)
   })
 })
 
@@ -84,6 +134,9 @@ describe('createEntrySchema', () => {
     entryName: 'Thunder',
     bandNumber: 'B-101',
     weight: 2150,
+    breed: 'Talisayon',
+    colorMarking: 'Red',
+    notes: 'First cock',
   }
 
   it('accepts entry with one rooster in grams', () => {
@@ -102,7 +155,14 @@ describe('createEntrySchema', () => {
       ownerName: 'Game Farm X',
       roosters: [
         baseRooster,
-        { entryName: 'Lightning', bandNumber: 'B-102', weight: 2050 },
+        {
+          entryName: 'Lightning',
+          bandNumber: 'B-102',
+          weight: 2050,
+          breed: 'Buyugon',
+          colorMarking: 'Black',
+          notes: 'Second cock',
+        },
       ],
     })
 
@@ -124,6 +184,35 @@ describe('createEntrySchema', () => {
       entryName: 'Thunder',
       bandNumber: 'B-101',
       weight: 2.15,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+      notes: 'Note',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts weight up to 9999 grams', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 9999,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+      notes: 'Note',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects weight over 9999 grams', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 10000,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+      notes: 'Note',
     })
 
     expect(result.success).toBe(false)
@@ -168,16 +257,23 @@ describe('parseCreateEntryFromFormData', () => {
     formData.set('rooster_1_bandNumber', 'B-1')
     formData.set('rooster_1_weight', '2100')
     formData.set('handlerName_rooster_1', 'Pedro')
+    formData.set('breed_rooster_1', 'Talisayon')
+    formData.set('colorMarking_rooster_1', 'Black')
     formData.set('notes_rooster_1', 'Handler prefers morning weigh-in')
     formData.set('rooster_2_entryName', 'Lightning')
     formData.set('rooster_2_bandNumber', 'B-2')
     formData.set('rooster_2_weight', '2000')
+    formData.set('breed_rooster_2', 'Buyugon')
+    formData.set('colorMarking_rooster_2', 'Red')
+    formData.set('notes_rooster_2', 'Second cock note')
 
     const parsed = parseCreateEntryFromFormData(formData)
     expect(parsed.parseErrors).toHaveLength(0)
     expect(parsed.roosters).toHaveLength(2)
     expect(parsed.roosters[0]?.entryName).toBe('Thunder')
     expect(parsed.roosters[0]?.handlerName).toBe('Pedro')
+    expect(parsed.roosters[0]?.breed).toBe('Talisayon')
+    expect(parsed.roosters[0]?.colorMarking).toBe('Black')
     expect(parsed.roosters[0]?.notes).toBe('Handler prefers morning weigh-in')
   })
 
@@ -189,6 +285,9 @@ describe('parseCreateEntryFromFormData', () => {
     formData.set('rooster_1_entryName', 'Thunder')
     formData.set('rooster_1_bandNumber', 'B-1')
     formData.set('rooster_1_weight', '2100')
+    formData.set('breed_rooster_1', 'Talisayon')
+    formData.set('colorMarking_rooster_1', 'Black')
+    formData.set('notes_rooster_1', 'Only cock')
 
     const parsed = parseCreateEntryFromFormData(formData)
     expect(parsed.roosters).toHaveLength(1)
@@ -279,5 +378,14 @@ describe('owner barcode helpers', () => {
   it('returns the next owner barcode sequence', () => {
     const existing = [formatOwnerBarcode(eventId, 1), formatOwnerBarcode(eventId, 3)]
     expect(getNextOwnerBarcode(eventId, existing)).toBe(formatOwnerBarcode(eventId, 4))
+  })
+})
+
+describe('cock entry barcode helpers', () => {
+  it('formats and validates cock entry barcodes for an event', () => {
+    const barcode = formatCockEntryBarcode(eventId, 1)
+    expect(parseCockEntryBarcodeSequence(barcode, eventId)).toBe(1)
+    expect(isCockEntryBarcodeForEvent(barcode, eventId)).toBe(true)
+    expect(normalizeCockEntryBarcodeInput(` ${barcode.toLowerCase()} `)).toBe(barcode)
   })
 })

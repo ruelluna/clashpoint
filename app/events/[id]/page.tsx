@@ -1,4 +1,5 @@
-import { Badge, Box, Stack, Text } from '@chakra-ui/react'
+import { Badge, Box, Button, Stack, Text } from '@chakra-ui/react'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import {
@@ -39,6 +40,11 @@ export default async function PublicEventPage({ params }: PublicEventPageProps) 
   return (
     <Stack gap={6}>
       <PublicEventNav event={event} />
+      {event.registration_open ? (
+        <Button asChild alignSelf="flex-start">
+          <Link href={`/events/${id}/register`}>Register for this event</Link>
+        </Button>
+      ) : null}
       <Stack
         gap={4}
         borderWidth="1px"

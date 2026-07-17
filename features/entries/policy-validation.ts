@@ -136,25 +136,5 @@ export function validateRoosterAgainstPolicy(
     }
   }
 
-  if (isFieldEnabled(context, 'experience')) {
-    const experience = input.experienceStatus ?? 'unknown'
-    if (
-      context.unknownValueHandling === 'prohibit' &&
-      (!experience || experience === 'unknown')
-    ) {
-      return 'Experience status is required for this event.'
-    }
-  }
-
-  if (isFieldEnabled(context, 'origin')) {
-    const originType = input.originType ?? 'unknown'
-    if (
-      context.unknownValueHandling === 'prohibit' &&
-      (!originType || originType === 'unknown')
-    ) {
-      return 'Origin type is required for this event.'
-    }
-  }
-
   return null
 }
