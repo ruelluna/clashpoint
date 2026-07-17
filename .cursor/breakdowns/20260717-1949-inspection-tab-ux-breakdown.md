@@ -90,3 +90,35 @@ Deploy app only — no migration. Test: Events → Inspection → Inspect → re
 Documentation:
 Admin: update phase-05-lineup-weighing inspection guide when doc repo is available
 ```
+
+---
+
+## Roosters tab UX refresh (2026-07-17)
+
+### Changelog
+
+- **Add rooster** form hidden by default; toggle expands with Chakra Collapsible
+- Auto-expand when `?entryId=` deep link is present
+- Submit renamed to **Save rooster**
+- List uses inspection-style bordered cards with **View rooster details**
+- New route: `/dashboard/events/{id}/roosters/{registrationId}` (RegistrationDetailClient)
+- Derby **Print slip** moved to detail page header
+
+### Files
+
+- `features/event-roosters/components/event-roosters-client.tsx`
+- `app/dashboard/events/[id]/roosters/[registrationId]/page.tsx`
+- `features/registrations/components/registration-detail-client.tsx`
+- `app/dashboard/events/[id]/registrations/[regId]/page.tsx`
+- `e2e/event-roosters-owner-scan.spec.ts`
+- `e2e/rooster-entries-weighing-matching.spec.ts`
+
+### Manual test
+
+1. Events → Roosters → **Add rooster** expands form
+2. Save rooster → card list with **View rooster details**
+3. Detail page → Back to roosters + Print slip (derby)
+
+### Suggested commit
+
+**Summary:** Refresh Roosters tab with collapsible add form and detail cards

@@ -65,6 +65,7 @@ test.describe('Event roosters owner scan @auth', () => {
 
     await page.goto(`/dashboard/events/${eventId}/roosters`)
     await expect(page.getByRole('heading', { name: 'Roosters' })).toBeVisible()
+    await page.getByTestId('roosters-add-toggle').click()
     await expect(page.getByTestId('event-owner-entry-picker')).toBeVisible()
 
     await page.getByTestId('owner-barcode-scan-input').fill(barcodeText)
@@ -79,11 +80,12 @@ test.describe('Event roosters owner scan @auth', () => {
 
     await page.locator('input[name="bandNumber"]').fill(bandNumber)
     await fillStaffRoosterCoreFields(page, suffix)
-    await page.getByRole('button', { name: 'Add rooster' }).click()
+    await page.getByTestId('roosters-save-button').click()
 
     await page.waitForURL(new RegExp(`/dashboard/events/${eventId}/roosters/[^/]+/print`))
 
     await page.goto(`/dashboard/events/${eventId}/roosters`)
+    await page.getByTestId('roosters-add-toggle').click()
     await page.getByTestId('owner-barcode-scan-input').fill(barcodeText)
     await page.getByRole('button', { name: 'Look up barcode' }).click()
 
@@ -102,6 +104,7 @@ test.describe('Event roosters owner scan @auth', () => {
     await registerOwnerForEvent(page, eventId, ownerName, `Contact ${suffix}`)
 
     await page.goto(`/dashboard/events/${eventId}/roosters`)
+    await page.getByTestId('roosters-add-toggle').click()
     const ownerPicker = page.getByTestId('event-owner-entry-picker').getByRole('combobox')
     await ownerPicker.fill(ownerName)
     await page.getByRole('option', { name: new RegExp(ownerName) }).click()

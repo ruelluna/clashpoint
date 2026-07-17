@@ -1,10 +1,11 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Input, NativeSelect, Stack, Text } from '@chakra-ui/react'
+import { Badge, Box, Button, Collapsible, Flex, Input, NativeSelect, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
-import { useActionState, useMemo, useState } from 'react'
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 
 import { FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import type { EventFeeSettings } from '@/features/events/fee-utils'
 import { formatBandNumberForDisplay } from '@/features/entries/band-display'
 import { isBandNumberRequiredForEvent } from '@/features/entries/schema'
 import { EventOwnerEntryPicker } from '@/features/entries/components/event-owner-entry-picker'
@@ -13,14 +14,15 @@ import { OwnerRoosterCheckPanel } from '@/features/entries/components/owner-roos
 import { RoosterEntryCoreFields } from '@/features/entries/components/rooster-entry-core-fields'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
 import type { RoosterEntryCatalog } from '@/features/reference-values/catalog'
-import { createRoosterAction, type WeighingActionState } from '@/features/weighing/actions'
+import { getRoosterEntryPaymentDisplay } from '@/features/payments/display-utils'
 import type { RegistrationListItem } from '@/features/registrations/types'
+import { createRoosterAction, type WeighingActionState } from '@/features/weighing/actions'
 import type { WeighingEntrySummary } from '@/features/weighing/types'
 import {
   ELIGIBILITY_STATUS_LABELS,
   REGISTRATION_STATUS_LABELS,
 } from '@/lib/derby/enums'
-import type { EligibilityStatus, RegistrationWorkflowStatus } from '@/lib/derby/enums'
+import type { EligibilityStatus, InspectionStatus, RegistrationWorkflowStatus } from '@/lib/derby/enums'
 
 type EventRoostersClientProps = {
   eventId: string
@@ -36,8 +38,13 @@ type EventRoostersClientProps = {
   initialEntryId?: string
 }
 
-import type { EventFeeSettings } from '@/features/events/fee-utils'
-import { getRoosterEntryPaymentDisplay } from '@/features/payments/display-utils'
+const INSPECTION_STATUS_LABELS: Record<InspectionStatus, string> = {
+  not_required: 'Not required',
+  pending: 'Pending',
+  passed: 'Passed',
+  failed: 'Failed',
+  for_review: 'For review',
+}
 
 function statusColor(status: RegistrationWorkflowStatus): 'gray' | 'orange' | 'green' | 'red' {
   if (status === 'approved' || status === 'matched' || status === 'completed') return 'green'
@@ -53,6 +60,15 @@ function eligibilityColor(
   if (status === 'ineligible') return 'red'
   if (status === 'pending_review') return 'yellow'
   return 'orange'
+}
+
+function inspectionColor(
+  status: InspectionStatus
+): 'green' | 'red' | 'orange' | 'gray' {
+  if (status === 'passed') return 'green'
+  if (status === 'failed') return 'red'
+  if (status === 'for_review') return 'orange'
+  return 'gray'
 }
 
 function AddRoosterForm({
@@ -133,12 +149,159 @@ function AddRoosterForm({
               {state.success}
             </Text>
           ) : null}
-          <Button type="submit" loading={pending} disabled={!canSubmit} alignSelf="flex-start">
-            Add rooster
+          <Button
+            type="submit"
+            loading={pending}
+            disabled={!canSubmit}
+            alignSelf="flex-start"
+            size="md"
+            data-testid="roosters-save-button"
+          >
+            Save rooster
           </Button>
         </Stack>
       </form>
     </PanelCard>
+  )
+}
+
+function CollapsibleAddRoosterSection({
+  eventId,
+  eventType,
+  entries,
+  cocksPerEntry,
+  registrations,
+  catalog,
+  eligibilityContext,
+  initialEntryId,
+}: {
+  eventId: string
+  eventType: string
+  entries: WeighingEntrySummary[]
+  cocksPerEntry: number
+  registrations: RegistrationListItem[]
+  catalog: RoosterEntryCatalog
+  eligibilityContext?: EntryFormEligibilityContext | null
+  initialEntryId?: string
+}) {
+  const [open, setOpen] = useState(Boolean(initialEntryId))
+
+  useEffect(() => {
+    if (initialEntryId) setOpen(true)
+  }, [initialEntryId])
+
+  return (
+    <Collapsible.Root open={open} onOpenChange={(details) => setOpen(details.open)}>
+      <Collapsible.Trigger asChild>
+        <Button
+          variant="outline"
+          size="md"
+          alignSelf="flex-start"
+          data-testid="roosters-add-toggle"
+        >
+          {open ? 'Hide form' : 'Add rooster'}
+        </Button>
+      </Collapsible.Trigger>
+      <Collapsible.Content>
+        <Box pt={LAYOUT_GAP.section}>
+          <AddRoosterForm
+            eventId={eventId}
+            eventType={eventType}
+            entries={entries}
+            cocksPerEntry={cocksPerEntry}
+            registrations={registrations}
+            catalog={catalog}
+            eligibilityContext={eligibilityContext}
+            initialEntryId={initialEntryId}
+          />
+        </Box>
+      </Collapsible.Content>
+    </Collapsible.Root>
+  )
+}
+
+function RoosterListCard({
+  eventId,
+  registration,
+  feeSettings,
+  highlighted,
+}: {
+  eventId: string
+  registration: RegistrationListItem
+  feeSettings: EventFeeSettings
+  highlighted: boolean
+}) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const paymentBadge = getRoosterEntryPaymentDisplay(
+    registration.reg_payment_status,
+    feeSettings
+  )
+
+  useEffect(() => {
+    if (highlighted && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [highlighted])
+
+  return (
+    <Box
+      ref={rowRef}
+      id={`rooster-${registration.id}`}
+      borderWidth="1px"
+      borderColor={highlighted ? 'green.500' : 'border'}
+      rounded="md"
+      p={4}
+      bg={highlighted ? 'bg.subtle' : undefined}
+      data-registration-id={registration.id}
+    >
+      <Flex
+        justify="space-between"
+        align={{ base: 'stretch', md: 'start' }}
+        gap={4}
+        direction={{ base: 'column', md: 'row' }}
+      >
+        <Stack gap={1} flex="1">
+          <Text fontWeight="semibold">
+            Cock #{registration.cock_number} · {formatBandNumberForDisplay(registration.band_number)}
+          </Text>
+          <Text fontSize="sm" color="fg.muted">
+            #{registration.entry_number} {registration.entry_name}
+            {registration.handler_name ? ` · Handler ${registration.handler_name}` : ''}
+            {registration.breed || registration.color_marking
+              ? ` · ${[registration.breed, registration.color_marking].filter(Boolean).join(' · ')}`
+              : ''}
+          </Text>
+          <Flex gap={2} wrap="wrap">
+            {paymentBadge ? (
+              <Badge colorPalette={paymentBadge.colorPalette} size="sm">
+                {paymentBadge.label}
+              </Badge>
+            ) : null}
+            <Badge colorPalette={statusColor(registration.registration_status)} size="sm">
+              {REGISTRATION_STATUS_LABELS[registration.registration_status]}
+            </Badge>
+            <Badge colorPalette={eligibilityColor(registration.eligibility_status)} size="sm">
+              {ELIGIBILITY_STATUS_LABELS[registration.eligibility_status]}
+            </Badge>
+            <Badge colorPalette={inspectionColor(registration.inspection_status)} size="sm">
+              {INSPECTION_STATUS_LABELS[registration.inspection_status]}
+            </Badge>
+          </Flex>
+        </Stack>
+
+        <Button
+          asChild
+          size="md"
+          variant="outline"
+          alignSelf={{ base: 'stretch', md: 'flex-start' }}
+          data-testid="roosters-view-details-button"
+        >
+          <Link href={`/dashboard/events/${eventId}/roosters/${registration.id}`}>
+            View rooster details
+          </Link>
+        </Button>
+      </Flex>
+    </Box>
   )
 }
 
@@ -171,7 +334,7 @@ export function EventRoostersClient({
         description={`${eventName} · ${registrations.length} cock${registrations.length === 1 ? '' : 's'} registered. Entry fees stay pending until Payments.`}
       />
 
-      <AddRoosterForm
+      <CollapsibleAddRoosterSection
         eventId={eventId}
         eventType={eventType}
         entries={entries}
@@ -207,105 +370,23 @@ export function EventRoostersClient({
         </NativeSelect.Root>
       </Flex>
 
-      <PanelCard flush>
-        <Flex
-          px={4}
-          py={4}
-          borderBottomWidth="1px"
-          borderColor="border"
-          fontWeight="medium"
-          fontSize="sm"
-          display={{ base: 'none', lg: 'flex' }}
-        >
-          <Box flex="0.5">Cock</Box>
-          <Box flex="1.2">Owner</Box>
-          <Box flex="0.7">Payment</Box>
-          <Box flex="0.9">Registration</Box>
-          <Box flex="0.8">Eligibility</Box>
-          <Box flex="0.8">Inspection</Box>
-          <Box flex="0.6" textAlign="right">
-            Actions
-          </Box>
-        </Flex>
-
-        {filtered.length === 0 ? (
-          <Box px={4} py={8} textAlign="center">
-            <Text color="fg.muted">No roosters yet. Register owners first, then add cocks here.</Text>
-          </Box>
-        ) : (
-          filtered.map((registration) => (
-            <Box
+      {filtered.length === 0 ? (
+        <PanelCard title="Roosters">
+          <Text color="fg.muted">No roosters yet. Register owners first, then add cocks here.</Text>
+        </PanelCard>
+      ) : (
+        <Stack gap={4}>
+          {filtered.map((registration) => (
+            <RoosterListCard
               key={registration.id}
-              id={`rooster-${registration.id}`}
-              px={4}
-              py={4}
-              borderBottomWidth="1px"
-              borderColor="border"
-              bg={highlightId === registration.id ? 'bg.subtle' : undefined}
-            >
-              <Flex direction={{ base: 'column', lg: 'row' }} gap={3} align={{ lg: 'center' }}>
-                <Box flex="0.5">
-                  <Text fontWeight="semibold">#{registration.cock_number}</Text>
-                  <Text fontSize="xs" color="fg.muted">
-                    {formatBandNumberForDisplay(registration.band_number)}
-                  </Text>
-                  {registration.breed || registration.color_marking ? (
-                    <Text fontSize="xs" color="fg.muted">
-                      {[registration.breed, registration.color_marking]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </Text>
-                  ) : null}
-                </Box>
-                <Box flex="1.2">
-                  <Text fontWeight="medium">
-                    #{registration.entry_number} · {registration.entry_name}
-                  </Text>
-                </Box>
-                <Box flex="0.7">
-                  {(() => {
-                    const paymentDisplay = getRoosterEntryPaymentDisplay(
-                      registration.reg_payment_status,
-                      feeSettings
-                    )
-                    return paymentDisplay ? (
-                      <Badge size="sm" colorPalette={paymentDisplay.colorPalette}>
-                        {paymentDisplay.label}
-                      </Badge>
-                    ) : null
-                  })()}
-                </Box>
-                <Box flex="0.9">
-                  <Badge colorPalette={statusColor(registration.registration_status)} size="sm">
-                    {REGISTRATION_STATUS_LABELS[registration.registration_status]}
-                  </Badge>
-                </Box>
-                <Box flex="0.8">
-                  <Badge colorPalette={eligibilityColor(registration.eligibility_status)} size="sm">
-                    {ELIGIBILITY_STATUS_LABELS[registration.eligibility_status]}
-                  </Badge>
-                </Box>
-                <Box flex="0.8">
-                  <Text fontSize="sm" textTransform="capitalize">
-                    {registration.inspection_status.replace(/_/g, ' ')}
-                  </Text>
-                </Box>
-                <Box flex="0.6">
-                  <Flex justify={{ base: 'flex-start', lg: 'flex-end' }} gap={2}>
-                    {eventType === 'derby' ? (
-                      <Button asChild size="xs" variant="outline">
-                        <Link href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}>
-                          Print slip
-                        </Link>
-                      </Button>
-                    ) : null}
-                  </Flex>
-                </Box>
-              </Flex>
-            </Box>
-          ))
-        )}
-      </PanelCard>
+              eventId={eventId}
+              registration={registration}
+              feeSettings={feeSettings}
+              highlighted={highlightId === registration.id}
+            />
+          ))}
+        </Stack>
+      )}
     </PageStack>
   )
 }

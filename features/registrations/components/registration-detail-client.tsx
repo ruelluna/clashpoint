@@ -66,6 +66,7 @@ type RegistrationPermissions = {
 type RegistrationDetailClientProps = {
   eventId: string
   eventName: string
+  eventType: string
   registration: RegistrationWithRelations
   permissions: RegistrationPermissions
 }
@@ -110,6 +111,7 @@ function ActionFeedback({ state }: { state: RegistrationActionState | Eligibilit
 export function RegistrationDetailClient({
   eventId,
   eventName,
+  eventType,
   registration,
   permissions,
 }: RegistrationDetailClientProps) {
@@ -161,6 +163,20 @@ export function RegistrationDetailClient({
       <PageHeader
         title={`Cock #${registration.cock_number} · ${registration.entry_name}`}
         description={`${eventName} · Band ${registration.band_number}${registration.rooster_code ? ` · ${registration.rooster_code}` : ''}`}
+        actions={
+          <ButtonGroup>
+            <Button asChild size="md" variant="outline">
+              <Link href={`/dashboard/events/${eventId}/roosters`}>Back to roosters</Link>
+            </Button>
+            {eventType === 'derby' ? (
+              <Button asChild size="md" variant="outline">
+                <Link href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}>
+                  Print slip
+                </Link>
+              </Button>
+            ) : null}
+          </ButtonGroup>
+        }
       />
 
       <Flex direction={{ base: 'column', lg: 'row' }} gap={LAYOUT_GAP.section}>
