@@ -11,7 +11,6 @@ export const ELIGIBILITY_FIELD_KEYS = [
   'age_class',
   'weight',
   'banding',
-  'documents',
 ] as const
 
 export type EligibilityFieldKey = (typeof ELIGIBILITY_FIELD_KEYS)[number]
@@ -20,21 +19,18 @@ export const ELIGIBILITY_FIELD_LABELS: Record<EligibilityFieldKey, string> = {
   age_class: 'Age class',
   weight: 'Weight limits',
   banding: 'Banding',
-  documents: 'Document verification',
 }
 
 export const ELIGIBILITY_FIELD_DESCRIPTIONS: Record<EligibilityFieldKey, string> = {
   age_class: 'Restrict which age classes (stag, bullstag, cock) may enter.',
   weight: 'Set minimum and maximum weight limits and whether official weighing is required.',
   banding: 'Require bands and restrict accepted levels, organizations, years, or seasons.',
-  documents: 'Require verified supporting documents.',
 }
 
 export const ELIGIBILITY_FIELD_TO_CHECK = {
   age_class: 'age',
   weight: 'weight',
   banding: 'banding',
-  documents: 'inspection',
 } as const satisfies Record<EligibilityFieldKey, string>
 
 export type EligibilityOptionPreset = {

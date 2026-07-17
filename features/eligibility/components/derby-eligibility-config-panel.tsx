@@ -53,7 +53,6 @@ type FieldState = {
   acceptedBandOrganizations: string[]
   acceptedBandYears: string[]
   acceptedBandSeasons: string[]
-  documentVerificationRequired: boolean
   eligibilityNotes: string
 }
 
@@ -81,7 +80,6 @@ function buildInitialState(
     acceptedBandOrganizations: policy?.accepted_band_organizations ?? [],
     acceptedBandYears: (policy?.accepted_band_years ?? []).map(String),
     acceptedBandSeasons: policy?.accepted_band_seasons ?? [],
-    documentVerificationRequired: policy?.document_verification_required ?? false,
     eligibilityNotes: policy?.eligibility_notes ?? '',
   }
 }
@@ -292,25 +290,6 @@ function DerbyEligibilityFields({
           onChange={(acceptedBandSeasons) => patchState({ acceptedBandSeasons })}
           placeholder="Season label"
         />
-      </FieldToggle>
-
-      <FieldToggle
-        field="documents"
-        enabled={state.enabledFields.has('documents')}
-        onToggle={(checked) => toggleField('documents', checked)}
-      >
-        <BooleanHiddenInput
-          name="documentVerificationRequired"
-          checked={state.documentVerificationRequired}
-        />
-        <PolicyCheckbox
-          checked={state.documentVerificationRequired}
-          onCheckedChange={(checked) =>
-            patchState({ documentVerificationRequired: checked })
-          }
-        >
-          Document verification required in registration workflow
-        </PolicyCheckbox>
       </FieldToggle>
 
       <FormField label="Eligibility notes">

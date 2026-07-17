@@ -70,7 +70,6 @@ async function enableEligibilityField(page: Page, fieldLabel: string) {
     'Origin & breeding': 'Control locally bred',
     'Association membership': 'Require competitors to belong',
     'Physical inspection': 'Require a passed physical inspection',
-    'Document verification': 'Require verified supporting documents',
     'Entry fee payment': 'Registration fee must be paid',
   }
 
@@ -369,12 +368,12 @@ test.describe('Event creation type @auth', () => {
       .first()
     await inspectionSection.getByRole('switch').click()
 
-    await enableEligibilityField(page, 'Document verification')
-    const documentRequired = page.getByRole('checkbox', {
-      name: 'Document verification required in registration workflow',
+    await enableEligibilityField(page, 'Weight limits')
+    const weightVerification = page.getByRole('checkbox', {
+      name: 'Require official weight verification',
     })
-    await documentRequired.click()
-    await expect(documentRequired).toBeChecked()
+    await weightVerification.click()
+    await expect(weightVerification).toBeChecked()
 
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByText('Event updated')).toBeVisible()
@@ -383,6 +382,6 @@ test.describe('Event creation type @auth', () => {
 
     await page.reload()
     await expect(inspectionSection.getByRole('switch')).toHaveAttribute('data-checked', '')
-    await expect(documentRequired).toBeChecked()
+    await expect(weightVerification).toBeChecked()
   })
 })

@@ -51,11 +51,12 @@ describe('upsertEligibilityPolicySchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('accepts document rules when documents are enabled', () => {
+  it('accepts weight options when weight is enabled', () => {
     const result = upsertEligibilityPolicySchema.safeParse({
       eventId: TEST_EVENT_ID,
-      enabledFields: ['documents'],
-      documentVerificationRequired: true,
+      enabledFields: ['weight'],
+      minimumWeightGrams: 1800,
+      maximumWeightGrams: 2300,
     })
 
     expect(result.success).toBe(true)

@@ -56,7 +56,6 @@ export function parseEligibilityPolicyFormData(
     importedAllowed: formData.get('importedAllowed') !== 'off',
     originVerificationRequired: formData.get('originVerificationRequired') === 'on',
     physicalInspectionRequired: formData.get('physicalInspectionRequired') === 'on',
-    documentVerificationRequired: formData.get('documentVerificationRequired') === 'on',
     entryFeePaymentRequired: formData.get('entryFeePaymentRequired') === 'on',
     unknownValueHandling: formData.get('unknownValueHandling') ?? 'approval_required',
     eligibilityNotes: formData.get('eligibilityNotes')?.toString().trim() || undefined,
@@ -77,7 +76,6 @@ export function buildEligibilityPolicyPayload(
   const bandingEnabled = enabledFields.includes('banding')
   const weightEnabled = enabledFields.includes('weight')
   const ageEnabled = enabledFields.includes('age_class')
-  const documentsEnabled = enabledFields.includes('documents')
 
   return {
     event_id: input.eventId,
@@ -103,9 +101,7 @@ export function buildEligibilityPolicyPayload(
     imported_allowed: true,
     origin_verification_required: false,
     physical_inspection_required: false,
-    document_verification_required: documentsEnabled
-      ? input.documentVerificationRequired
-      : false,
+    document_verification_required: false,
     entry_fee_payment_required: false,
     unknown_value_handling: input.unknownValueHandling,
     eligibility_notes: input.eligibilityNotes ?? null,

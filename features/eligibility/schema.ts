@@ -43,7 +43,6 @@ export const upsertEligibilityPolicySchema = z
     importedAllowed: z.boolean().default(true),
     originVerificationRequired: z.boolean().default(false),
     physicalInspectionRequired: z.boolean().default(false),
-    documentVerificationRequired: z.boolean().default(false),
     entryFeePaymentRequired: z.boolean().default(false),
     unknownValueHandling: unknownValueHandlingSchema.default('approval_required'),
     eligibilityNotes: z.string().max(5000).nullable().optional(),

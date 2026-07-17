@@ -4,7 +4,6 @@ import {
   ELIGIBILITY_FIELD_DESCRIPTIONS,
   ELIGIBILITY_FIELD_LABELS,
   type EligibilityFieldKey,
-  isEligibilityFieldEnabled,
 } from '@/lib/derby/eligibility-fields'
 import { gramsToKg } from '@/lib/derby/enums'
 
@@ -118,16 +117,6 @@ function buildBandingItem(
   }
 }
 
-function buildDocumentsItem(): EligibilityPolicySummaryItem {
-  return {
-    field: 'documents',
-    label: ELIGIBILITY_FIELD_LABELS.documents,
-    description: ELIGIBILITY_FIELD_DESCRIPTIONS.documents,
-    configuredOptions: ['Supporting documents must be verified before approval'],
-    entryFieldsToFill: ['Submitted during registration review (not on entry form)'],
-  }
-}
-
 const FIELD_BUILDERS: Record<
   EligibilityFieldKey,
   (
@@ -138,7 +127,6 @@ const FIELD_BUILDERS: Record<
   age_class: (context) => buildAgeClassItem(context),
   weight: (context) => buildWeightItem(context),
   banding: (context, policy) => buildBandingItem(context, policy),
-  documents: () => buildDocumentsItem(),
 }
 
 export function buildEligibilityPolicySummary(
@@ -154,12 +142,6 @@ export function buildEligibilityPolicySummary(
 
   if (context.physicalInspectionRequired) {
     workflowNotes.push('Physical inspection required')
-  }
-  if (
-    context.documentVerificationRequired &&
-    !isEligibilityFieldEnabled(context.enabledFields, 'documents')
-  ) {
-    workflowNotes.push('Document verification required')
   }
 
   return {
