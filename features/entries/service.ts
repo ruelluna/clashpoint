@@ -226,14 +226,9 @@ export async function createEntry(
   const entryNumber = getNextEntryNumber(existingNumbers)
 
   const isDerby = event.event_type === 'derby'
-  let ownerBarcode: string | null = null
-  let feeSnapshot: Record<string, unknown> | null = null
-
-  if (isDerby) {
-    const existingBarcodes = await listOwnerBarcodesForEvent(input.eventId, options)
-    ownerBarcode = getNextOwnerBarcode(input.eventId, existingBarcodes)
-    feeSnapshot = snapshotFromSettings(eventFeeSettingsFromRow(event))
-  }
+  const existingBarcodes = await listOwnerBarcodesForEvent(input.eventId, options)
+  const ownerBarcode = getNextOwnerBarcode(input.eventId, existingBarcodes)
+  const feeSnapshot = isDerby ? snapshotFromSettings(eventFeeSettingsFromRow(event)) : null
 
   const feeSettings = eventFeeSettingsFromRow(event)
   const paymentStatus = feeSettings.registrationFeeEnabled ? 'unpaid' : 'paid'

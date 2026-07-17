@@ -12,25 +12,34 @@ export const paymentCategorySchema = z.enum([
   'legacy',
 ])
 
-export const recordPaymentSchema = z.object({
-  eventId: z.string().uuid(),
-  entryId: z.string().uuid(),
-  amountPaid: z.coerce.number().positive('Amount paid must be greater than zero'),
-  paymentMethod: paymentMethodSchema,
-  paymentCategory: paymentCategorySchema.optional().default('legacy'),
-  receiptNumber: z
-    .string()
-    .max(100)
-    .optional()
-    .or(z.literal(''))
-    .transform((value) => value || undefined),
-  notes: z
-    .string()
-    .max(2000)
-    .optional()
-    .or(z.literal(''))
-    .transform((value) => value || undefined),
-})
+export const recordPaymentSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    entryId: z.string().uuid(),
+    amountPaid: z.coerce.number().positive('Amount paid must be greater than zero'),
+    paymentMethod: paymentMethodSchema,
+    paymentCategory: paymentCategorySchema.optional().default('legacy'),
+    receiptNumber: z
+      .string()
+      .max(100)
+      .optional()
+      .or(z.literal(''))
+      .transform((value) => value || undefined),
+    notes: z
+      .string()
+      .max(2000)
+      .optional()
+      .or(z.literal(''))
+      .transform((value) => value || undefined),
+  })
+  .refine((data) => data.paymentMethod === 'cash', {
+    message: 'Only cash payments are accepted',
+    path: ['paymentMethod'],
+  })
+  .transform((data) => ({
+    ...data,
+    receiptNumber: data.paymentMethod === 'cash' ? undefined : data.receiptNumber,
+  }))
 
 export const refundPaymentSchema = z.object({
   paymentId: z.string().uuid(),

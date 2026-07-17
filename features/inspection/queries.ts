@@ -4,6 +4,7 @@ import type { InspectionStatus } from '@/lib/derby/enums'
 import type { EligibilityStatus, RegistrationWorkflowStatus } from '@/lib/derby/enums'
 import type { RegistrationPaymentStatus } from '@/lib/derby/enums'
 import type { WeightStatus } from '@/features/weighing/types'
+import { resolveStoredWeightGrams } from '@/features/entries/weight-utils'
 import { createClient } from '@/lib/supabase/server'
 
 export type InspectionQueueItem = {
@@ -20,7 +21,7 @@ export type InspectionQueueItem = {
   inspectedAt: string | null
   notes: string | null
   declaredWeight: number | null
-  declaredWeightGrams: number | null
+  /** Whole grams */
   officialWeight: number | null
   officialWeightGrams: number | null
   weightVerified: boolean
@@ -144,6 +145,10 @@ export async function listInspectionQueue(eventId: string): Promise<InspectionQu
       : inspectionRaw
     const weighingRaw = row.weighings
     const weighing = Array.isArray(weighingRaw) ? weighingRaw[0] ?? null : weighingRaw
+    const officialWeightGrams = resolveStoredWeightGrams(
+      weighing?.official_weight_grams ?? null,
+      weighing?.official_weight ?? null
+    )
 
     return {
       registrationId: row.id,
@@ -158,15 +163,12 @@ export async function listInspectionQueue(eventId: string): Promise<InspectionQu
       inspectionId: inspection?.id ?? null,
       inspectedAt: inspection?.inspected_at ?? null,
       notes: inspection?.notes ?? null,
-      declaredWeight: row.declared_weight != null ? Number(row.declared_weight) : null,
-      declaredWeightGrams:
-        row.declared_weight_grams != null ? Number(row.declared_weight_grams) : null,
-      officialWeight:
-        weighing?.official_weight != null ? Number(weighing.official_weight) : null,
-      officialWeightGrams:
-        weighing?.official_weight_grams != null
-          ? Number(weighing.official_weight_grams)
-          : null,
+      declaredWeight: resolveStoredWeightGrams(
+        row.declared_weight_grams,
+        row.declared_weight
+      ),
+      officialWeight: officialWeightGrams,
+      officialWeightGrams,
       weightVerified: Boolean(row.weight_verified),
       weighingId: weighing?.id ?? null,
       weightStatus: weighing?.weight_status ?? null,

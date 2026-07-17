@@ -25,7 +25,6 @@ import {
   verifyWeight,
 } from '@/features/weighing/service'
 import { revalidateEventRoostersPaths } from '@/features/event-roosters/revalidate'
-import { getEvent } from '@/features/events/queries'
 import { requireAnyPermission } from '@/lib/auth/permissions'
 
 export type WeighingActionState = {
@@ -76,8 +75,7 @@ export async function createRoosterAction(
 
   revalidateEventRoostersPaths(parsed.data.eventId)
 
-  const event = await getEvent(parsed.data.eventId)
-  if (event?.event_type === 'derby' && result.roosterId) {
+  if (result.roosterId) {
     redirect(`/dashboard/events/${parsed.data.eventId}/roosters/${result.roosterId}/print`)
   }
 

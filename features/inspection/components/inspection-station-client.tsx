@@ -98,11 +98,6 @@ function hasInspectionOutcome(item: InspectionQueueItem): boolean {
   )
 }
 
-function formatWeightGrams(grams: number | null): string {
-  if (grams == null) return ''
-  return `${grams} g`
-}
-
 function InspectionRow({
   eventId,
   item,
@@ -206,10 +201,6 @@ function InspectionRow({
     setRejectOpen(false)
   }
 
-  const declaredWeightDisplay =
-    item.declaredWeightGrams ??
-    (item.declaredWeight != null ? Math.round(item.declaredWeight * 1000) : null)
-
   return (
     <Box
       ref={rowRef}
@@ -232,12 +223,8 @@ function InspectionRow({
           </Text>
           <Text fontSize="sm" color="fg.muted">
             {item.handlerName ? `Handler ${item.handlerName}` : 'No handler listed'}
-            {declaredWeightDisplay != null
-              ? ` · Declared ${formatWeightGrams(declaredWeightDisplay)}`
-              : ''}
-            {item.officialWeightGrams != null
-              ? ` · Official ${formatWeightGrams(item.officialWeightGrams)}`
-              : ''}
+            {item.declaredWeight != null ? ` · Declared ${item.declaredWeight} g` : ''}
+            {item.officialWeight != null ? ` · Official ${item.officialWeight} g` : ''}
           </Text>
           <Flex gap={2} wrap="wrap">
             <Badge colorPalette={statusColor(item.inspectionStatus)}>
@@ -498,13 +485,11 @@ function InspectionRow({
 
 function FindRoosterPanel({
   eventId,
-  eventType,
   items,
   highlightRegistrationId,
   onHighlight,
 }: {
   eventId: string
-  eventType: string
   items: InspectionQueueItem[]
   highlightRegistrationId?: string
   onHighlight: (registrationId: string | undefined) => void
@@ -512,8 +497,6 @@ function FindRoosterPanel({
   const [searchQuery, setSearchQuery] = useState('')
   const [searchError, setSearchError] = useState<string | null>(null)
   const [pickerMatches, setPickerMatches] = useState<InspectionQueueItem[]>([])
-
-  const showBarcodeScan = eventType === 'derby'
 
   function applyHighlight(registrationId: string) {
     onHighlight(registrationId)
@@ -551,14 +534,12 @@ function FindRoosterPanel({
           direction={{ base: 'column', md: 'row' }}
           align={{ md: 'stretch' }}
         >
-          {showBarcodeScan ? (
-            <Box flex="1">
-              <RoosterBarcodeScanRow
-                eventId={eventId}
-                onResolved={applyHighlight}
-              />
-            </Box>
-          ) : null}
+          <Box flex="1">
+            <RoosterBarcodeScanRow
+              eventId={eventId}
+              onResolved={applyHighlight}
+            />
+          </Box>
           <Stack gap={2} flex="1">
             <Text fontSize="sm" fontWeight="medium">
               Search
@@ -752,7 +733,6 @@ export function InspectionStationClient({
 
       <FindRoosterPanel
         eventId={eventId}
-        eventType={eventType}
         items={items}
         highlightRegistrationId={highlightRegistrationId}
         onHighlight={setHighlightRegistrationId}

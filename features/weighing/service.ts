@@ -10,7 +10,6 @@ import { resolveSubmitTargetStatus } from '@/features/registrations/workflow'
 import { createRooster } from '@/features/roosters/service'
 import { createRoosterSchema as registryRoosterSchema } from '@/features/roosters/schema'
 import {
-  evaluateWeightStatus,
   evaluateWeightStatusGrams,
   type CreateRoosterInput,
   type RecordWeightInput,
@@ -246,11 +245,8 @@ export async function createRoosterForEntry(
   const declaredWeightGrams =
     input.weight != null && input.weight > 0 ? Math.round(input.weight) : null
 
-  let cockEntryBarcode: string | null = null
-  if (isDerby) {
-    const existingBarcodes = await listCockEntryBarcodesForEvent(input.eventId)
-    cockEntryBarcode = getNextCockEntryBarcode(input.eventId, existingBarcodes)
-  }
+  const existingBarcodes = await listCockEntryBarcodesForEvent(input.eventId)
+  const cockEntryBarcode = getNextCockEntryBarcode(input.eventId, existingBarcodes)
 
   const submittedAt = new Date().toISOString()
 
@@ -349,11 +345,14 @@ export async function recordWeight(
   const event = await getEvent(input.eventId)
   if (!event) return { error: 'Event not found' }
 
-  const weightStatus = evaluateWeightStatus(
-    input.officialWeight,
-    event.min_weight,
-    event.max_weight
+  const weightGrams = input.officialWeight
+  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+  const weightStatus = evaluateWeightStatusGrams(
+    weightGrams,
+    minWeightGrams,
+    maxWeightGrams
   )
+  const legacyOfficialWeightKg = weightGrams / 1000
 
   const { data: existing } = await supabase
     .from('weighings')
@@ -369,7 +368,8 @@ export async function recordWeight(
     rooster_event_registration_id: input.roosterRecordId,
     entry_id: rooster.entry_id,
     event_id: input.eventId,
-    official_weight: input.officialWeight,
+    official_weight: legacyOfficialWeightKg,
+    official_weight_grams: weightGrams,
     weight_status: weightStatus,
     notes: input.notes ?? null,
     verified_by: null,
@@ -389,13 +389,10 @@ export async function recordWeight(
     return { error: saveError?.message ?? 'Failed to record weight' }
   }
 
-  const weightGrams = Math.round(input.officialWeight * 1000)
   await supabase
     .from('rooster_event_registrations')
     .update({
-      official_weight_grams: null,
-      declared_weight: input.officialWeight,
-      declared_weight_grams: weightGrams,
+      official_weight_grams: weightGrams,
       weight_verified: false,
       weight_verification_status: weightStatus,
       updated_at: new Date().toISOString(),
@@ -410,7 +407,7 @@ export async function recordWeight(
     newValues: {
       rooster_event_registration_id: input.roosterRecordId,
       band_number: rooster.band_number,
-      official_weight: input.officialWeight,
+      official_weight_grams: weightGrams,
       weight_status: weightStatus,
     },
   })
@@ -536,7 +533,7 @@ export async function verifyWeight(
   const { data: weighing, error: fetchError } = await supabase
     .from('weighings')
     .select(
-      'id, event_id, rooster_event_registration_id, official_weight, weight_status, verified_at'
+      'id, event_id, rooster_event_registration_id, official_weight, official_weight_grams, weight_status, verified_at'
     )
     .eq('id', input.weighingId)
     .maybeSingle()
@@ -546,7 +543,15 @@ export async function verifyWeight(
   if (weighing.event_id !== input.eventId) {
     return { error: 'Weighing does not belong to this event' }
   }
-  if (weighing.official_weight == null) {
+
+  const weightGrams =
+    weighing.official_weight_grams != null
+      ? Number(weighing.official_weight_grams)
+      : weighing.official_weight != null
+        ? Math.round(Number(weighing.official_weight) * 1000)
+        : null
+
+  if (weightGrams == null) {
     return { error: 'Official weight must be recorded before verification' }
   }
   if (weighing.verified_at) {
@@ -556,10 +561,11 @@ export async function verifyWeight(
   const event = await getEvent(input.eventId)
   if (!event) return { error: 'Event not found' }
 
-  const weightStatus = evaluateWeightStatus(
-    Number(weighing.official_weight),
-    event.min_weight,
-    event.max_weight
+  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+  const weightStatus = evaluateWeightStatusGrams(
+    weightGrams,
+    minWeightGrams,
+    maxWeightGrams
   )
 
   const verifiedAt = new Date().toISOString()
@@ -576,21 +582,12 @@ export async function verifyWeight(
 
   if (updateError) return { error: updateError.message }
 
-  const weightGrams = Math.round(Number(weighing.official_weight) * 1000)
-  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
-  const weightVerificationStatus = evaluateWeightStatusGrams(
-    weightGrams,
-    minWeightGrams,
-    maxWeightGrams
-  )
-
   await supabase
     .from('rooster_event_registrations')
     .update({
       official_weight_grams: weightGrams,
-      declared_weight: Number(weighing.official_weight),
       weight_verified: true,
-      weight_verification_status: weightVerificationStatus,
+      weight_verification_status: weightStatus,
       weighed_at: verifiedAt,
       weighed_by: actorId,
       updated_at: verifiedAt,
@@ -604,7 +601,7 @@ export async function verifyWeight(
     entityId: input.weighingId,
     newValues: {
       rooster_event_registration_id: weighing.rooster_event_registration_id,
-      official_weight: weighing.official_weight,
+      official_weight_grams: weightGrams,
       weight_status: weightStatus,
       verified_at: verifiedAt,
     },

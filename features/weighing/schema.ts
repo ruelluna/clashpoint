@@ -23,7 +23,7 @@ export const inspectionWeightGramsSchema = weightGramsSchema.max(
 export const recordWeightSchema = z.object({
   eventId: z.string().uuid(),
   roosterRecordId: z.string().uuid(),
-  officialWeight: z.coerce.number().positive('Weight must be greater than zero'),
+  officialWeight: weightGramsSchema,
   notes: z
     .string()
     .max(500)

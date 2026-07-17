@@ -35,7 +35,7 @@ export default async function InspectionPage({ params, searchParams }: Inspectio
 
   let highlightRegistrationId = rawHighlight ?? undefined
 
-  if (!highlightRegistrationId && rawBarcode && event.event_type === 'derby') {
+  if (!highlightRegistrationId && rawBarcode) {
     const barcode = normalizeCockEntryBarcodeInput(rawBarcode)
     if (barcode && isCockEntryBarcodeForEvent(barcode, id)) {
       const registrationId = await getRegistrationIdByCockEntryBarcode(id, barcode)

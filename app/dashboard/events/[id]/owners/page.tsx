@@ -57,7 +57,6 @@ export default async function OwnersListPage({ params, searchParams }: OwnersLis
 
                 <OwnersListClient
                     eventId={event.id}
-                    eventType={event.event_type}
                     entries={entries}
                     eventFeeSettings={eventFeeSettings}
                 />

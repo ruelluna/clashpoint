@@ -218,11 +218,11 @@ export async function createOwnerEntryAction(
     revalidateEntryPaths(schemaResult.data.eventId)
     revalidatePath(`/dashboard/events/${schemaResult.data.eventId}/owners`)
 
-    if (event.event_type === 'derby') {
-        redirect(
-            `/dashboard/events/${schemaResult.data.eventId}/owners/${result.entryId}/print`
-        )
-    }
+  if (result.ownerBarcode) {
+    redirect(
+      `/dashboard/events/${schemaResult.data.eventId}/owners/${result.entryId}/print`
+    )
+  }
 
     redirect(`/dashboard/events/${schemaResult.data.eventId}/owners`)
 }
