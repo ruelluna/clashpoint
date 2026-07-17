@@ -19,18 +19,14 @@ import { transitionStatusAction } from '@/features/events/actions'
 import {
   approveInspectionAction,
   recordInspectionAction,
-  rejectInspectionAction,
+  submitInspectionWeightAction,
   type InspectionActionState,
 } from '@/features/inspection/actions'
 import type { InspectionQueueItem } from '@/features/inspection/queries'
+import { InspectionRejectDialog } from '@/features/inspection/components/inspection-reject-dialog'
 import { RoosterBarcodeScanRow } from '@/features/inspection/components/rooster-barcode-scan-row'
 import { getRoosterEntryPaymentDisplay } from '@/features/payments/display-utils'
-import {
-  recordWeightAction,
-  verifyWeightAction,
-  type WeighingActionState,
-} from '@/features/weighing/actions'
-import { WEIGHT_STATUS_LABELS } from '@/features/weighing/schema'
+import { evaluateWeightStatusGrams, WEIGHT_STATUS_LABELS } from '@/features/weighing/schema'
 import type { InspectionStatus } from '@/lib/derby/enums'
 import {
   ELIGIBILITY_STATUS_LABELS,
@@ -46,10 +42,11 @@ type InspectionStationClientProps = {
   canManageEvent: boolean
   items: InspectionQueueItem[]
   highlightRegistrationId?: string
+  minWeightGrams: number | null
+  maxWeightGrams: number | null
 }
 
 const initialState: InspectionActionState = {}
-const weighingInitialState: WeighingActionState = {}
 const statusActionInitialState: { error?: string; success?: string } = {}
 
 const INSPECTION_STATUS_LABELS: Record<InspectionStatus, string> = {
@@ -66,6 +63,12 @@ function statusColor(
   if (status === 'passed') return 'green'
   if (status === 'failed') return 'red'
   if (status === 'for_review') return 'orange'
+  return 'gray'
+}
+
+function weightStatusColor(status: 'passed' | 'failed' | null): 'green' | 'red' | 'gray' {
+  if (status === 'passed') return 'green'
+  if (status === 'failed') return 'red'
   return 'gray'
 }
 
@@ -87,98 +90,17 @@ function categorizeItem(item: InspectionQueueItem): 'pending' | 'cleared' | 'fai
   return 'pending'
 }
 
-function RecordWeightForm({
-  eventId,
-  item,
-}: {
-  eventId: string
-  item: InspectionQueueItem
-}) {
-  const [state, action, pending] = useActionState(recordWeightAction, weighingInitialState)
-
+function hasInspectionOutcome(item: InspectionQueueItem): boolean {
   return (
-    <form action={action}>
-      <input type="hidden" name="eventId" value={eventId} />
-      <input type="hidden" name="roosterRecordId" value={item.registrationId} />
-      <Flex gap={2} align="center" direction={{ base: 'column', sm: 'row' }} wrap="wrap">
-        <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
-          Official weight (kg)
-        </Text>
-        <Input
-          name="officialWeight"
-          type="number"
-          step="0.01"
-          min="0"
-          size="md"
-          width={{ base: 'full', sm: '24' }}
-          placeholder="kg"
-          defaultValue={
-            item.officialWeight != null ? String(item.officialWeight) : ''
-          }
-          required
-          disabled={!!item.weightVerifiedAt}
-        />
-        <Button
-          type="submit"
-          size="md"
-          loading={pending}
-          disabled={!!item.weightVerifiedAt}
-          width={{ base: 'full', sm: 'auto' }}
-        >
-          Record
-        </Button>
-      </Flex>
-      {state.error ? (
-        <Text color="fg.error" fontSize="xs" mt={1}>
-          {state.error}
-        </Text>
-      ) : null}
-      {state.success ? (
-        <Text color="fg.success" fontSize="xs" mt={1}>
-          {state.success}
-        </Text>
-      ) : null}
-    </form>
+    item.inspectionStatus === 'passed' ||
+    item.inspectionStatus === 'failed' ||
+    item.inspectionStatus === 'for_review'
   )
 }
 
-function VerifyWeightForm({
-  eventId,
-  item,
-}: {
-  eventId: string
-  item: InspectionQueueItem
-}) {
-  const [state, action, pending] = useActionState(verifyWeightAction, weighingInitialState)
-
-  if (!item.weighingId || item.weightVerifiedAt) return null
-
-  return (
-    <form action={action}>
-      <input type="hidden" name="eventId" value={eventId} />
-      <input type="hidden" name="weighingId" value={item.weighingId} />
-      <Button
-        type="submit"
-        size="md"
-        variant="outline"
-        loading={pending}
-        disabled={item.officialWeight == null}
-        width={{ base: 'full', sm: 'auto' }}
-      >
-        Verify weight
-      </Button>
-      {state.error ? (
-        <Text color="fg.error" fontSize="xs" mt={1}>
-          {state.error}
-        </Text>
-      ) : null}
-      {state.success ? (
-        <Text color="fg.success" fontSize="xs" mt={1}>
-          {state.success}
-        </Text>
-      ) : null}
-    </form>
-  )
+function formatWeightGrams(grams: number | null): string {
+  if (grams == null) return ''
+  return `${grams} g`
 }
 
 function InspectionRow({
@@ -186,13 +108,30 @@ function InspectionRow({
   item,
   feeSettings,
   highlighted,
+  minWeightGrams,
+  maxWeightGrams,
 }: {
   eventId: string
   item: InspectionQueueItem
   feeSettings: EventFeeSettings
   highlighted: boolean
+  minWeightGrams: number | null
+  maxWeightGrams: number | null
 }) {
   const rowRef = useRef<HTMLDivElement>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [rejectOpen, setRejectOpen] = useState(false)
+  const [weightGramsInput, setWeightGramsInput] = useState('')
+  const [localWeightPassed, setLocalWeightPassed] = useState(false)
+  const [inspectionStatusInput, setInspectionStatusInput] = useState<InspectionStatus>(
+    item.inspectionStatus === 'pending' ? 'passed' : item.inspectionStatus
+  )
+  const [notesInput, setNotesInput] = useState(item.notes ?? '')
+
+  const [weightState, weightAction, weightPending] = useActionState(
+    submitInspectionWeightAction,
+    initialState
+  )
   const [recordState, recordAction, recordPending] = useActionState(
     recordInspectionAction,
     initialState
@@ -201,20 +140,75 @@ function InspectionRow({
     approveInspectionAction,
     initialState
   )
-  const [rejectState, rejectAction, rejectPending] = useActionState(
-    rejectInspectionAction,
-    initialState
-  )
 
   const paymentBadge = getRoosterEntryPaymentDisplay(item.regPaymentStatus, feeSettings)
-  const canPassInspection =
+  const weightPassed =
     item.weightVerified && item.weightStatus === 'passed' && !!item.weightVerifiedAt
+  const previewWeightStatus =
+    weightGramsInput.trim() !== ''
+      ? evaluateWeightStatusGrams(
+          Number.parseInt(weightGramsInput, 10),
+          minWeightGrams,
+          maxWeightGrams
+        )
+      : null
+  const showPhysicalInspection = weightPassed || localWeightPassed
+  const inspectButtonLabel = hasInspectionOutcome(item) ? 'Edit inspection' : 'Inspect'
+  const formKey = `${item.registrationId}-${item.inspectedAt ?? 'new'}`
 
   useEffect(() => {
     if (highlighted && rowRef.current) {
       rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   }, [highlighted])
+
+  useEffect(() => {
+    if (!isEditing) return
+    setInspectionStatusInput(
+      item.inspectionStatus === 'pending' ? 'passed' : item.inspectionStatus
+    )
+    setNotesInput(item.notes ?? '')
+    setWeightGramsInput(
+      item.officialWeightGrams != null ? String(item.officialWeightGrams) : ''
+    )
+  }, [isEditing, item.inspectedAt, item.inspectionStatus, item.notes, item.officialWeightGrams])
+
+  useEffect(() => {
+    if (weightState.weightStatus === 'passed') setLocalWeightPassed(true)
+  }, [weightState.weightStatus])
+
+  useEffect(() => {
+    if (!isEditing) {
+      setLocalWeightPassed(false)
+      return
+    }
+    if (weightPassed) setLocalWeightPassed(true)
+  }, [isEditing, weightPassed])
+
+  useEffect(() => {
+    if (weightState.inspectionClosed) setIsEditing(false)
+  }, [weightState.inspectionClosed])
+
+  useEffect(() => {
+    if (recordState.inspectionClosed) setIsEditing(false)
+  }, [recordState.inspectionClosed])
+
+  useEffect(() => {
+    if (approveState.inspectionClosed) setIsEditing(false)
+  }, [approveState.inspectionClosed])
+
+  function openEditMode() {
+    setIsEditing(true)
+  }
+
+  function closeEditMode() {
+    setIsEditing(false)
+    setRejectOpen(false)
+  }
+
+  const declaredWeightDisplay =
+    item.declaredWeightGrams ??
+    (item.declaredWeight != null ? Math.round(item.declaredWeight * 1000) : null)
 
   return (
     <Box
@@ -226,15 +220,24 @@ function InspectionRow({
       bg={highlighted ? 'bg.subtle' : undefined}
       data-registration-id={item.registrationId}
     >
-      <Flex justify="space-between" align="start" gap={4} wrap="wrap">
-        <Stack gap={1}>
+      <Flex
+        justify="space-between"
+        align={{ base: 'stretch', md: 'start' }}
+        gap={4}
+        direction={{ base: 'column', md: 'row' }}
+      >
+        <Stack gap={1} flex="1">
           <Text fontWeight="semibold">
             #{item.entryNumber} {item.entryName} · Cock {item.cockNumber}
           </Text>
           <Text fontSize="sm" color="fg.muted">
             {item.handlerName ? `Handler ${item.handlerName}` : 'No handler listed'}
-            {item.declaredWeight != null ? ` · Declared ${item.declaredWeight} kg` : ''}
-            {item.officialWeight != null ? ` · Official ${item.officialWeight} kg` : ''}
+            {declaredWeightDisplay != null
+              ? ` · Declared ${formatWeightGrams(declaredWeightDisplay)}`
+              : ''}
+            {item.officialWeightGrams != null
+              ? ` · Official ${formatWeightGrams(item.officialWeightGrams)}`
+              : ''}
           </Text>
           <Flex gap={2} wrap="wrap">
             <Badge colorPalette={statusColor(item.inspectionStatus)}>
@@ -257,6 +260,11 @@ function InspectionRow({
               {ELIGIBILITY_STATUS_LABELS[item.eligibilityStatus]}
             </Badge>
           </Flex>
+          {item.notes && !isEditing ? (
+            <Text fontSize="sm" color="fg.muted">
+              Notes: {item.notes}
+            </Text>
+          ) : null}
           {item.inspectionStatus === 'passed' &&
           paymentBadge &&
           paymentBadge.colorPalette !== 'green' ? (
@@ -266,95 +274,224 @@ function InspectionRow({
             </Text>
           ) : null}
         </Stack>
+
+        {!isEditing ? (
+          <Button
+            size="md"
+            variant="outline"
+            alignSelf={{ base: 'stretch', md: 'flex-start' }}
+            onClick={openEditMode}
+            data-testid="inspection-open-button"
+          >
+            {inspectButtonLabel}
+          </Button>
+        ) : null}
       </Flex>
 
-      <Stack gap={LAYOUT_GAP.form} mt={4}>
-        <RecordWeightForm eventId={eventId} item={item} />
-        <VerifyWeightForm eventId={eventId} item={item} />
-
-        <form action={recordAction}>
-          <input type="hidden" name="eventId" value={eventId} />
-          <input type="hidden" name="registrationId" value={item.registrationId} />
-          <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }} align="end">
-            <FormField label="Physical inspection" flex="1">
-              <NativeSelect.Root>
-                <NativeSelect.Field name="inspectionStatus" defaultValue="pending">
-                  <option value="pending">Pending</option>
-                  <option value="passed" disabled={!canPassInspection}>
-                    Passed
-                  </option>
-                  <option value="failed">Failed</option>
-                  <option value="for_review">For review</option>
-                </NativeSelect.Field>
-              </NativeSelect.Root>
-            </FormField>
-            <FormField label="Staff notes" flex="2">
-              <Textarea
-                name="notes"
-                rows={2}
-                defaultValue={item.notes ?? ''}
-                placeholder="Inspection notes for this cock"
-              />
-            </FormField>
-            <Button
-              type="submit"
-              loading={recordPending}
-              alignSelf={{ base: 'stretch', sm: 'flex-end' }}
-              size="md"
-            >
-              Save inspection
-            </Button>
-          </Flex>
-          {!canPassInspection ? (
-            <Text fontSize="xs" color="fg.muted" mt={2}>
-              Record and verify official weight before marking inspection as passed.
-            </Text>
-          ) : null}
-          {recordState.error ? (
-            <Text fontSize="sm" color="red.500" mt={2}>
-              {recordState.error}
-            </Text>
-          ) : null}
-          {recordState.success ? (
-            <Text fontSize="sm" color="green.600" mt={2}>
-              {recordState.success}
-            </Text>
-          ) : null}
-        </form>
-
-        {item.inspectionId && item.inspectionStatus === 'for_review' ? (
-          <Flex gap={2} wrap="wrap">
-            <form action={approveAction}>
-              <input type="hidden" name="eventId" value={eventId} />
-              <input type="hidden" name="inspectionId" value={item.inspectionId} />
-              <Button size="md" colorPalette="green" type="submit" loading={approvePending}>
-                Approve
-              </Button>
-            </form>
-            <form action={rejectAction} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input type="hidden" name="eventId" value={eventId} />
-              <input type="hidden" name="inspectionId" value={item.inspectionId} />
-              <Textarea
-                name="notes"
-                placeholder="Rejection reason"
-                rows={1}
-                size="sm"
-                minLength={3}
-                required
-                maxW="xs"
-              />
-              <Button size="md" colorPalette="red" type="submit" loading={rejectPending}>
-                Reject
-              </Button>
-            </form>
-            {approveState.error || rejectState.error ? (
-              <Text fontSize="sm" color="red.500">
-                {approveState.error ?? rejectState.error}
+      {isEditing ? (
+        <Stack gap={LAYOUT_GAP.form} mt={4} key={formKey}>
+          <form action={weightAction}>
+            <input type="hidden" name="eventId" value={eventId} />
+            <input type="hidden" name="roosterRecordId" value={item.registrationId} />
+            <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }} align="end">
+              <FormField label="Weight (g)" flex="1">
+                <Input
+                  name="officialWeightGrams"
+                  type="number"
+                  step="1"
+                  min="1"
+                  max="10000"
+                  size="md"
+                  placeholder="grams"
+                  value={weightGramsInput}
+                  onChange={(event) => setWeightGramsInput(event.target.value)}
+                  required={!item.weightVerifiedAt}
+                  disabled={!!item.weightVerifiedAt}
+                  data-testid="inspection-weight-input"
+                />
+              </FormField>
+              {previewWeightStatus && !item.weightVerifiedAt ? (
+                <Badge colorPalette={weightStatusColor(previewWeightStatus)} alignSelf="center">
+                  {previewWeightStatus === 'passed' ? 'Within range' : 'Out of range'}
+                </Badge>
+              ) : null}
+              {!item.weightVerifiedAt ? (
+                <Button
+                  type="submit"
+                  size="md"
+                  loading={weightPending}
+                  alignSelf={{ base: 'stretch', sm: 'flex-end' }}
+                  data-testid="inspection-weight-submit"
+                >
+                  Record weight
+                </Button>
+              ) : null}
+            </Flex>
+            {weightState.error ? (
+              <Text fontSize="sm" color="red.500" mt={2}>
+                {weightState.error}
               </Text>
             ) : null}
-          </Flex>
-        ) : null}
-      </Stack>
+            {weightState.success ? (
+              <Text fontSize="sm" color="green.600" mt={2}>
+                {weightState.success}
+              </Text>
+            ) : null}
+          </form>
+
+          {showPhysicalInspection ? (
+            <>
+              {item.inspectionStatus === 'for_review' && item.inspectionId ? (
+                <form action={approveAction}>
+                  <input type="hidden" name="eventId" value={eventId} />
+                  <input type="hidden" name="inspectionId" value={item.inspectionId} />
+                  <Stack gap={LAYOUT_GAP.form}>
+                    <FormField label="Staff notes" flex="1">
+                      <Textarea
+                        name="notes"
+                        rows={2}
+                        value={notesInput}
+                        onChange={(event) => setNotesInput(event.target.value)}
+                        placeholder="Optional notes before approval"
+                      />
+                    </FormField>
+                    <ButtonGroup>
+                      <Button
+                        type="submit"
+                        size="md"
+                        colorPalette="green"
+                        loading={approvePending}
+                        data-testid="inspection-approve-button"
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        type="button"
+                        size="md"
+                        colorPalette="red"
+                        variant="outline"
+                        onClick={() => setRejectOpen(true)}
+                        data-testid="inspection-reject-button"
+                      >
+                        Reject
+                      </Button>
+                      <Button type="button" size="md" variant="ghost" onClick={closeEditMode}>
+                        Cancel
+                      </Button>
+                    </ButtonGroup>
+                    {approveState.error ? (
+                      <Text fontSize="sm" color="red.500">
+                        {approveState.error}
+                      </Text>
+                    ) : null}
+                  </Stack>
+                </form>
+              ) : (
+                <form action={recordAction}>
+                  <input type="hidden" name="eventId" value={eventId} />
+                  <input type="hidden" name="registrationId" value={item.registrationId} />
+                  <Stack gap={LAYOUT_GAP.form}>
+                    <Flex
+                      gap={LAYOUT_GAP.form}
+                      direction={{ base: 'column', sm: 'row' }}
+                      align="end"
+                    >
+                      <FormField label="Physical inspection" flex="1">
+                        <NativeSelect.Root>
+                          <NativeSelect.Field
+                            name="inspectionStatus"
+                            value={inspectionStatusInput}
+                            onChange={(event) =>
+                              setInspectionStatusInput(
+                                event.currentTarget.value as InspectionStatus
+                              )
+                            }
+                          >
+                            <option value="passed">Passed</option>
+                            <option value="failed">Failed</option>
+                            <option value="for_review">For review</option>
+                          </NativeSelect.Field>
+                        </NativeSelect.Root>
+                      </FormField>
+                      <FormField label="Staff notes" flex="2">
+                        <Textarea
+                          name="notes"
+                          rows={2}
+                          value={notesInput}
+                          onChange={(event) => setNotesInput(event.target.value)}
+                          placeholder="Inspection notes for this cock"
+                        />
+                      </FormField>
+                    </Flex>
+                    <ButtonGroup>
+                      <Button
+                        type="submit"
+                        size="md"
+                        colorPalette="green"
+                        loading={recordPending}
+                        disabled={inspectionStatusInput !== 'passed'}
+                        data-testid="inspection-approve-button"
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        type="button"
+                        size="md"
+                        colorPalette="red"
+                        variant="outline"
+                        onClick={() => setRejectOpen(true)}
+                        data-testid="inspection-reject-button"
+                      >
+                        Reject
+                      </Button>
+                      <Button type="button" size="md" variant="ghost" onClick={closeEditMode}>
+                        Cancel
+                      </Button>
+                    </ButtonGroup>
+                    {inspectionStatusInput !== 'passed' ? (
+                      <Text fontSize="xs" color="fg.muted">
+                        Set physical inspection to Passed before approving, or use Reject.
+                      </Text>
+                    ) : null}
+                    {recordState.error ? (
+                      <Text fontSize="sm" color="red.500">
+                        {recordState.error}
+                      </Text>
+                    ) : null}
+                    {recordState.success ? (
+                      <Text fontSize="sm" color="green.600">
+                        {recordState.success}
+                      </Text>
+                    ) : null}
+                  </Stack>
+                </form>
+              )}
+            </>
+          ) : null}
+
+          {!showPhysicalInspection && item.weightVerifiedAt && item.weightStatus === 'failed' ? (
+            <Text fontSize="sm" color="fg.muted">
+              Weight failed — physical inspection is not required.
+            </Text>
+          ) : null}
+
+          {!item.weightVerifiedAt ? (
+            <Button type="button" size="md" variant="ghost" alignSelf="flex-start" onClick={closeEditMode}>
+              Cancel
+            </Button>
+          ) : null}
+        </Stack>
+      ) : null}
+
+      <InspectionRejectDialog
+        open={rejectOpen}
+        onOpenChange={setRejectOpen}
+        eventId={eventId}
+        registrationId={item.registrationId}
+        inspectionId={item.inspectionId}
+        isForReview={item.inspectionStatus === 'for_review'}
+        onSuccess={closeEditMode}
+      />
     </Box>
   )
 }
@@ -554,6 +691,8 @@ export function InspectionStationClient({
   canManageEvent,
   items,
   highlightRegistrationId: initialHighlight,
+  minWeightGrams,
+  maxWeightGrams,
 }: InspectionStationClientProps) {
   const [highlightRegistrationId, setHighlightRegistrationId] = useState(initialHighlight)
 
@@ -596,6 +735,8 @@ export function InspectionStationClient({
             item={item}
             feeSettings={feeSettings}
             highlighted={highlightRegistrationId === item.registrationId}
+            minWeightGrams={minWeightGrams}
+            maxWeightGrams={maxWeightGrams}
           />
         ))}
       </Stack>
@@ -606,7 +747,7 @@ export function InspectionStationClient({
     <PageStack>
       <PageHeader
         title="Inspection"
-        description={`${eventName} · Record fight-day weight, complete physical inspection, then send owners to Payments before matching.`}
+        description={`${eventName} · Record fight-day weight in grams, complete physical inspection, then send owners to Payments before matching.`}
       />
 
       <FindRoosterPanel

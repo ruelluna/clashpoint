@@ -58,20 +58,17 @@ async function completeInspectionForEntry(page: Page, eventId: string, searchTex
   await page.getByTestId('inspection-rooster-search-input').fill(searchText)
   await page.getByRole('button', { name: 'Find' }).click()
   const row = page.locator('[data-registration-id]').first()
-  await row.locator('input[name="officialWeight"]').fill('2.1')
-  await row.getByRole('button', { name: 'Record' }).click()
-  await expect(row.getByText('Weight recorded', { exact: false })).toBeVisible({
+  await row.getByTestId('inspection-open-button').click()
+  await row.getByTestId('inspection-weight-input').fill('2100')
+  await row.getByTestId('inspection-weight-submit').click()
+  await expect(row.getByText('Weight passed', { exact: false })).toBeVisible({
     timeout: 15_000,
   })
-  await row.getByRole('button', { name: 'Verify weight' }).click()
-  await expect(row.getByText('Weight verified', { exact: false })).toBeVisible({
-    timeout: 15_000,
-  })
-  await row.locator('select[name="inspectionStatus"]').selectOption('passed')
-  await row.getByRole('button', { name: 'Save inspection' }).click()
+  await row.getByTestId('inspection-approve-button').click()
   await expect(row.getByText('Inspection recorded', { exact: false })).toBeVisible({
     timeout: 15_000,
   })
+  await expect(row.getByTestId('inspection-open-button')).toHaveText('Edit inspection')
 }
 
 test.describe('Owners → roosters → inspection → matching @auth', () => {

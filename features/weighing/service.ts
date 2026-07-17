@@ -14,6 +14,7 @@ import {
   evaluateWeightStatusGrams,
   type CreateRoosterInput,
   type RecordWeightInput,
+  type RecordInspectionWeightInput,
   type VerifyWeightInput,
   validateCockCount,
 } from '@/features/weighing/schema'
@@ -415,6 +416,115 @@ export async function recordWeight(
   })
 
   return { weighingId: weighing.id }
+}
+
+export async function recordAndVerifyWeightFromGrams(
+  actorId: string,
+  input: RecordInspectionWeightInput
+): Promise<{ error?: string; weighingId?: string; weightStatus?: 'passed' | 'failed' }> {
+  const supabase = await createClient()
+
+  const { data: rooster, error: roosterError } = await supabase
+    .from('rooster_event_registrations')
+    .select('id, entry_id, event_id, band_number, status')
+    .eq('id', input.roosterRecordId)
+    .maybeSingle()
+
+  if (roosterError) return { error: roosterError.message }
+  if (!rooster) return { error: 'Rooster record not found' }
+  if (rooster.event_id !== input.eventId) {
+    return { error: 'Rooster does not belong to this event' }
+  }
+
+  const event = await getEvent(input.eventId)
+  if (!event) return { error: 'Event not found' }
+
+  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+  const weightStatus = evaluateWeightStatusGrams(
+    input.officialWeightGrams,
+    minWeightGrams,
+    maxWeightGrams
+  )
+
+  const { data: existing } = await supabase
+    .from('weighings')
+    .select('id, weight_status, verified_at')
+    .eq('rooster_event_registration_id', input.roosterRecordId)
+    .maybeSingle()
+
+  if (existing?.verified_at) {
+    return { error: 'Weight already verified — contact an organizer to override' }
+  }
+
+  const officialWeightKg = input.officialWeightGrams / 1000
+  const verifiedAt = new Date().toISOString()
+
+  const payload = {
+    rooster_event_registration_id: input.roosterRecordId,
+    entry_id: rooster.entry_id,
+    event_id: input.eventId,
+    official_weight: officialWeightKg,
+    official_weight_grams: input.officialWeightGrams,
+    weight_status: weightStatus,
+    notes: input.notes ?? null,
+    verified_by: actorId,
+    verified_at: verifiedAt,
+  }
+
+  const { data: weighing, error: saveError } = existing
+    ? await supabase
+        .from('weighings')
+        .update(payload)
+        .eq('id', existing.id)
+        .select('id')
+        .single()
+    : await supabase.from('weighings').insert(payload).select('id').single()
+
+  if (saveError || !weighing) {
+    return { error: saveError?.message ?? 'Failed to record weight' }
+  }
+
+  await supabase
+    .from('rooster_event_registrations')
+    .update({
+      official_weight_grams: input.officialWeightGrams,
+      declared_weight: officialWeightKg,
+      declared_weight_grams: input.officialWeightGrams,
+      weight_verified: true,
+      weight_verification_status: weightStatus,
+      weighed_at: verifiedAt,
+      weighed_by: actorId,
+      updated_at: verifiedAt,
+    })
+    .eq('id', input.roosterRecordId)
+
+  await writeAuditLog({
+    actorId,
+    action: 'weighing.recorded',
+    entityType: 'weighing',
+    entityId: weighing.id,
+    newValues: {
+      rooster_event_registration_id: input.roosterRecordId,
+      band_number: rooster.band_number,
+      official_weight_grams: input.officialWeightGrams,
+      weight_status: weightStatus,
+    },
+  })
+
+  await writeAuditLog({
+    actorId,
+    action: 'weighing.verified',
+    entityType: 'weighing',
+    entityId: weighing.id,
+    newValues: {
+      rooster_event_registration_id: input.roosterRecordId,
+      official_weight_grams: input.officialWeightGrams,
+      weight_status: weightStatus,
+      verified_at: verifiedAt,
+    },
+  })
+
+  return { weighingId: weighing.id, weightStatus }
 }
 
 export async function verifyWeight(

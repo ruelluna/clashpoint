@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   createRoosterSchema,
   evaluateWeightStatus,
+  evaluateWeightStatusGrams,
+  inspectionWeightGramsSchema,
+  recordInspectionWeightSchema,
   recordWeightSchema,
   validateCockCount,
   verifyWeightSchema,
@@ -36,6 +39,57 @@ describe('evaluateWeightStatus', () => {
 
   it('passes when no limits are configured', () => {
     expect(evaluateWeightStatus(2.2, null, null)).toBe('passed')
+  })
+})
+
+describe('evaluateWeightStatusGrams', () => {
+  it('passes weight within min and max grams', () => {
+    expect(evaluateWeightStatusGrams(2100, 2000, 2500)).toBe('passed')
+  })
+
+  it('fails weight below minimum grams', () => {
+    expect(evaluateWeightStatusGrams(1900, 2000, 2500)).toBe('failed')
+  })
+
+  it('fails weight above maximum grams', () => {
+    expect(evaluateWeightStatusGrams(2600, 2000, 2500)).toBe('failed')
+  })
+})
+
+describe('inspectionWeightGramsSchema', () => {
+  it('accepts whole grams up to 10000', () => {
+    expect(inspectionWeightGramsSchema.safeParse(2100).success).toBe(true)
+    expect(inspectionWeightGramsSchema.safeParse(10000).success).toBe(true)
+  })
+
+  it('rejects weight above 10000 g', () => {
+    expect(inspectionWeightGramsSchema.safeParse(10001).success).toBe(false)
+  })
+
+  it('rejects fractional grams', () => {
+    expect(inspectionWeightGramsSchema.safeParse(2100.5).success).toBe(false)
+  })
+})
+
+describe('recordInspectionWeightSchema', () => {
+  it('accepts valid inspection weight input', () => {
+    const result = recordInspectionWeightSchema.safeParse({
+      eventId,
+      roosterRecordId: roosterId,
+      officialWeightGrams: 2150,
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects weight above inspection maximum', () => {
+    const result = recordInspectionWeightSchema.safeParse({
+      eventId,
+      roosterRecordId: roosterId,
+      officialWeightGrams: 10001,
+    })
+
+    expect(result.success).toBe(false)
   })
 })
 

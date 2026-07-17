@@ -13,6 +13,8 @@ import {
   recordInspection,
   rejectInspection,
 } from '@/features/inspection/service'
+import { recordInspectionWeightSchema } from '@/features/weighing/schema'
+import { recordAndVerifyWeightFromGrams } from '@/features/weighing/service'
 import { getRegistrationIdByCockEntryBarcode } from '@/features/inspection/queries'
 import {
   isCockEntryBarcodeForEvent,
@@ -20,7 +22,12 @@ import {
 } from '@/features/entries/schema'
 import { requireAnyPermission } from '@/lib/auth/permissions'
 
-export type InspectionActionState = { error?: string; success?: string }
+export type InspectionActionState = {
+  error?: string
+  success?: string
+  weightStatus?: 'passed' | 'failed'
+  inspectionClosed?: boolean
+}
 
 export type RoosterBarcodeLookupResult = { registrationId?: string; error?: string }
 
@@ -74,7 +81,7 @@ export async function recordInspectionAction(
 
   revalidateEventRoostersPaths(parsed.data.eventId)
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/payments`)
-  return { success: 'Inspection recorded' }
+  return { success: 'Inspection recorded', inspectionClosed: true }
 }
 
 export async function approveInspectionAction(
@@ -98,7 +105,7 @@ export async function approveInspectionAction(
 
   revalidateEventRoostersPaths(parsed.data.eventId)
   revalidatePath('/dashboard/audit')
-  return { success: 'Inspection approved' }
+  return { success: 'Inspection approved', inspectionClosed: true }
 }
 
 export async function rejectInspectionAction(
@@ -122,5 +129,58 @@ export async function rejectInspectionAction(
 
   revalidateEventRoostersPaths(parsed.data.eventId)
   revalidatePath('/dashboard/audit')
-  return { success: 'Inspection rejected' }
+  return { success: 'Inspection rejected', inspectionClosed: true }
+}
+
+export async function submitInspectionWeightAction(
+  _prev: InspectionActionState,
+  formData: FormData
+): Promise<InspectionActionState> {
+  const profile = await requireAnyPermission([
+    'inspection.record',
+    'weighing.record',
+    'weighing.verify',
+    'entries.manage',
+  ])
+
+  const parsed = recordInspectionWeightSchema.safeParse({
+    eventId: formData.get('eventId'),
+    roosterRecordId: formData.get('roosterRecordId'),
+    officialWeightGrams: formData.get('officialWeightGrams'),
+    notes: formData.get('notes')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid weight' }
+  }
+
+  const weightResult = await recordAndVerifyWeightFromGrams(profile.id, parsed.data)
+  if (weightResult.error) return { error: weightResult.error }
+
+  revalidateEventRoostersPaths(parsed.data.eventId)
+
+  if (weightResult.weightStatus === 'failed') {
+    const inspectionResult = await recordInspection(profile.id, {
+      eventId: parsed.data.eventId,
+      registrationId: parsed.data.roosterRecordId,
+      inspectionStatus: 'failed',
+      notes: 'Weight out of range',
+    })
+
+    if (inspectionResult.error) return { error: inspectionResult.error }
+
+    revalidateEventRoostersPaths(parsed.data.eventId)
+    revalidatePath(`/dashboard/events/${parsed.data.eventId}/payments`)
+
+    return {
+      success: 'Weight failed — inspection marked as failed',
+      weightStatus: 'failed',
+      inspectionClosed: true,
+    }
+  }
+
+  return {
+    success: 'Weight passed',
+    weightStatus: 'passed',
+  }
 }
