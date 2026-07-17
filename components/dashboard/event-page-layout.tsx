@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { EventDetailTabs, type EventTabItem } from '@/features/events/components/event-detail-tabs'
+import { getEvent } from '@/features/events/queries'
 import { getVisibleEventTabs } from '@/lib/auth/event-tabs'
 import { getUser } from '@/lib/auth/session'
 
@@ -20,8 +21,15 @@ export async function EventPageLayout({
   children,
 }: EventPageLayoutProps) {
   const user = await getUser()
-  const tabs =
-    visibleTabs ?? (user ? await getVisibleEventTabs(user.id) : undefined)
+  const permissionTabs = user ? await getVisibleEventTabs(user.id) : undefined
+  const event = await getEvent(eventId)
+
+  const tabs = (visibleTabs ?? permissionTabs ?? []).filter((tab) => {
+    if (tab.slug === 'inspection' && !event?.physical_inspection_required) {
+      return false
+    }
+    return true
+  })
 
   return (
     <PageStack>

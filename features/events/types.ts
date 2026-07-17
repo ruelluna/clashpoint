@@ -61,6 +61,9 @@ export type EventRow = {
   cash_bond_enabled: boolean
   cash_bond_amount: number
   tax_per_fight: number
+  tax_commission: number
+  physical_inspection_required: boolean
+  revolving_fund_initial: number
   min_entries: number | null
   max_entries: number | null
   cocks_per_entry: number

@@ -12,7 +12,6 @@ describe('parseEligibilityFieldKeys', () => {
   it('keeps only supported field keys', () => {
     expect(parseEligibilityFieldKeys(['banding', 'invalid', 'experience'])).toEqual([
       'banding',
-      'experience',
     ])
   })
 })
@@ -52,13 +51,14 @@ describe('upsertEligibilityPolicySchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('requires experience options when experience rules are enabled', () => {
+  it('accepts weight options when weight is enabled', () => {
     const result = upsertEligibilityPolicySchema.safeParse({
       eventId: TEST_EVENT_ID,
-      enabledFields: ['experience'],
-      allowedExperienceStatuses: [],
+      enabledFields: ['weight'],
+      minimumWeightGrams: 1800,
+      maximumWeightGrams: 2300,
     })
 
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
   })
 })

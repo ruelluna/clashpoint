@@ -6,6 +6,7 @@ import { applyRegistrationEligibility } from '@/features/eligibility/registratio
 import { listCockEntryBarcodesForEvent } from '@/features/entries/queries'
 import { getNextCockEntryBarcode } from '@/features/entries/schema'
 import { getEvent } from '@/features/events/queries'
+import { resolveSubmitTargetStatus } from '@/features/registrations/workflow'
 import { createRooster } from '@/features/roosters/service'
 import { createRoosterSchema as registryRoosterSchema } from '@/features/roosters/schema'
 import {
@@ -221,7 +222,7 @@ export async function createRoosterForEntry(
   const { data: eventFlags } = await extended
     .from('events')
     .select(
-      'require_rooster_entry_approval, eligibility_enforcement_enabled, event_type, rooster_entry_fee_enabled'
+      'require_rooster_entry_approval, eligibility_enforcement_enabled, event_type, rooster_entry_fee_enabled, physical_inspection_required, weight_verification_required'
     )
     .eq('id', input.eventId)
     .maybeSingle()
@@ -230,6 +231,16 @@ export async function createRoosterForEntry(
   const isDerby = eventFlags?.event_type === 'derby'
   const roosterEntryFeeEnabled = Boolean(eventFlags?.rooster_entry_fee_enabled)
   const regPaymentStatus = roosterEntryFeeEnabled ? 'unpaid' : 'not_required'
+  const physicalInspectionRequired = Boolean(eventFlags?.physical_inspection_required)
+  const weightVerificationRequired = Boolean(eventFlags?.weight_verification_required)
+  const inspectionStatus = physicalInspectionRequired ? 'pending' : 'not_required'
+  const registrationStatus = resolveSubmitTargetStatus({
+    requireRoosterEntryApproval: requiresApproval,
+    weightVerificationRequired,
+    physicalInspectionRequired,
+    documentVerificationRequired: false,
+    bandVerificationRequired: false,
+  })
 
   const declaredWeightGrams =
     input.weight != null && input.weight > 0 ? Math.round(input.weight) : null
@@ -260,10 +271,10 @@ export async function createRoosterForEntry(
       handler_name: input.handlerName ?? null,
       notes: input.notes ?? null,
       status: 'submitted',
-      registration_status: 'pending_inspection',
+      registration_status: registrationStatus,
       approval_status: requiresApproval ? 'pending' : 'pending',
       eligibility_status: 'pending_review',
-      inspection_status: 'pending',
+      inspection_status: inspectionStatus,
       reg_payment_status: regPaymentStatus,
       weight_verified: false,
       weight_verification_status: 'pending',
@@ -289,7 +300,7 @@ export async function createRoosterForEntry(
       actorId,
       input.eventId,
       rooster.id,
-      { blockOnIneligible: false, currentRegistrationStatus: 'pending_inspection' }
+      { blockOnIneligible: false, currentRegistrationStatus: registrationStatus }
     )
   }
 
@@ -306,7 +317,7 @@ export async function createRoosterForEntry(
       cock_number: nextCockNumber,
       declared_weight_grams: declaredWeightGrams,
       reg_payment_status: regPaymentStatus,
-      registration_status: 'pending_inspection',
+      registration_status: registrationStatus,
     },
   })
 

@@ -24,6 +24,11 @@ export const EVENT_TAB_DEFINITIONS = [
     label: 'Payments',
     permissions: ['payments.manage'],
   },
+  {
+    slug: 'revolving-fund',
+    label: 'Revolving fund',
+    permissions: ['payments.manage', 'events.manage'],
+  },
   { slug: 'matching', label: 'Matching', permissions: ['matches.manage', 'events.view'] },
   { slug: 'results', label: 'Results', permissions: ['results.manage', 'events.view'] },
   { slug: 'standings', label: 'Standings', permissions: ['standings.view', 'events.view'] },

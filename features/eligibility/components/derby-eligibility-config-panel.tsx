@@ -6,7 +6,6 @@ import {
   Checkbox,
   Flex,
   Input,
-  NativeSelect,
   Stack,
   Switch,
   Text,
@@ -16,7 +15,6 @@ import { useActionState, useMemo, useState } from 'react'
 
 import { FormField, LAYOUT_GAP, PanelCard } from '@/components/dashboard'
 import { OptionListField } from '@/components/dashboard/option-list-field'
-import type { AssociationListItem } from '@/features/associations/queries'
 import {
   upsertEligibilityPolicyAction,
   type EligibilityActionState,
@@ -25,12 +23,9 @@ import type { DerbyEligibilityPolicyRow } from '@/features/eligibility/queries'
 import {
   AGE_CLASS_PRESETS,
   BAND_LEVEL_PRESETS,
-  BREEDING_RELATIONSHIP_PRESETS,
   ELIGIBILITY_FIELD_DESCRIPTIONS,
   ELIGIBILITY_FIELD_KEYS,
   ELIGIBILITY_FIELD_LABELS,
-  EXPERIENCE_STATUS_PRESETS,
-  ORIGIN_TYPE_PRESETS,
   type EligibilityFieldKey,
 } from '@/lib/derby/eligibility-fields'
 
@@ -40,15 +35,12 @@ type DerbyEligibilityConfigPanelProps = {
   canManage: boolean
   eligibilityEnforcementEnabled: boolean
   policy: DerbyEligibilityPolicyRow | null
-  associations: AssociationListItem[]
-  entryFee?: number
 }
 
 const initialState: EligibilityActionState = {}
 
 type FieldState = {
   enabledFields: Set<EligibilityFieldKey>
-  policyStatus: string
   eligibilityEnforcementEnabled: boolean
   allowedAgeClasses: string[]
   minimumWeightGrams: string
@@ -61,18 +53,6 @@ type FieldState = {
   acceptedBandOrganizations: string[]
   acceptedBandYears: string[]
   acceptedBandSeasons: string[]
-  allowedExperienceStatuses: string[]
-  allowedOriginTypes: string[]
-  allowedBreedingRelationships: string[]
-  associationMembersOnly: boolean
-  approvedAssociationIds: string[]
-  locallyBredOnly: boolean
-  importedAllowed: boolean
-  originVerificationRequired: boolean
-  physicalInspectionRequired: boolean
-  documentVerificationRequired: boolean
-  entryFeePaymentRequired: boolean
-  unknownValueHandling: string
   eligibilityNotes: string
 }
 
@@ -86,7 +66,6 @@ function buildInitialState(
         ELIGIBILITY_FIELD_KEYS.includes(field as EligibilityFieldKey)
       )
     ),
-    policyStatus: policy?.policy_status ?? 'draft',
     eligibilityEnforcementEnabled,
     allowedAgeClasses: policy?.allowed_age_classes ?? [],
     minimumWeightGrams:
@@ -101,18 +80,6 @@ function buildInitialState(
     acceptedBandOrganizations: policy?.accepted_band_organizations ?? [],
     acceptedBandYears: (policy?.accepted_band_years ?? []).map(String),
     acceptedBandSeasons: policy?.accepted_band_seasons ?? [],
-    allowedExperienceStatuses: policy?.allowed_experience_statuses ?? [],
-    allowedOriginTypes: policy?.allowed_origin_types ?? [],
-    allowedBreedingRelationships: policy?.allowed_breeding_relationships ?? [],
-    associationMembersOnly: policy?.association_members_only ?? false,
-    approvedAssociationIds: policy?.approved_association_ids ?? [],
-    locallyBredOnly: policy?.locally_bred_only ?? false,
-    importedAllowed: policy?.imported_allowed ?? true,
-    originVerificationRequired: policy?.origin_verification_required ?? false,
-    physicalInspectionRequired: policy?.physical_inspection_required ?? false,
-    documentVerificationRequired: policy?.document_verification_required ?? false,
-    entryFeePaymentRequired: policy?.entry_fee_payment_required ?? false,
-    unknownValueHandling: policy?.unknown_value_handling ?? 'approval_required',
     eligibilityNotes: policy?.eligibility_notes ?? '',
   }
 }
@@ -142,13 +109,6 @@ function PolicyCheckbox({
       <Checkbox.Label>{children}</Checkbox.Label>
     </Checkbox.Root>
   )
-}
-
-function formatEntryFee(amount: number) {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'PHP',
-  }).format(amount)
 }
 
 function FieldToggle({
@@ -184,21 +144,13 @@ function FieldToggle({
 function DerbyEligibilityFields({
   state,
   eventId,
-  associations,
-  mode,
-  entryFee,
   toggleField,
   patchState,
-  toggleAssociation,
 }: {
   state: FieldState
   eventId?: string
-  associations: AssociationListItem[]
-  mode: 'embedded' | 'standalone'
-  entryFee?: number
   toggleField: (field: EligibilityFieldKey, checked: boolean) => void
   patchState: (patch: Partial<FieldState>) => void
-  toggleAssociation: (associationId: string, checked: boolean) => void
 }) {
   const enabledFieldList = useMemo(
     () => ELIGIBILITY_FIELD_KEYS.filter((field) => state.enabledFields.has(field)),
@@ -211,38 +163,6 @@ function DerbyEligibilityFields({
       {enabledFieldList.map((field) => (
         <input key={field} type="hidden" name="enabledFields" value={field} />
       ))}
-
-      <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', md: 'row' }}>
-        <FormField label="Policy status" flex="1">
-          <NativeSelect.Root>
-            <NativeSelect.Field
-              name="policyStatus"
-              value={state.policyStatus}
-              onChange={(event) => patchState({ policyStatus: event.currentTarget.value })}
-            >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="locked">Locked</option>
-              <option value="archived">Archived</option>
-            </NativeSelect.Field>
-          </NativeSelect.Root>
-        </FormField>
-        <FormField label="Unknown values" flex="1">
-          <NativeSelect.Root>
-            <NativeSelect.Field
-              name="unknownValueHandling"
-              value={state.unknownValueHandling}
-              onChange={(event) =>
-                patchState({ unknownValueHandling: event.currentTarget.value })
-              }
-            >
-              <option value="allow">Allow</option>
-              <option value="approval_required">Require approval</option>
-              <option value="prohibit">Prohibit</option>
-            </NativeSelect.Field>
-          </NativeSelect.Root>
-        </FormField>
-      </Flex>
 
       <BooleanHiddenInput
         name="eligibilityEnforcementEnabled"
@@ -372,175 +292,6 @@ function DerbyEligibilityFields({
         />
       </FieldToggle>
 
-      <FieldToggle
-        field="experience"
-        enabled={state.enabledFields.has('experience')}
-        onToggle={(checked) => toggleField('experience', checked)}
-      >
-        <OptionListField
-          name="allowedExperienceStatuses"
-          label="Allowed experience statuses"
-          values={state.allowedExperienceStatuses}
-          onChange={(allowedExperienceStatuses) => patchState({ allowedExperienceStatuses })}
-          presets={EXPERIENCE_STATUS_PRESETS}
-        />
-      </FieldToggle>
-
-      <FieldToggle
-        field="origin"
-        enabled={state.enabledFields.has('origin')}
-        onToggle={(checked) => toggleField('origin', checked)}
-      >
-        <Flex direction="column" gap={2}>
-          <BooleanHiddenInput name="locallyBredOnly" checked={state.locallyBredOnly} />
-          <PolicyCheckbox
-            checked={state.locallyBredOnly}
-            onCheckedChange={(checked) => patchState({ locallyBredOnly: checked })}
-          >
-            Locally bred only
-          </PolicyCheckbox>
-          <BooleanHiddenInput name="importedAllowed" checked={state.importedAllowed} />
-          <PolicyCheckbox
-            checked={state.importedAllowed}
-            onCheckedChange={(checked) => patchState({ importedAllowed: checked })}
-          >
-            Allow imported roosters
-          </PolicyCheckbox>
-          <BooleanHiddenInput
-            name="originVerificationRequired"
-            checked={state.originVerificationRequired}
-          />
-          <PolicyCheckbox
-            checked={state.originVerificationRequired}
-            onCheckedChange={(checked) =>
-              patchState({ originVerificationRequired: checked })
-            }
-          >
-            Require origin verification
-          </PolicyCheckbox>
-        </Flex>
-        <OptionListField
-          name="allowedOriginTypes"
-          label="Allowed origin types"
-          values={state.allowedOriginTypes}
-          onChange={(allowedOriginTypes) => patchState({ allowedOriginTypes })}
-          presets={ORIGIN_TYPE_PRESETS}
-        />
-        <OptionListField
-          name="allowedBreedingRelationships"
-          label="Allowed breeding relationships"
-          values={state.allowedBreedingRelationships}
-          onChange={(allowedBreedingRelationships) =>
-            patchState({ allowedBreedingRelationships })
-          }
-          presets={BREEDING_RELATIONSHIP_PRESETS}
-        />
-      </FieldToggle>
-
-      <FieldToggle
-        field="association"
-        enabled={state.enabledFields.has('association')}
-        onToggle={(checked) => toggleField('association', checked)}
-      >
-        <BooleanHiddenInput
-          name="associationMembersOnly"
-          checked={state.associationMembersOnly}
-        />
-        <PolicyCheckbox
-          checked={state.associationMembersOnly}
-          onCheckedChange={(checked) => patchState({ associationMembersOnly: checked })}
-        >
-          Require association membership
-        </PolicyCheckbox>
-        {state.approvedAssociationIds.map((associationId) => (
-          <input
-            key={associationId}
-            type="hidden"
-            name="approvedAssociationIds"
-            value={associationId}
-          />
-        ))}
-        {associations.length > 0 ? (
-          <Stack gap={2}>
-            <Text fontSize="sm" fontWeight="medium">
-              Approved associations
-            </Text>
-            {associations.map((association) => (
-              <PolicyCheckbox
-                key={association.id}
-                checked={state.approvedAssociationIds.includes(association.id)}
-                onCheckedChange={(checked) => toggleAssociation(association.id, checked)}
-              >
-                {association.name}
-                {association.code ? ` (${association.code})` : ''}
-              </PolicyCheckbox>
-            ))}
-          </Stack>
-        ) : (
-          <Text fontSize="sm" color="fg.muted">
-            No associations in the registry yet. Add associations first, then select them here.
-          </Text>
-        )}
-      </FieldToggle>
-
-      <FieldToggle
-        field="inspection"
-        enabled={state.enabledFields.has('inspection')}
-        onToggle={(checked) => toggleField('inspection', checked)}
-      >
-        <BooleanHiddenInput
-          name="physicalInspectionRequired"
-          checked={state.physicalInspectionRequired}
-        />
-        <PolicyCheckbox
-          checked={state.physicalInspectionRequired}
-          onCheckedChange={(checked) => patchState({ physicalInspectionRequired: checked })}
-        >
-          Physical inspection required before matching
-        </PolicyCheckbox>
-      </FieldToggle>
-
-      <FieldToggle
-        field="documents"
-        enabled={state.enabledFields.has('documents')}
-        onToggle={(checked) => toggleField('documents', checked)}
-      >
-        <BooleanHiddenInput
-          name="documentVerificationRequired"
-          checked={state.documentVerificationRequired}
-        />
-        <PolicyCheckbox
-          checked={state.documentVerificationRequired}
-          onCheckedChange={(checked) =>
-            patchState({ documentVerificationRequired: checked })
-          }
-        >
-          Document verification required in registration workflow
-        </PolicyCheckbox>
-      </FieldToggle>
-
-      <FieldToggle
-        field="payment"
-        enabled={state.enabledFields.has('payment')}
-        onToggle={(checked) => toggleField('payment', checked)}
-      >
-        <BooleanHiddenInput
-          name="entryFeePaymentRequired"
-          checked={state.entryFeePaymentRequired}
-        />
-        <PolicyCheckbox
-          checked={state.entryFeePaymentRequired}
-          onCheckedChange={(checked) => patchState({ entryFeePaymentRequired: checked })}
-        >
-          Registration fee must be paid before approval
-        </PolicyCheckbox>
-        <Text fontSize="sm" color="fg.muted">
-          {mode === 'embedded'
-            ? 'Uses the registration entry fee set on this form.'
-            : `Current entry fee: ${formatEntryFee(entryFee ?? 0)} (edit on the event form above).`}
-        </Text>
-      </FieldToggle>
-
       <FormField label="Eligibility notes">
         <Textarea
           name="eligibilityNotes"
@@ -559,8 +310,6 @@ export function DerbyEligibilityConfigPanel({
   canManage,
   eligibilityEnforcementEnabled,
   policy,
-  associations,
-  entryFee,
 }: DerbyEligibilityConfigPanelProps) {
   const [state, setState] = useState<FieldState>(() =>
     buildInitialState(policy, eligibilityEnforcementEnabled)
@@ -586,15 +335,6 @@ export function DerbyEligibilityConfigPanel({
     setState((current) => ({ ...current, ...patch }))
   }
 
-  function toggleAssociation(associationId: string, checked: boolean) {
-    setState((current) => {
-      const approvedAssociationIds = checked
-        ? [...current.approvedAssociationIds, associationId]
-        : current.approvedAssociationIds.filter((id) => id !== associationId)
-      return { ...current, approvedAssociationIds }
-    })
-  }
-
   if (!canManage) {
     if (mode === 'embedded') return null
 
@@ -618,12 +358,8 @@ export function DerbyEligibilityConfigPanel({
     <DerbyEligibilityFields
       state={state}
       eventId={eventId}
-      associations={associations}
-      mode={mode}
-      entryFee={entryFee}
       toggleField={toggleField}
       patchState={patchState}
-      toggleAssociation={toggleAssociation}
     />
   )
 

@@ -212,6 +212,14 @@ export function getNextCockEntryBarcode(eventId: string, existingBarcodes: strin
   return formatCockEntryBarcode(eventId, max + 1)
 }
 
+export function normalizeCockEntryBarcodeInput(value: string): string {
+  return value.trim().toUpperCase()
+}
+
+export function isCockEntryBarcodeForEvent(value: string, eventId: string): boolean {
+  return parseCockEntryBarcodeSequence(normalizeCockEntryBarcodeInput(value), eventId) != null
+}
+
 export const createEntrySchema = entryMetadataSchema.extend({
   roosters: z.array(roosterEntryItemSchema).min(1, 'At least one rooster is required'),
 })

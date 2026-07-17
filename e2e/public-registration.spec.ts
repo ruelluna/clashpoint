@@ -14,12 +14,6 @@ function uniqueSuffix() {
 
 async function markEventPublicAndOpen(page: Page, eventId: string) {
   await page.goto(`/dashboard/events/${eventId}/edit`)
-  await page.locator('input[name="legalAuthorized"]').check()
-  const publicCheckbox = page.locator('input[name="isPublic"]')
-  if (!(await publicCheckbox.isChecked())) {
-    await publicCheckbox.check()
-  }
-  await page.getByRole('button', { name: 'Save changes' }).click()
   await page.getByRole('button', { name: 'Mark Open' }).click()
   await expect(page.getByText('Open', { exact: true }).first()).toBeVisible({
     timeout: 15_000,

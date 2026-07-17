@@ -7,17 +7,43 @@ import {
   changePromoterStatusSchema,
   createPromoterSchema,
   linkPromoterUserSchema,
+  quickCreatePromoterSchema,
   updatePromoterSchema,
 } from '@/features/promoters/schema'
 import {
   changeStatus,
   createPromoter,
   linkUser,
+  quickCreatePromoter,
   updatePromoter,
 } from '@/features/promoters/service'
 import { requirePermission } from '@/lib/auth/permissions'
 
 export type PromoterActionState = { error?: string; success?: string }
+
+export type QuickCreatePromoterResult =
+  | { error: string; promoterId?: undefined; name?: undefined }
+  | { error?: undefined; promoterId: string; name: string }
+
+export async function quickCreatePromoterAction(
+  input: unknown
+): Promise<QuickCreatePromoterResult> {
+  const profile = await requirePermission('events.manage')
+
+  const parsed = quickCreatePromoterSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await quickCreatePromoter(profile.id, parsed.data)
+  if (result.error || !result.promoterId || !result.name) {
+    return { error: result.error ?? 'Failed to create promoter' }
+  }
+
+  revalidatePath('/dashboard/events/new')
+  revalidatePath('/dashboard/promoters')
+  return { promoterId: result.promoterId, name: result.name }
+}
 
 function parseCommissionValue(formData: FormData): number | undefined {
   const raw = formData.get('commissionValue')?.toString().trim()

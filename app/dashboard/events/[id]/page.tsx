@@ -18,6 +18,7 @@ import {
 } from '@/features/eligibility/policy-summary'
 import { getEntryFormEligibilityContext } from '@/features/eligibility/registration-bridge'
 import { getEventWithPrize } from '@/features/events/queries'
+import { getEventPrizePoolCollected } from '@/features/events/prize-pool'
 import {
   DERBY_TYPE_LABELS,
   EVENT_STATUS_LABELS,
@@ -56,9 +57,11 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
 
   if (!event) notFound()
 
+  const isDerby = event.event_type === 'derby'
+  const prizePoolCollected = isDerby ? await getEventPrizePoolCollected(id) : null
+
   const user = await getUser()
   const canManage = user ? await hasPermission(user.id, 'events.manage') : false
-  const isDerby = event.event_type === 'derby'
 
   const eligibilityContext = isDerby ? await getEntryFormEligibilityContext(id) : null
   const eligibilityPolicy =
@@ -66,8 +69,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
       ? await getDerbyEligibilityPolicy(id)
       : null
   const associations =
-    eligibilityContext &&
-    eligibilityContext.enabledFields.includes('association')
+    eligibilityPolicy?.approved_association_ids?.length
       ? await listAssociations()
       : []
   const approvedAssociationNames =
@@ -130,6 +132,17 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             <DetailFieldRow label="Cocks per entry">
               {event.cocks_per_entry}
             </DetailFieldRow>
+            {isDerby && prizePoolCollected != null ? (
+              <DetailFieldRow label="Prize pool collected">
+                <Stack gap={0}>
+                  <Text fontWeight="semibold">{formatCurrency(prizePoolCollected)}</Text>
+                  <Text color="fg.muted" fontSize="xs">
+                    Sum of registration and cock entry fees collected. Updates as payments are
+                    recorded.
+                  </Text>
+                </Stack>
+              </DetailFieldRow>
+            ) : null}
             {event.notes ? (
               <DetailFieldRow label="Notes">
                 <Text whiteSpace="pre-wrap">{event.notes}</Text>

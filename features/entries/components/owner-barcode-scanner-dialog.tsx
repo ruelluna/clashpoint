@@ -17,12 +17,16 @@ type OwnerBarcodeScannerDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onScan: (barcode: string) => void
+  title?: string
+  hint?: string
 }
 
 export function OwnerBarcodeScannerDialog({
   open,
   onOpenChange,
   onScan,
+  title = 'Scan owner barcode',
+  hint = 'Point the camera at the OWNER slip barcode. Scanning stops after a successful read.',
 }: OwnerBarcodeScannerDialogProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
@@ -115,7 +119,7 @@ export function OwnerBarcodeScannerDialog({
         <Dialog.Positioner>
           <Dialog.Content maxW="lg">
             <Dialog.Header>
-              <Dialog.Title>Scan owner barcode</Dialog.Title>
+              <Dialog.Title>{title}</Dialog.Title>
             </Dialog.Header>
             <Dialog.Body>
               <Stack gap={LAYOUT_GAP.form}>
@@ -147,8 +151,7 @@ export function OwnerBarcodeScannerDialog({
                   </Text>
                 ) : (
                   <Text fontSize="sm" color="fg.muted">
-                    Point the camera at the OWNER slip barcode. Scanning stops after a
-                    successful read.
+                    {hint}
                   </Text>
                 )}
               </Stack>

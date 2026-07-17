@@ -20,7 +20,7 @@ export const eligibilityFieldKeySchema = z.enum(ELIGIBILITY_FIELD_KEYS)
 export const upsertEligibilityPolicySchema = z
   .object({
     eventId: z.string().uuid(),
-    policyStatus: policyStatusSchema.default('draft'),
+    policyStatus: policyStatusSchema.default('active'),
     enabledFields: z.array(eligibilityFieldKeySchema).default([]),
     eligibilityEnforcementEnabled: z.boolean().default(false),
     allowedAgeClasses: z.array(z.string()).default([]),
@@ -43,7 +43,6 @@ export const upsertEligibilityPolicySchema = z
     importedAllowed: z.boolean().default(true),
     originVerificationRequired: z.boolean().default(false),
     physicalInspectionRequired: z.boolean().default(false),
-    documentVerificationRequired: z.boolean().default(false),
     entryFeePaymentRequired: z.boolean().default(false),
     unknownValueHandling: unknownValueHandlingSchema.default('approval_required'),
     eligibilityNotes: z.string().max(5000).nullable().optional(),
@@ -54,29 +53,6 @@ export const upsertEligibilityPolicySchema = z
         code: 'custom',
         message: 'Add at least one age class when age rules are enabled',
         path: ['allowedAgeClasses'],
-      })
-    }
-
-    if (
-      data.enabledFields.includes('experience') &&
-      data.allowedExperienceStatuses.length === 0
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Add at least one experience option when experience rules are enabled',
-        path: ['allowedExperienceStatuses'],
-      })
-    }
-
-    if (
-      data.enabledFields.includes('association') &&
-      data.associationMembersOnly &&
-      data.approvedAssociationIds.length === 0
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Select at least one approved association when membership is required',
-        path: ['approvedAssociationIds'],
       })
     }
 
