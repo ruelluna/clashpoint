@@ -36,8 +36,11 @@ import {
     type ActionState,
 } from '@/features/users/actions'
 import { ROLE_LABELS, type UsersManageableRole } from '@/features/users/schema'
-import { ACCESS_MODULES } from '@/lib/auth/modules'
 import type { AccessModuleId } from '@/lib/auth/modules'
+import {
+    getEventTabAccessModules,
+    getPageAccessModules,
+} from '@/lib/auth/module-ui-groups'
 import type { AppRole } from '@/lib/auth/types'
 
 type UserRow = {
@@ -78,21 +81,48 @@ function ModuleCheckboxGrid({
     idPrefix?: string
     defaultSelected?: AccessModuleId[]
 }) {
+    const pageModules = getPageAccessModules()
+    const eventTabModules = getEventTabAccessModules()
+
     return (
         <Fieldset.Root>
             <CheckboxGroup name="modules" defaultValue={defaultSelected}>
                 <Fieldset.Legend fontSize="sm" fontWeight="medium" mb={2}>
                     Module access
                 </Fieldset.Legend>
-                <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} gap={2}>
-                    {ACCESS_MODULES.map((mod) => (
-                        <Checkbox.Root key={mod.id} value={mod.id}>
-                            <Checkbox.HiddenInput />
-                            <Checkbox.Control />
-                            <Checkbox.Label fontSize="sm">{mod.label}</Checkbox.Label>
-                        </Checkbox.Root>
-                    ))}
-                </SimpleGrid>
+                <Stack gap={4}>
+                    <Stack gap={2}>
+                        <Text fontSize="sm" fontWeight="medium">
+                            Page access
+                        </Text>
+                        <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} gap={2}>
+                            {pageModules.map((mod) => (
+                                <Checkbox.Root key={mod.id} value={mod.id}>
+                                    <Checkbox.HiddenInput />
+                                    <Checkbox.Control />
+                                    <Checkbox.Label fontSize="sm">{mod.label}</Checkbox.Label>
+                                </Checkbox.Root>
+                            ))}
+                        </SimpleGrid>
+                    </Stack>
+                    <Stack gap={2}>
+                        <Text fontSize="sm" fontWeight="medium">
+                            Tab access
+                        </Text>
+                        <Text fontSize="xs" color="fg.muted">
+                            Events page:
+                        </Text>
+                        <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} gap={2}>
+                            {eventTabModules.map((mod) => (
+                                <Checkbox.Root key={mod.id} value={mod.id}>
+                                    <Checkbox.HiddenInput />
+                                    <Checkbox.Control />
+                                    <Checkbox.Label fontSize="sm">{mod.label}</Checkbox.Label>
+                                </Checkbox.Root>
+                            ))}
+                        </SimpleGrid>
+                    </Stack>
+                </Stack>
             </CheckboxGroup>
         </Fieldset.Root>
     )

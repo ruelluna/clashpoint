@@ -84,3 +84,28 @@ N/A
 - Inactive users show an **Activate** button that restores `is_active` and clears `deactivated_at`
 - Added `reactivateUserAction`, `reactivateUser` service, and `reactivateUserSchema`
 - Vitest coverage for reactivation schema and service
+
+## Changelog (2026-07-18)
+
+- Module access picker split into **Page access** and **Tab access** (Events page) sections
+- Same 22 modules and labels; grouping is UI-only via `lib/auth/module-ui-groups.ts`
+- E2E asserts section headings in edit mode
+
+### Files touched (2026-07-18)
+
+- `lib/auth/module-ui-groups.ts` — page vs event-tab module ID lists
+- `lib/auth/module-ui-groups.test.ts` — union/disjoint coverage
+- `features/users/components/users-page-client.tsx` — grouped `ModuleCheckboxGrid`
+- `e2e/users-management.spec.ts` — section heading assertions
+
+### Vitest (2026-07-18)
+
+```bash
+npm run test:run -- lib/auth/module-ui-groups.test.ts
+```
+
+### Suggested ClashPoint commit (2026-07-18)
+
+**Summary:** Group Users module access by page and tab
+
+**Body:** Organize the staff module picker into Page access and Tab access (Events page) sections so admins can scan permissions by dashboard area without changing module IDs or auth behavior.

@@ -1,12 +1,12 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Grid, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, Grid, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
 import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { EventStatusBadges } from '@/features/events/components/event-status-badges'
 import {
   DERBY_TYPE_LABELS,
-  EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
 } from '@/features/events/schema'
 import type { EventListItem } from '@/features/events/types'
@@ -15,25 +15,6 @@ import { formatEventDateTime } from '@/lib/format/datetime'
 type EventsListClientProps = {
   events: EventListItem[]
   canManage: boolean
-}
-
-function statusColor(status: EventListItem['status']) {
-  switch (status) {
-    case 'draft':
-      return 'gray'
-    case 'open':
-      return 'green'
-    case 'ongoing':
-      return 'blue'
-    case 'completed':
-      return 'purple'
-    case 'cancelled':
-      return 'red'
-    case 'archived':
-      return 'orange'
-    default:
-      return 'yellow'
-  }
 }
 
 function formatEventType(event: EventListItem) {
@@ -46,21 +27,6 @@ function formatEventType(event: EventListItem) {
 
 function formatVenueLine(event: EventListItem) {
   return `${event.venue}${event.promoter_name ? ` · ${event.promoter_name}` : ''}`
-}
-
-function EventStatusBadges({ event }: { event: EventListItem }) {
-  return (
-    <Flex gap={1} wrap="wrap" justify={{ base: 'flex-end', lg: 'flex-start' }}>
-      <Badge colorPalette={statusColor(event.status)} size="sm">
-        {EVENT_STATUS_LABELS[event.status]}
-      </Badge>
-      {event.is_public ? (
-        <Badge variant="subtle" size="sm">
-          Public
-        </Badge>
-      ) : null}
-    </Flex>
-  )
 }
 
 function EventListRow({ event }: { event: EventListItem }) {
@@ -99,7 +65,11 @@ function EventListRow({ event }: { event: EventListItem }) {
             gridRow={{ base: 1, lg: 1 }}
             justifySelf={{ base: 'end', lg: 'start' }}
           >
-            <EventStatusBadges event={event} />
+            <EventStatusBadges
+              status={event.status}
+              isPublic={event.is_public}
+              justify={{ base: 'flex-end', lg: 'flex-start' }}
+            />
           </Box>
 
           <Text

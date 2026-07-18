@@ -42,6 +42,9 @@ test.describe('Users management @auth', () => {
     await expect(page.getByLabel('Promoters')).toHaveCount(0)
 
     await editButton.click()
+    await expect(page.getByText('Page access')).toBeVisible()
+    await expect(page.getByText('Tab access')).toBeVisible()
+    await expect(page.getByText('Events page:')).toBeVisible()
     await expect(page.getByLabel('Promoters')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
 
