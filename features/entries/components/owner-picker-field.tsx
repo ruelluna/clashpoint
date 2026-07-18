@@ -32,20 +32,39 @@ type OwnerPickerFieldProps = {
   onOwnerProfileChange: (values: OwnerProfileValues) => void
 }
 
-const SEARCH_DEBOUNCE_MS = 300
+const OWNER_PICKER_LIMIT = 100
+
+function mergeOwners(
+  owners: CompetitorSearchResult[],
+  extra: CompetitorSearchResult | null | undefined
+): CompetitorSearchResult[] {
+  if (!extra) return owners
+  if (owners.some((item) => item.id === extra.id)) return owners
+  return [extra, ...owners]
+}
 
 export function OwnerPickerField({
   initialOwnerName = '',
   initialCompetitor = null,
   onOwnerProfileChange,
 }: OwnerPickerFieldProps) {
-  const [searchResults, setSearchResults] = useState<CompetitorSearchResult[]>(
+  const [allOwners, setAllOwners] = useState<CompetitorSearchResult[]>(
     initialCompetitor ? [initialCompetitor] : []
   )
   const [inputValue, setInputValue] = useState(initialOwnerName)
   const [competitorId, setCompetitorId] = useState(initialCompetitor?.id ?? '')
-  const [searchError, setSearchError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [isLoadingOwners, setIsLoadingOwners] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+
+  const filteredItems = useMemo((): CompetitorSearchResult[] => {
+    const trimmed = inputValue.trim().toLowerCase()
+    if (!trimmed) return allOwners
+
+    return allOwners.filter((owner) =>
+      owner.displayName.toLowerCase().includes(trimmed)
+    )
+  }, [allOwners, inputValue])
 
   const { collection, set } = useListCollection<CompetitorSearchResult>({
     initialItems: initialCompetitor ? [initialCompetitor] : [],
@@ -54,8 +73,36 @@ export function OwnerPickerField({
   })
 
   useEffect(() => {
-    set(searchResults)
-  }, [searchResults, set])
+    set(filteredItems)
+  }, [filteredItems, set])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadOwners() {
+      setIsLoadingOwners(true)
+      setLoadError(null)
+
+      const result = await searchCompetitorsAction('', OWNER_PICKER_LIMIT)
+      if (cancelled) return
+
+      if (result.error) {
+        setLoadError(result.error)
+        setAllOwners((current) => mergeOwners(current, initialCompetitor))
+        setIsLoadingOwners(false)
+        return
+      }
+
+      setAllOwners(mergeOwners(result.results ?? [], initialCompetitor))
+      setIsLoadingOwners(false)
+    }
+
+    void loadOwners()
+
+    return () => {
+      cancelled = true
+    }
+  }, [initialCompetitor])
 
   const applyOwnerProfile = useCallback(
     (owner: CompetitorSearchResult) => {
@@ -70,39 +117,23 @@ export function OwnerPickerField({
     [onOwnerProfileChange]
   )
 
-  useEffect(() => {
-    const trimmed = inputValue.trim()
-    if (!trimmed) {
-      setSearchResults([])
-      setSearchError(null)
-      return
-    }
-
-    const timeout = window.setTimeout(async () => {
-      const result = await searchCompetitorsAction(trimmed)
-      if (result.error) {
-        setSearchError(result.error)
-        setSearchResults([])
-        return
-      }
-
-      setSearchError(null)
-      setSearchResults(result.results ?? [])
-    }, SEARCH_DEBOUNCE_MS)
-
-    return () => window.clearTimeout(timeout)
-  }, [inputValue])
-
   const selectedCompetitor = useMemo(
-    () => searchResults.find((item) => item.id === competitorId) ?? initialCompetitor,
-    [competitorId, initialCompetitor, searchResults]
+    () => allOwners.find((item) => item.id === competitorId) ?? initialCompetitor,
+    [allOwners, competitorId, initialCompetitor]
   )
+
+  const emptyMessage = useMemo(() => {
+    if (isLoadingOwners) return 'Loading owners…'
+    if (allOwners.length === 0) return 'No saved owners found'
+    if (inputValue.trim()) return 'No owners match this search'
+    return 'No saved owners found'
+  }, [allOwners.length, inputValue, isLoadingOwners])
 
   function handleOwnerCreated(
     owner: CompetitorSearchResult,
     profile: OwnerProfileValues
   ) {
-    setSearchResults((current) => {
+    setAllOwners((current) => {
       if (current.some((item) => item.id === owner.id)) return current
       return [owner, ...current]
     })
@@ -141,7 +172,7 @@ export function OwnerPickerField({
                 const nextId = details.value[0] ?? ''
                 setCompetitorId(nextId)
 
-                const owner = searchResults.find((item) => item.id === nextId)
+                const owner = allOwners.find((item) => item.id === nextId)
                 if (owner) {
                   setInputValue(owner.displayName)
                   applyOwnerProfile(owner)
@@ -170,7 +201,7 @@ export function OwnerPickerField({
               <Portal>
                 <Combobox.Positioner>
                   <Combobox.Content>
-                    <Combobox.Empty>No saved owners found</Combobox.Empty>
+                    <Combobox.Empty>{emptyMessage}</Combobox.Empty>
                     {collection.items.map((item) => (
                       <Combobox.Item key={item.id} item={item}>
                         <Combobox.ItemText>{item.displayName}</Combobox.ItemText>
@@ -207,9 +238,9 @@ export function OwnerPickerField({
         onCreated={handleOwnerCreated}
       />
 
-      {searchError ? (
+      {loadError ? (
         <Text fontSize="sm" color="red.500">
-          {searchError}
+          {loadError}
         </Text>
       ) : null}
     </Stack>

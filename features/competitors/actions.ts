@@ -33,11 +33,12 @@ function parseOwnerProfileFields(formData: FormData) {
 }
 
 export async function searchCompetitorsAction(
-  query: string
+  query: string,
+  limit?: number
 ): Promise<{ error?: string; results?: CompetitorSearchResult[] }> {
   await requirePermission('entries.manage')
 
-  const parsed = searchCompetitorsSchema.safeParse({ query })
+  const parsed = searchCompetitorsSchema.safeParse({ query, limit })
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Invalid search query' }
   }

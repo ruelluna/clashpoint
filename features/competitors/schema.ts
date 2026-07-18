@@ -19,7 +19,7 @@ const optionalEmail = z
 
 export const searchCompetitorsSchema = z.object({
   query: z.string().max(200).default(''),
-  limit: z.coerce.number().int().min(1).max(25).default(10),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
 })
 
 const competitorProfileFields = {

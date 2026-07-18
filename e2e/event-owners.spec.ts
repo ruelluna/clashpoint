@@ -47,6 +47,13 @@ async function registerOwnerForEvent(
     await page.waitForURL(new RegExp(`/dashboard/events/${eventId}/owners/[^/]+/print`))
 }
 
+async function createSavedOwner(page: Page, ownerName: string) {
+    await page.goto('/dashboard/owners/new')
+    await page.getByLabel('Owner name / game farm').fill(ownerName)
+    await page.getByRole('button', { name: 'Save owner' }).click()
+    await expect(page.getByRole('heading', { name: ownerName })).toBeVisible()
+}
+
 test.describe('Event owners list @auth', () => {
     test('filters owners by search and looks up barcode', async ({ page }) => {
         test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
@@ -100,5 +107,39 @@ test.describe('Event owners list @auth', () => {
         await expect(
             page.getByText('already registered for this event', { exact: false })
         ).toBeVisible()
+    })
+
+    test('owner picker shows saved owners on click and filters while typing', async ({ page }) => {
+        test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
+
+        const suffix = uniqueSuffix()
+        const eventName = `E2E Owner Picker ${suffix}`
+        const ownerName = `Picker Farm ${suffix}`
+        const otherOwnerName = `Other Farm ${suffix}`
+
+        await signInAsAdmin(page)
+        await createSavedOwner(page, ownerName)
+        await createSavedOwner(page, otherOwnerName)
+        const eventId = await createOpenDerbyEvent(page, eventName)
+
+        await page.goto(`/dashboard/events/${eventId}/owners/new`)
+
+        const ownerPicker = page.getByTestId('owner-picker').getByRole('combobox')
+        await ownerPicker.click()
+        await expect(page.getByRole('option', { name: ownerName })).toBeVisible({
+            timeout: 15_000,
+        })
+        await expect(page.getByRole('option', { name: otherOwnerName })).toBeVisible()
+
+        await ownerPicker.fill('Picker')
+        await expect(page.getByRole('option', { name: ownerName })).toBeVisible()
+        await expect(page.getByRole('option', { name: otherOwnerName })).toHaveCount(0)
+
+        await ownerPicker.fill('')
+        await expect(page.getByRole('option', { name: ownerName })).toBeVisible()
+        await expect(page.getByRole('option', { name: otherOwnerName })).toBeVisible()
+
+        await ownerPicker.fill('zzznomatch')
+        await expect(page.getByText('No owners match this search')).toBeVisible()
     })
 })
