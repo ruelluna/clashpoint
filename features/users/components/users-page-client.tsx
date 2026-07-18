@@ -21,7 +21,6 @@ import Link from 'next/link'
 
 import {
     ButtonGroup,
-    DetailFieldRow,
     LAYOUT_GAP,
     FormField,
     PageHeader,
@@ -59,7 +58,12 @@ const manageableRoles = (
 
 const invitableRoles = manageableRoles
 
-const actionButtonSize = { base: 'md' as const, lg: 'sm' as const }
+const userListGridProps = {
+    columns: 4,
+    gap: 3,
+    alignItems: 'center' as const,
+    templateColumns: 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr)',
+}
 
 function defaultRoleForUpdate(user: UserRow): UsersManageableRole {
     if (user.role === 'staff' || user.role === 'event_organizer' || user.role === 'system_owner') {
@@ -246,104 +250,97 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
             <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} />
 
             <PanelCard flush>
-                <Flex
-                    px={4}
-                    py={3}
-                    borderBottomWidth="1px"
-                    borderColor="border"
-                    fontWeight="medium"
-                    fontSize="sm"
-                    display={{ base: 'none', lg: 'flex' }}
-                >
-                    <Box flex="2">User</Box>
-                    <Box flex="1">Role</Box>
-                    <Box flex="1">Status</Box>
-                    <Box flex="2">Actions</Box>
-                </Flex>
-                {users.map((user) => {
-                    const isEditing = editingUserId === user.id
+                <Box overflowX="auto">
+                    <SimpleGrid
+                        {...userListGridProps}
+                        px={4}
+                        py={3}
+                        borderBottomWidth="1px"
+                        borderColor="border"
+                        fontWeight="medium"
+                        fontSize="sm"
+                        color="fg.muted"
+                        minW="36rem"
+                    >
+                        <Box>User info</Box>
+                        <Box>Role</Box>
+                        <Box>Status</Box>
+                        <Box textAlign={{ md: 'end' }}>Actions</Box>
+                    </SimpleGrid>
+                    {users.map((user) => {
+                        const isEditing = editingUserId === user.id
 
-                    return (
-                        <Box
-                            key={user.id}
-                            px={4}
-                            py={3}
-                            borderBottomWidth="1px"
-                            borderColor="border"
-                        >
-                            <Flex
-                                direction={{ base: 'column', lg: 'row' }}
-                                gap={2}
-                                align={{ lg: 'center' }}
+                        return (
+                            <Box
+                                key={user.id}
+                                borderBottomWidth="1px"
+                                borderColor="border"
+                                minW="36rem"
                             >
-                                <Box flex="2">
-                                    <Text fontWeight="medium">{user.display_name ?? '—'}</Text>
-                                    <Text fontSize="sm" color="fg.muted">
-                                        {user.email}
-                                    </Text>
-                                    {user.role === 'promoter' ? (
-                                        <Text fontSize="sm" color="fg.muted" mt={1}>
-                                            Promoter login —{' '}
-                                            <Link href="/dashboard/promoters">manage profile in Promoters</Link>.
+                                <SimpleGrid {...userListGridProps} px={4} py={3}>
+                                    <Box minW={0}>
+                                        <Text fontWeight="semibold" truncate>
+                                            {user.display_name ?? '—'}
                                         </Text>
-                                    ) : null}
-                                </Box>
+                                        <Text fontSize="sm" color="fg.muted" truncate>
+                                            {user.email}
+                                        </Text>
+                                        {user.role === 'promoter' ? (
+                                            <Text fontSize="xs" color="fg.muted" mt={1}>
+                                                Promoter —{' '}
+                                                <Link href="/dashboard/promoters">Promoters</Link>
+                                            </Text>
+                                        ) : null}
+                                    </Box>
 
-                                <Box flex="1">
-                                    <Box display={{ base: 'block', lg: 'none' }}>
-                                        <DetailFieldRow label="Role">
-                                            <Badge>{ROLE_LABELS[user.role]}</Badge>
-                                        </DetailFieldRow>
+                                    <Box>
+                                        <Badge size="sm">{ROLE_LABELS[user.role]}</Badge>
                                     </Box>
-                                    <Box display={{ base: 'none', lg: 'block' }}>
-                                        <Badge>{ROLE_LABELS[user.role]}</Badge>
-                                    </Box>
-                                </Box>
 
-                                <Box flex="1">
-                                    <Box display={{ base: 'block', lg: 'none' }}>
-                                        <DetailFieldRow label="Status">
-                                            <Badge colorPalette={user.is_active ? 'green' : 'red'}>
-                                                {user.is_active ? 'Active' : 'Inactive'}
-                                            </Badge>
-                                        </DetailFieldRow>
-                                    </Box>
-                                    <Box display={{ base: 'none', lg: 'block' }}>
-                                        <Badge colorPalette={user.is_active ? 'green' : 'red'}>
+                                    <Box>
+                                        <Badge
+                                            size="sm"
+                                            colorPalette={user.is_active ? 'green' : 'red'}
+                                        >
                                             {user.is_active ? 'Active' : 'Inactive'}
                                         </Badge>
                                     </Box>
-                                </Box>
 
-                                <Box flex="2">
-                                    {user.is_active && !isEditing ? (
-                                        <ButtonGroup justify={{ base: 'flex-start', lg: 'flex-end' }}>
-                                            <Button
-                                                type="button"
-                                                size={actionButtonSize}
-                                                variant="outline"
-                                                w={{ base: 'full', sm: 'auto' }}
-                                                onClick={() => setEditingUserId(user.id)}
+                                    <Box justifySelf={{ md: 'end' }} w="full">
+                                        {user.is_active && !isEditing ? (
+                                            <ButtonGroup
+                                                justify="flex-end"
+                                                direction={{ base: 'column', sm: 'row' }}
                                             >
-                                                Edit
-                                            </Button>
-                                            <form action={deactivateAction}>
-                                                <input type="hidden" name="userId" value={user.id} />
-                                                <input type="hidden" name="reason" value="Deactivated by admin" />
                                                 <Button
-                                                    type="submit"
-                                                    size={actionButtonSize}
+                                                    type="button"
+                                                    size="sm"
                                                     variant="outline"
-                                                    colorPalette="red"
                                                     w={{ base: 'full', sm: 'auto' }}
+                                                    onClick={() => setEditingUserId(user.id)}
                                                 >
-                                                    Deactivate
+                                                    Edit
                                                 </Button>
-                                            </form>
-                                        </ButtonGroup>
-                                    ) : null}
-                                    {!user.is_active ? (
-                                        <ButtonGroup justify={{ base: 'flex-start', lg: 'flex-end' }}>
+                                                <form action={deactivateAction}>
+                                                    <input type="hidden" name="userId" value={user.id} />
+                                                    <input
+                                                        type="hidden"
+                                                        name="reason"
+                                                        value="Deactivated by admin"
+                                                    />
+                                                    <Button
+                                                        type="submit"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        colorPalette="red"
+                                                        w={{ base: 'full', sm: 'auto' }}
+                                                    >
+                                                        Deactivate
+                                                    </Button>
+                                                </form>
+                                            </ButtonGroup>
+                                        ) : null}
+                                        {!user.is_active ? (
                                             <form action={reactivateAction}>
                                                 <input type="hidden" name="userId" value={user.id} />
                                                 <input
@@ -353,7 +350,8 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                                                 />
                                                 <Button
                                                     type="submit"
-                                                    size={actionButtonSize}
+                                                    size="sm"
+                                                    variant="outline"
                                                     colorPalette="green"
                                                     w={{ base: 'full', sm: 'auto' }}
                                                     loading={reactivatePending}
@@ -361,20 +359,20 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                                                     Activate
                                                 </Button>
                                             </form>
-                                        </ButtonGroup>
-                                    ) : null}
-                                </Box>
-                            </Flex>
+                                        ) : null}
+                                    </Box>
+                                </SimpleGrid>
 
-                            {user.is_active && isEditing ? (
-                                <Stack
-                                    gap={LAYOUT_GAP.form}
-                                    mt={3}
-                                    borderWidth="1px"
-                                    borderColor="border"
-                                    rounded="md"
-                                    p={3}
-                                >
+                                {user.is_active && isEditing ? (
+                                    <Stack
+                                        gap={LAYOUT_GAP.form}
+                                        mx={4}
+                                        mb={3}
+                                        borderWidth="1px"
+                                        borderColor="border"
+                                        rounded="md"
+                                        p={3}
+                                    >
                                     <form action={roleAction}>
                                         <Stack gap={LAYOUT_GAP.form}>
                                             <input type="hidden" name="userId" value={user.id} />
@@ -399,7 +397,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                                                     </NativeSelect.Root>
                                                     <Button
                                                         type="submit"
-                                                        size={actionButtonSize}
+                                                        size="sm"
                                                         loading={rolePending}
                                                         alignSelf={{ base: 'stretch', sm: 'flex-start' }}
                                                     >
@@ -419,7 +417,7 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                                             />
                                             <Button
                                                 type="submit"
-                                                size={actionButtonSize}
+                                                size="sm"
                                                 loading={modulesPending}
                                                 mt={2}
                                                 w={{ base: 'full', sm: 'auto' }}
@@ -432,8 +430,8 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                                     <ButtonGroup>
                                         <Button
                                             type="button"
-                                            size={actionButtonSize}
-                                            variant="ghost"
+                                            size="sm"
+                                            variant="outline"
                                             w={{ base: 'full', sm: 'auto' }}
                                             onClick={() => setEditingUserId(null)}
                                         >
@@ -442,9 +440,10 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                                     </ButtonGroup>
                                 </Stack>
                             ) : null}
-                        </Box>
-                    )
-                })}
+                            </Box>
+                        )
+                    })}
+                </Box>
             </PanelCard>
 
             {roleState.error ? (
