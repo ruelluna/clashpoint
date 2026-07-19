@@ -117,18 +117,19 @@ test.describe('Cashier Terminal @auth', () => {
 
     const amountInput = page.getByTestId('cashier-amount-paid')
     if (await amountInput.count()) {
-      const categorySelect = page.locator('select[name="paymentCategory"]')
-      await expect(categorySelect).toHaveValue('entry_fees')
-      await expect(categorySelect.locator('option:checked')).toHaveText(
-        'Registration & entry fees'
-      )
+      await expect(page.locator('select[name="paymentCategory"]')).toHaveCount(0)
+      await expect(
+        page.getByText(/Collects registration and rooster entry fees/i)
+      ).toBeVisible()
 
       const amount = await amountInput.inputValue()
       expect(Number(amount)).toBeGreaterThan(0)
       await page.getByTestId('cashier-record-payment').click()
       await expect(page.getByText('Payment recorded')).toBeVisible({ timeout: 15_000 })
-      await expect(page.getByRole('link', { name: 'Print receipt' })).toBeVisible()
-      await expect(page.getByText('Registration & entry fees')).toBeVisible()
+      await expect(
+        page.getByRole('link', { name: /Print registration fee receipt/i })
+      ).toBeVisible()
+      await expect(page.getByText('Registration fee')).toBeVisible()
     } else {
       await page.getByTestId('cashier-scan-input').fill('OWN-ABCDEF12-0001')
       await page.getByRole('button', { name: 'Look up' }).click()
