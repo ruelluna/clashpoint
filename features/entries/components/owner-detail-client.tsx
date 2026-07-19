@@ -198,7 +198,7 @@ export function OwnerDetailClient({
                     )}
                   </DetailRow>
                   <Button asChild size="sm" variant="outline" alignSelf="flex-start">
-                    <Link href={`/dashboard/events/${eventId}/payments`}>Record payment</Link>
+                    <Link href={`/dashboard/events/${eventId}/payments`}>Open Cashier</Link>
                   </Button>
                 </Stack>
               </PanelCard>

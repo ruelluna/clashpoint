@@ -18,6 +18,7 @@ type LedgerRow = {
   amount: number
   balance_after: number
   description: string | null
+  source_payment_id: string | null
   created_by: string | null
   created_at: string
 }
@@ -30,6 +31,7 @@ function mapLedgerRow(row: LedgerRow): RevolvingFundLedgerEntry {
     amount: Number(row.amount),
     balanceAfter: Number(row.balance_after),
     description: row.description,
+    sourcePaymentId: row.source_payment_id,
     createdBy: row.created_by,
     createdAt: row.created_at,
   }
@@ -51,25 +53,68 @@ async function getLatestBalance(
   return data ? Number(data.balance_after) : 0
 }
 
+export type PostRevolvingFundLedgerEntryInput = {
+  eventId: string
+  amount: number
+  entryType: RevolvingFundEntryType
+  description: string
+  actorId: string
+  sourcePaymentId?: string | null
+}
+
+export async function postRevolvingFundLedgerEntry(
+  input: PostRevolvingFundLedgerEntryInput
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const amount = roundMoney(input.amount)
+
+  if (amount === 0 && input.entryType !== 'opening') {
+    return { error: 'Ledger amount cannot be zero' }
+  }
+
+  if (input.sourcePaymentId) {
+    const { data: existing, error: existingError } = await supabase
+      .from('event_revolving_fund_ledger')
+      .select('id')
+      .eq('source_payment_id', input.sourcePaymentId)
+      .eq('entry_type', input.entryType)
+      .maybeSingle()
+
+    if (existingError) return { error: existingError.message }
+    if (existing) return {}
+  }
+
+  const currentBalance = await getLatestBalance(supabase, input.eventId)
+  const balanceAfter = roundMoney(currentBalance + amount)
+
+  const { error } = await supabase.from('event_revolving_fund_ledger').insert({
+    event_id: input.eventId,
+    entry_type: input.entryType,
+    amount,
+    balance_after: balanceAfter,
+    description: input.description.trim(),
+    source_payment_id: input.sourcePaymentId ?? null,
+    created_by: input.actorId,
+  })
+
+  if (error) return { error: error.message }
+  return {}
+}
+
 export async function createOpeningLedgerEntry(
   actorId: string,
   eventId: string,
   initialAmount: number
 ): Promise<{ error?: string }> {
-  const supabase = await createClient()
   const amount = roundMoney(Math.max(0, initialAmount))
 
-  const { error } = await supabase.from('event_revolving_fund_ledger').insert({
-    event_id: eventId,
-    entry_type: 'opening',
+  return postRevolvingFundLedgerEntry({
+    eventId,
     amount,
-    balance_after: amount,
+    entryType: 'opening',
     description: 'Opening revolving fund balance',
-    created_by: actorId,
+    actorId,
   })
-
-  if (error) return { error: error.message }
-  return {}
 }
 
 export async function listRevolvingFundLedger(
@@ -95,20 +140,11 @@ export async function recordRevolvingFundAdjustment(
   actorId: string,
   input: RecordRevolvingFundAdjustmentInput
 ): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const amount = roundMoney(input.amount)
-  const currentBalance = await getLatestBalance(supabase, input.eventId)
-  const balanceAfter = roundMoney(currentBalance + amount)
-
-  const { error } = await supabase.from('event_revolving_fund_ledger').insert({
-    event_id: input.eventId,
-    entry_type: 'adjustment',
-    amount,
-    balance_after: balanceAfter,
-    description: input.description.trim(),
-    created_by: actorId,
+  return postRevolvingFundLedgerEntry({
+    eventId: input.eventId,
+    amount: input.amount,
+    entryType: 'adjustment',
+    description: input.description,
+    actorId,
   })
-
-  if (error) return { error: error.message }
-  return {}
 }

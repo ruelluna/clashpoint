@@ -338,7 +338,7 @@ export function EventRoostersClient({
     <PageStack>
       <PageHeader
         title="Roosters"
-        description={`${eventName} · ${registrations.length} cock${registrations.length === 1 ? '' : 's'} registered. Entry fees stay pending until Payments.`}
+        description={`${eventName} · ${registrations.length} cock${registrations.length === 1 ? '' : 's'} registered. Entry fees stay pending until Cashier.`}
       />
 
       <Button

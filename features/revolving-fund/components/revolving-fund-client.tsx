@@ -52,7 +52,17 @@ function formatDate(iso: string) {
 }
 
 function entryTypeLabel(entryType: RevolvingFundLedgerEntry['entryType']) {
-  return entryType === 'opening' ? 'Opening' : 'Adjustment'
+  switch (entryType) {
+    case 'opening':
+      return 'Opening'
+    case 'collection':
+      return 'Collection'
+    case 'refund':
+      return 'Refund'
+    case 'adjustment':
+    default:
+      return 'Adjustment'
+  }
 }
 
 export function RevolvingFundClient({

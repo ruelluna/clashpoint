@@ -257,7 +257,7 @@ function InspectionRow({
           paymentBadge.colorPalette !== 'green' ? (
             <Text fontSize="sm" color="fg.muted">
               Inspection cleared — proceed to{' '}
-              <Link href={`/dashboard/events/${eventId}/payments`}>Payments</Link> before matching.
+              <Link href={`/dashboard/events/${eventId}/payments`}>Cashier</Link> before matching.
             </Text>
           ) : null}
         </Stack>
@@ -636,7 +636,7 @@ function OrganizerSummaryPanel({
         </Text>
         <ButtonGroup>
           <Button asChild size="md" colorPalette="blue">
-            <Link href={`/dashboard/events/${eventId}/payments`}>Open Payments</Link>
+            <Link href={`/dashboard/events/${eventId}/payments`}>Open Cashier</Link>
           </Button>
           {canAdvanceEvent ? (
             <form action={statusAction}>
@@ -728,7 +728,7 @@ export function InspectionStationClient({
     <PageStack>
       <PageHeader
         title="Inspection"
-        description={`${eventName} · Record fight-day weight in grams, complete physical inspection, then send owners to Payments before matching.`}
+        description={`${eventName} · Record fight-day weight in grams, complete physical inspection, then send owners to Cashier before matching.`}
       />
 
       <FindRoosterPanel

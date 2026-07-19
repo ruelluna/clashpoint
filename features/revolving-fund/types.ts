@@ -1,4 +1,8 @@
-export type RevolvingFundEntryType = 'opening' | 'adjustment'
+export type RevolvingFundEntryType =
+  | 'opening'
+  | 'adjustment'
+  | 'collection'
+  | 'refund'
 
 export type RevolvingFundLedgerEntry = {
   id: string
@@ -7,6 +11,7 @@ export type RevolvingFundLedgerEntry = {
   amount: number
   balanceAfter: number
   description: string | null
+  sourcePaymentId: string | null
   createdBy: string | null
   createdAt: string
 }

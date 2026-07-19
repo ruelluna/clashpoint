@@ -1,5 +1,6 @@
 import type { PaymentStatus } from '@/features/entries/types'
 import type { PaymentCategory } from '@/features/payments/fee-calc'
+import type { EntryOutstandingDues } from '@/features/payments/dues'
 
 export type PaymentLedgerItem = {
   id: string
@@ -22,4 +23,21 @@ export type PaymentLedgerItem = {
 
 export type PaymentReceiptItem = PaymentLedgerItem & {
   eventName: string
+}
+
+export type CashierTargetMatch = {
+  entryId: string
+  entryNumber: string
+  entryName: string
+  ownerName: string
+  ownerBarcode: string | null
+  roosterCount: number
+  paymentStatus: PaymentStatus
+  dues: EntryOutstandingDues
+  matchedVia: 'owner_barcode' | 'cock_barcode' | 'search'
+}
+
+export type CashierLookupResult = {
+  error?: string
+  matches?: CashierTargetMatch[]
 }
