@@ -21,7 +21,7 @@ function statusColor(status: PublicEventListItem['status']) {
   switch (status) {
     case 'open':
       return 'green'
-    case 'ongoing':
+    case 'in_progress':
       return 'blue'
     case 'completed':
       return 'purple'

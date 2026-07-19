@@ -291,7 +291,7 @@ export async function listOngoingFightQueueSummaries(): Promise<FightQueueSummar
   const { data: events, error: eventsError } = await supabase
     .from('events')
     .select('id, name, venue')
-    .eq('status', 'ongoing')
+    .eq('status', 'in_progress')
     .is('deleted_at', null)
     .order('event_date', { ascending: true })
 

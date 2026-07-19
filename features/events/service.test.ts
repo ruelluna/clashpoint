@@ -192,7 +192,7 @@ describe('transitionStatus auto-clear active', () => {
             is: vi.fn().mockReturnValue({
               maybeSingle: vi.fn().mockResolvedValue({
                 data: {
-                  status: 'ongoing',
+                  status: 'in_progress',
                   name: 'Fight Day',
                   is_active: true,
                 },

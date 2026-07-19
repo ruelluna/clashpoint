@@ -5,10 +5,7 @@ export const eventTypeSchema = z.enum(['classic', 'derby'])
 export const eventStatusSchema = z.enum([
   'draft',
   'open',
-  'registration_closed',
-  'ready_for_weighing',
-  'ready_for_matching',
-  'ongoing',
+  'in_progress',
   'completed',
   'cancelled',
   'archived',
@@ -248,10 +245,7 @@ export const EVENT_TYPE_LABELS: Record<z.infer<typeof eventTypeSchema>, string> 
 export const EVENT_STATUS_LABELS: Record<z.infer<typeof eventStatusSchema>, string> = {
   draft: 'Draft',
   open: 'Open',
-  registration_closed: 'Registration Closed',
-  ready_for_weighing: 'Ready for Weighing',
-  ready_for_matching: 'Ready for Matching',
-  ongoing: 'Ongoing',
+  in_progress: 'In Progress',
   completed: 'Completed',
   cancelled: 'Cancelled',
   archived: 'Archived',

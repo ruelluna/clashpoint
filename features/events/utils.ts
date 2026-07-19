@@ -23,11 +23,8 @@ export function resolveCocksPerEntry(
 
 export const STATUS_TRANSITIONS: Record<EventStatus, EventStatus[]> = {
   draft: ['open', 'cancelled'],
-  open: ['registration_closed', 'cancelled'],
-  registration_closed: ['ready_for_weighing', 'cancelled'],
-  ready_for_weighing: ['ready_for_matching', 'cancelled'],
-  ready_for_matching: ['ongoing', 'cancelled'],
-  ongoing: ['completed', 'cancelled'],
+  open: ['in_progress', 'cancelled'],
+  in_progress: ['completed', 'cancelled'],
   completed: ['archived'],
   cancelled: ['archived'],
   archived: [],

@@ -1469,10 +1469,7 @@ export type Database = {
       event_status:
         | 'draft'
         | 'open'
-        | 'registration_closed'
-        | 'ready_for_weighing'
-        | 'ready_for_matching'
-        | 'ongoing'
+        | 'in_progress'
         | 'completed'
         | 'cancelled'
         | 'archived'

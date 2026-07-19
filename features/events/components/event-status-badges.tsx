@@ -11,7 +11,7 @@ export function eventStatusColorPalette(status: EventStatus) {
       return 'gray'
     case 'open':
       return 'green'
-    case 'ongoing':
+    case 'in_progress':
       return 'blue'
     case 'completed':
       return 'purple'

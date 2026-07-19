@@ -625,8 +625,7 @@ function OrganizerSummaryPanel({
 
   if (!queueComplete) return null
 
-  const canAdvanceEvent =
-    canManageEvent && eventStatus === 'ready_for_weighing'
+  const canAdvanceEvent = canManageEvent && eventStatus === 'open'
 
   return (
     <PanelCard title="Inspection queue complete">
@@ -641,9 +640,9 @@ function OrganizerSummaryPanel({
           {canAdvanceEvent ? (
             <form action={statusAction}>
               <input type="hidden" name="eventId" value={eventId} />
-              <input type="hidden" name="status" value="ready_for_matching" />
+              <input type="hidden" name="status" value="in_progress" />
               <Button type="submit" size="md" variant="outline" loading={statusPending}>
-                Mark event {EVENT_STATUS_LABELS.ready_for_matching}
+                Mark event {EVENT_STATUS_LABELS.in_progress}
               </Button>
             </form>
           ) : null}

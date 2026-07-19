@@ -177,6 +177,9 @@ export function formatPaymentReference(eventId, sequence) {
   return `PAY-${eventIdPrefix(eventId)}-${String(sequence).padStart(4, '0')}`
 }
 
+/** Default lifecycle status for cashier + matching demo seeds. */
+export const DEMO_EVENT_STATUS = 'in_progress'
+
 export function feeSnapshotFromSettings(settings) {
   return {
     registrationFeeEnabled: settings.registrationFeeEnabled,
@@ -411,7 +414,7 @@ export async function insertDemoEvent(supabase, { actorId, venue, event }) {
     derby_format: event.derbyFormat ?? null,
     derby_type: event.derbyAgeType ?? null,
     cocks_per_entry: event.cocksPerEntry,
-    status: 'ready_for_matching',
+    status: event.status ?? DEMO_EVENT_STATUS,
     is_active: false,
     entry_fee: event.fees.registrationFeeEnabled ? event.fees.registrationFeeAmount : 0,
     registration_fee_enabled: event.fees.registrationFeeEnabled,
@@ -444,7 +447,11 @@ export async function insertDemoEvent(supabase, { actorId, venue, event }) {
     match_weight_tolerance_grams: 50,
   }
 
-  const { data, error } = await supabase.from('events').insert(payload).select('id, name').single()
+  const { data, error } = await supabase
+    .from('events')
+    .insert(payload)
+    .select('id, name, status')
+    .single()
   if (error) throw error
 
   // Mirror createEvent: always post an opening ledger row (amount may be 0).
@@ -654,6 +661,7 @@ export async function seedOwnersEntriesAndRoosters({
 export function printSeedSummary({
   eventId,
   eventName,
+  eventStatus,
   tallies,
   kind,
   revolvingFundInitial,
@@ -662,6 +670,9 @@ export function printSeedSummary({
   console.log(`=== ${kind} demo seed complete ===`)
   console.log(`Event: ${eventName}`)
   console.log(`Id:    ${eventId}`)
+  if (eventStatus) {
+    console.log(`Status: ${eventStatus} (matching + cashier ready)`)
+  }
   console.log(
     `Owners: ${tallies.owners} (unpaid ${tallies.unpaid}, partial ${tallies.partial}, paid ${tallies.paid})`
   )

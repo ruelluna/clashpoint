@@ -37,7 +37,7 @@ type RoosterRow = {
   weighings: { weight_status: string; official_weight: number | null } | null
 }
 
-const MATCHING_EVENT_STATUSES = ['ready_for_matching', 'ongoing']
+const MATCHING_EVENT_STATUSES = ['in_progress']
 
 async function fetchRoosterContext(
   roosterId: string,

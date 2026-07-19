@@ -523,7 +523,7 @@ export async function updatePrizeStructure(
   if (!event) return { error: 'Event not found' }
 
   const status = event.status as EventRow['status']
-  if (!canEditEventDetails(status) && status !== 'registration_closed') {
+  if (!canEditEventDetails(status)) {
     return { error: 'Prize structure cannot be changed in the current status' }
   }
 

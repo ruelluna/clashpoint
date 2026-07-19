@@ -2,6 +2,7 @@
  * Demo seed: 3-cock derby event with owners + roosters for cashier and matching practice.
  * Run: npm run seed:derby-demo
  *
+ * Creates the event in **In Progress** so matching works immediately after seed.
  * Replaces any event named identically, then makes this event the sole active event.
  */
 
@@ -9,6 +10,7 @@ import {
   activateSeedEvent,
   createServiceClient,
   deleteSeedEventsByName,
+  DEMO_EVENT_STATUS,
   insertDemoEvent,
   insertPrizeStructure,
   loadEnvFiles,
@@ -42,6 +44,9 @@ const FEES = {
   cashBondAmount: 2000,
 }
 
+/** Opening revolving fund for cashier practice */
+const REVOLVING_FUND_INITIAL = 200_000
+
 async function main() {
   loadEnvFiles()
   const supabase = createServiceClient()
@@ -66,8 +71,10 @@ async function main() {
       cocksPerEntry: 3,
       registrationDeadline: deadline.toISOString(),
       fees: FEES,
+      revolvingFundInitial: REVOLVING_FUND_INITIAL,
       taxPerFight: 100,
       requireRoosterEntryApproval: true,
+      status: DEMO_EVENT_STATUS,
       notes: 'Derby demo seed — cashier + matching practice.',
     },
   })
@@ -88,14 +95,17 @@ async function main() {
     cocksPerEntry: 3,
     fees: FEES,
     includeFeeSnapshot: true,
+    revolvingFundInitial: event.revolvingFundInitial,
   })
 
   await activateSeedEvent(supabase, event.id)
   printSeedSummary({
     eventId: event.id,
     eventName: EVENT_NAME,
+    eventStatus: event.status,
     tallies,
     kind: 'Derby',
+    revolvingFundInitial: event.revolvingFundInitial,
   })
 }
 

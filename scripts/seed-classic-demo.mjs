@@ -2,6 +2,7 @@
  * Demo seed: classic event with owners + roosters for cashier and matching practice.
  * Run: npm run seed:classic-demo
  *
+ * Creates the event in **In Progress** so matching works immediately after seed.
  * Replaces any event named identically, then makes this event the sole active event.
  */
 
@@ -9,6 +10,7 @@ import {
   activateSeedEvent,
   createServiceClient,
   deleteSeedEventsByName,
+  DEMO_EVENT_STATUS,
   insertDemoEvent,
   loadEnvFiles,
   printSeedSummary,
@@ -47,6 +49,9 @@ const FEES = {
   cashBondAmount: 0,
 }
 
+/** Opening revolving fund for cashier practice */
+const REVOLVING_FUND_INITIAL = 50_000
+
 async function main() {
   loadEnvFiles()
   const supabase = createServiceClient()
@@ -67,8 +72,10 @@ async function main() {
       derbyAgeType: null,
       cocksPerEntry: 1,
       fees: FEES,
+      revolvingFundInitial: REVOLVING_FUND_INITIAL,
       taxPerFight: 50,
       requireRoosterEntryApproval: false,
+      status: DEMO_EVENT_STATUS,
       notes: 'Classic demo seed — cashier + matching practice.',
     },
   })
@@ -81,14 +88,17 @@ async function main() {
     cocksPerEntry: 1,
     fees: FEES,
     includeFeeSnapshot: false,
+    revolvingFundInitial: event.revolvingFundInitial,
   })
 
   await activateSeedEvent(supabase, event.id)
   printSeedSummary({
     eventId: event.id,
     eventName: EVENT_NAME,
+    eventStatus: event.status,
     tallies,
     kind: 'Classic',
+    revolvingFundInitial: event.revolvingFundInitial,
   })
 }
 
