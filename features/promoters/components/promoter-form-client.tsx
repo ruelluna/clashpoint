@@ -190,9 +190,10 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 <Checkbox.Root
                   checked={giveLoginAccess}
                   onCheckedChange={(details) =>
-                    setGiveLoginAccess(details.checked === true)
+                    setGiveLoginAccess(Boolean(details.checked))
                   }
                 >
+                  <Checkbox.HiddenInput />
                   <Checkbox.Control />
                   <Checkbox.Label>
                     Give this promoter portal login access
