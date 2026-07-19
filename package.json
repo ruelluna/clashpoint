@@ -10,7 +10,9 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:e2e": "playwright test",
-    "seed:first-admin": "node scripts/seed-first-admin.mjs"
+    "seed:first-admin": "node scripts/seed-first-admin.mjs",
+    "seed:classic-demo": "node scripts/seed-classic-demo.mjs",
+    "seed:derby-demo": "node scripts/seed-derby-demo.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
