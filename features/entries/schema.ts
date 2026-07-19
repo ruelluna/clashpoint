@@ -93,6 +93,7 @@ export const weightGramsSchema = z.coerce
   .number()
   .int('Weight must be a whole number of grams')
   .positive('Weight must be greater than zero')
+  .max(9999, 'Weight must be at most 9999 g (4 digits)')
 
 export const roosterColorMarkingSchema = z
   .string()
@@ -129,7 +130,7 @@ export function buildRoosterEntryItemSchema(bandingRequired: boolean) {
     handlerName: optionalText(200),
     breed: requiredText(100, 'Breed is required'),
     colorMarking: roosterColorMarkingSchema,
-    notes: requiredText(2000, 'Notes are required'),
+    notes: optionalText(2000),
   })
 }
 

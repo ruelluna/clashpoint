@@ -16,7 +16,6 @@ import { PanelLeftIcon } from 'lucide-react'
 import { AppSidebar } from '@/components/dashboard/app-sidebar'
 import { LAYOUT_GAP } from '@/components/dashboard/spacing'
 import { ColorModeButton } from '@/components/ui/color-mode-button'
-import { useCompactShell } from '@/hooks/use-mobile'
 
 const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_COLLAPSED = '4rem'
@@ -34,7 +33,6 @@ export function DashboardShell({
   permissionIds,
   children,
 }: DashboardShellProps) {
-  const isCompactShell = useCompactShell()
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -59,46 +57,48 @@ export function DashboardShell({
     })
   }
 
-  const sidebar = (
-    <AppSidebar
-      displayName={displayName}
-      avatarUrl={avatarUrl}
-      collapsed={isCompactShell ? false : collapsed}
-      permissionIds={permissionIds}
-      onNavigate={() => setMobileOpen(false)}
-    />
-  )
-
   return (
     <Flex minH="100vh" bg="bg">
-      {!isCompactShell ? (
-        <Box
-          as="aside"
-          width={collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH}
-          flexShrink={0}
-          borderRightWidth="1px"
-          borderColor="border"
-          transition="width 0.2s"
-          overflowX="hidden"
-          overflowY="auto"
-        >
-          {sidebar}
-        </Box>
-      ) : (
-        <Drawer.Root
-          open={mobileOpen}
-          onOpenChange={(details) => setMobileOpen(details.open)}
-          placement="start"
-          size="xs"
-        >
-          <Drawer.Backdrop />
-          <Drawer.Positioner>
-            <Drawer.Content p={0} maxW={SIDEBAR_WIDTH}>
-              <Drawer.Body p={0}>{sidebar}</Drawer.Body>
-            </Drawer.Content>
-          </Drawer.Positioner>
-        </Drawer.Root>
-      )}
+      <Box
+        as="aside"
+        display={{ base: 'none', lg: 'block' }}
+        width={collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH}
+        flexShrink={0}
+        borderRightWidth="1px"
+        borderColor="border"
+        transition="width 0.2s"
+        overflowX="hidden"
+        overflowY="auto"
+      >
+        <AppSidebar
+          displayName={displayName}
+          avatarUrl={avatarUrl}
+          collapsed={collapsed}
+          permissionIds={permissionIds}
+        />
+      </Box>
+
+      <Drawer.Root
+        open={mobileOpen}
+        onOpenChange={(details) => setMobileOpen(details.open)}
+        placement="start"
+        size="xs"
+      >
+        <Drawer.Backdrop />
+        <Drawer.Positioner>
+          <Drawer.Content p={0} maxW={SIDEBAR_WIDTH}>
+            <Drawer.Body p={0}>
+              <AppSidebar
+                displayName={displayName}
+                avatarUrl={avatarUrl}
+                collapsed={false}
+                permissionIds={permissionIds}
+                onNavigate={() => setMobileOpen(false)}
+              />
+            </Drawer.Body>
+          </Drawer.Content>
+        </Drawer.Positioner>
+      </Drawer.Root>
 
       <Flex direction="column" flex="1" minW={0}>
         <Flex
@@ -112,16 +112,22 @@ export function DashboardShell({
           flexShrink={0}
         >
           <IconButton
+            aria-label="Open menu"
+            variant="ghost"
+            size="md"
+            display={{ base: 'inline-flex', lg: 'none' }}
+            onClick={() => setMobileOpen(true)}
+          >
+            <Icon asChild boxSize={4}>
+              <PanelLeftIcon />
+            </Icon>
+          </IconButton>
+          <IconButton
             aria-label="Toggle sidebar"
             variant="ghost"
             size="md"
-            onClick={() => {
-              if (isCompactShell) {
-                setMobileOpen(true)
-              } else {
-                toggleCollapsed()
-              }
-            }}
+            display={{ base: 'none', lg: 'inline-flex' }}
+            onClick={toggleCollapsed}
           >
             <Icon asChild boxSize={4}>
               <PanelLeftIcon />

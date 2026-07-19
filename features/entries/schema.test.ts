@@ -91,13 +91,27 @@ describe('roosterEntryItemSchema', () => {
     }
   })
 
-  it('requires breed, color, and notes', () => {
+  it('requires breed and color', () => {
     const result = roosterEntryItemSchema.safeParse({
       entryName: 'Thunder',
       bandNumber: 'B-101',
       weight: 2150,
     })
     expect(result.success).toBe(false)
+  })
+
+  it('allows optional notes', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 2150,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.notes).toBeUndefined()
+    }
   })
 
   it('allows optional band when banding is not required', () => {
@@ -184,6 +198,32 @@ describe('createEntrySchema', () => {
       entryName: 'Thunder',
       bandNumber: 'B-101',
       weight: 2.15,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+      notes: 'Note',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts weight up to 9999 grams', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 9999,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+      notes: 'Note',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects weight over 9999 grams', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 10000,
       breed: 'Talisayon',
       colorMarking: 'Black',
       notes: 'Note',

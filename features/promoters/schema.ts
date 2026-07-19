@@ -116,14 +116,15 @@ export const updatePromoterSchema = z
     promoterId: z.string().uuid(),
     ...promoterBaseFields,
     status: promoterStatusSchema,
+    statusChangeReason: z
+      .string()
+      .min(3, 'Reason must be at least 3 characters')
+      .max(500)
+      .optional()
+      .or(z.literal(''))
+      .transform((value) => value || undefined),
   })
   .superRefine(validateCommission)
-
-export const changePromoterStatusSchema = z.object({
-  promoterId: z.string().uuid(),
-  status: promoterStatusSchema,
-  reason: z.string().min(3, 'Reason must be at least 3 characters').optional(),
-})
 
 export const linkPromoterUserSchema = z.object({
   promoterId: z.string().uuid(),
@@ -133,7 +134,6 @@ export const linkPromoterUserSchema = z.object({
 
 export type CreatePromoterInput = z.infer<typeof createPromoterSchema>
 export type UpdatePromoterInput = z.infer<typeof updatePromoterSchema>
-export type ChangePromoterStatusInput = z.infer<typeof changePromoterStatusSchema>
 export type LinkPromoterUserInput = z.infer<typeof linkPromoterUserSchema>
 
 export const quickCreatePromoterSchema = z.object({

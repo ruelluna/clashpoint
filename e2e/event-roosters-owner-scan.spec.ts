@@ -9,16 +9,18 @@ function uniqueSuffix() {
   return Date.now().toString(36)
 }
 
-async function createOpenDerbyEvent(page: Page, name: string) {
+async function createOpenEvent(page: Page, name: string, eventType: 'derby' | 'classic') {
   await page.goto('/dashboard/events/new')
   await page.locator('input[name="name"]').fill(name)
   await page.locator('input[name="eventDate"]').fill('2026-12-20T10:00')
-  await page.locator('input[name="registrationDeadline"]').fill('2026-12-19T18:00')
+  if (eventType === 'derby') {
+    await page.locator('input[name="registrationDeadline"]').fill('2026-12-19T18:00')
+  }
 
   const eventTypeSelect = page
     .locator('select')
     .filter({ has: page.locator('option', { hasText: 'Classic' }) })
-  await eventTypeSelect.selectOption('derby')
+  await eventTypeSelect.selectOption(eventType)
 
   await page.getByRole('button', { name: 'Create event' }).click()
   await page.waitForURL(eventDetailUrl)
@@ -32,6 +34,10 @@ async function createOpenDerbyEvent(page: Page, name: string) {
   })
 
   return eventId
+}
+
+async function createOpenDerbyEvent(page: Page, name: string) {
+  return createOpenEvent(page, name, 'derby')
 }
 
 async function registerOwnerForEvent(
@@ -65,6 +71,8 @@ test.describe('Event roosters owner scan @auth', () => {
 
     await page.goto(`/dashboard/events/${eventId}/roosters`)
     await expect(page.getByRole('heading', { name: 'Roosters' })).toBeVisible()
+    await page.getByTestId('roosters-add-toggle').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
     await expect(page.getByTestId('event-owner-entry-picker')).toBeVisible()
 
     await page.getByTestId('owner-barcode-scan-input').fill(barcodeText)
@@ -79,16 +87,48 @@ test.describe('Event roosters owner scan @auth', () => {
 
     await page.locator('input[name="bandNumber"]').fill(bandNumber)
     await fillStaffRoosterCoreFields(page, suffix)
-    await page.getByRole('button', { name: 'Add rooster' }).click()
+    await page.getByTestId('roosters-save-button').click()
 
     await page.waitForURL(new RegExp(`/dashboard/events/${eventId}/roosters/[^/]+/print`))
 
     await page.goto(`/dashboard/events/${eventId}/roosters`)
+    await page.getByTestId('roosters-add-toggle').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
     await page.getByTestId('owner-barcode-scan-input').fill(barcodeText)
     await page.getByRole('button', { name: 'Look up barcode' }).click()
 
     await expect(page.getByTestId('owner-rooster-check-panel')).toContainText('1 of')
     await expect(page.getByTestId('owner-rooster-check-panel')).toContainText(bandNumber)
+  })
+
+  test('selects owner by barcode and adds rooster on classic event', async ({ page }) => {
+    test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
+
+    const suffix = uniqueSuffix()
+    const eventName = `E2E Classic Roosters Scan ${suffix}`
+    const ownerName = `Classic Farm ${suffix}`
+    const bandNumber = `BAND-${suffix}`
+
+    await signInAsAdmin(page)
+    const eventId = await createOpenEvent(page, eventName, 'classic')
+    await registerOwnerForEvent(page, eventId, ownerName, `Contact ${suffix}`)
+
+    const barcodeText = await page.locator('text=/^OWN-/').first().innerText()
+
+    await page.goto(`/dashboard/events/${eventId}/roosters`)
+    await expect(page.getByTestId('owner-barcode-scan-input')).toBeVisible()
+
+    await page.getByTestId('owner-barcode-scan-input').fill(barcodeText)
+    await page.getByRole('button', { name: 'Look up barcode' }).click()
+
+    await expect(page.getByTestId('owner-rooster-check-panel')).toContainText(ownerName)
+
+    await page.locator('input[name="bandNumber"]').fill(bandNumber)
+    await fillStaffRoosterCoreFields(page, suffix)
+    await page.getByRole('button', { name: 'Add rooster' }).click()
+
+    await page.waitForURL(new RegExp(`/dashboard/events/${eventId}/roosters/[^/]+/print`))
+    await expect(page.locator('text=/^COCK-/')).toBeVisible()
   })
 
   test('searches owners in the picker combobox', async ({ page }) => {
@@ -102,6 +142,8 @@ test.describe('Event roosters owner scan @auth', () => {
     await registerOwnerForEvent(page, eventId, ownerName, `Contact ${suffix}`)
 
     await page.goto(`/dashboard/events/${eventId}/roosters`)
+    await page.getByTestId('roosters-add-toggle').click()
+    await expect(page.getByRole('dialog')).toBeVisible()
     const ownerPicker = page.getByTestId('event-owner-entry-picker').getByRole('combobox')
     await ownerPicker.fill(ownerName)
     await page.getByRole('option', { name: new RegExp(ownerName) }).click()

@@ -11,6 +11,7 @@ import {
 
 import { signOutAction } from '@/features/auth/actions'
 import { getProfile } from '@/lib/auth/queries'
+import { getPromoterAccessDeniedReason } from '@/lib/auth/promoter-access'
 import { getUser } from '@/lib/auth/session'
 
 export default async function AccessDeniedPage() {
@@ -21,9 +22,21 @@ export default async function AccessDeniedPage() {
   }
 
   const profile = await getProfile(user.id)
-  const reason = profile
+  let reason = profile
     ? 'Your account does not have admin access.'
     : 'Your profile was not found. Contact support to finish setup.'
+
+  if (profile?.role === 'promoter') {
+    const promoterReason = await getPromoterAccessDeniedReason(profile)
+    if (promoterReason) {
+      reason = promoterReason
+    }
+  }
+
+  const helperText =
+    profile?.role === 'promoter'
+      ? 'Sign out and contact your organizer if you need access restored.'
+      : 'Sign out and use an admin account, or contact your organization for access.'
 
   return (
     <Flex
@@ -58,8 +71,7 @@ export default async function AccessDeniedPage() {
               <Card.Body p={6}>
                 <Stack gap={4}>
                   <Text fontSize="sm" color="fg.muted">
-                    Sign out and use an admin account, or contact your
-                    organization for access.
+                    {helperText}
                   </Text>
                   <form action={signOutAction}>
                     <Button type="submit" width="full" colorPalette="blue">

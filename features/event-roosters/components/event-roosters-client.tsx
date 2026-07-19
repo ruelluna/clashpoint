@@ -1,10 +1,23 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Input, NativeSelect, Stack, Text } from '@chakra-ui/react'
+import {
+  Badge,
+  Box,
+  Button,
+  Dialog,
+  Flex,
+  Input,
+  NativeSelect,
+  Portal,
+  Stack,
+  Text,
+} from '@chakra-ui/react'
 import Link from 'next/link'
-import { useActionState, useMemo, useState } from 'react'
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 
-import { FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { ButtonGroup, FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { GramWeightInput } from '@/features/entries/components/gram-weight-input'
+import type { EventFeeSettings } from '@/features/events/fee-utils'
 import { formatBandNumberForDisplay } from '@/features/entries/band-display'
 import { isBandNumberRequiredForEvent } from '@/features/entries/schema'
 import { EventOwnerEntryPicker } from '@/features/entries/components/event-owner-entry-picker'
@@ -13,14 +26,15 @@ import { OwnerRoosterCheckPanel } from '@/features/entries/components/owner-roos
 import { RoosterEntryCoreFields } from '@/features/entries/components/rooster-entry-core-fields'
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
 import type { RoosterEntryCatalog } from '@/features/reference-values/catalog'
-import { createRoosterAction, type WeighingActionState } from '@/features/weighing/actions'
+import { getRoosterEntryPaymentDisplay } from '@/features/payments/display-utils'
 import type { RegistrationListItem } from '@/features/registrations/types'
+import { createRoosterAction, type WeighingActionState } from '@/features/weighing/actions'
 import type { WeighingEntrySummary } from '@/features/weighing/types'
 import {
   ELIGIBILITY_STATUS_LABELS,
   REGISTRATION_STATUS_LABELS,
 } from '@/lib/derby/enums'
-import type { EligibilityStatus, RegistrationWorkflowStatus } from '@/lib/derby/enums'
+import type { EligibilityStatus, InspectionStatus, RegistrationWorkflowStatus } from '@/lib/derby/enums'
 
 type EventRoostersClientProps = {
   eventId: string
@@ -36,8 +50,13 @@ type EventRoostersClientProps = {
   initialEntryId?: string
 }
 
-import type { EventFeeSettings } from '@/features/events/fee-utils'
-import { getRoosterEntryPaymentDisplay } from '@/features/payments/display-utils'
+const INSPECTION_STATUS_LABELS: Record<InspectionStatus, string> = {
+  not_required: 'Not required',
+  pending: 'Pending',
+  passed: 'Passed',
+  failed: 'Failed',
+  for_review: 'For review',
+}
 
 function statusColor(status: RegistrationWorkflowStatus): 'gray' | 'orange' | 'green' | 'red' {
   if (status === 'approved' || status === 'matched' || status === 'completed') return 'green'
@@ -55,7 +74,18 @@ function eligibilityColor(
   return 'orange'
 }
 
-function AddRoosterForm({
+function inspectionColor(
+  status: InspectionStatus
+): 'green' | 'red' | 'orange' | 'gray' {
+  if (status === 'passed') return 'green'
+  if (status === 'failed') return 'red'
+  if (status === 'for_review') return 'orange'
+  return 'gray'
+}
+
+function AddRoosterDialog({
+  open,
+  onOpenChange,
   eventId,
   eventType,
   entries,
@@ -65,6 +95,8 @@ function AddRoosterForm({
   eligibilityContext = null,
   initialEntryId = '',
 }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   eventId: string
   eventType: string
   entries: WeighingEntrySummary[]
@@ -80,6 +112,7 @@ function AddRoosterForm({
     {} as WeighingActionState
   )
   const [entryId, setEntryId] = useState(initialEntryId)
+  const [formKey, setFormKey] = useState(0)
   const isDerby = eventType === 'derby'
   const selectedEntry = entries.find((entry) => entry.entry_id === entryId) ?? null
   const canSubmit =
@@ -87,58 +120,190 @@ function AddRoosterForm({
     Boolean(entryId) &&
     (selectedEntry?.can_add_rooster ?? false)
 
+  useEffect(() => {
+    if (open) {
+      setEntryId(initialEntryId)
+    }
+  }, [open, initialEntryId])
+
+  useEffect(() => {
+    if (state.success) {
+      onOpenChange(false)
+    }
+  }, [state.success, onOpenChange])
+
+  function handleOpenChange(nextOpen: boolean) {
+    onOpenChange(nextOpen)
+    if (!nextOpen) {
+      setEntryId('')
+      setFormKey((key) => key + 1)
+    }
+  }
+
   return (
-    <PanelCard title="Add rooster">
-      <form action={action}>
-        <input type="hidden" name="eventId" value={eventId} />
-        <input type="hidden" name="eventType" value={eventType} />
-        <Stack gap={LAYOUT_GAP.form} maxW="2xl">
-          {isDerby ? (
-            <OwnerBarcodeScanRow eventId={eventId} onResolved={setEntryId} />
-          ) : null}
-          <EventOwnerEntryPicker
-            entries={entries}
-            cocksPerEntry={cocksPerEntry}
-            value={entryId}
-            onValueChange={setEntryId}
-          />
-          <OwnerRoosterCheckPanel
-            eventId={eventId}
-            entry={selectedEntry}
-            cocksPerEntry={cocksPerEntry}
-            registrations={registrations}
-          />
-          <FormField label="Rooster name" required>
-            <Input name="entryName" required maxLength={200} />
-          </FormField>
-          <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-            <FormField label="Band number" required={bandNumberRequired} flex="1">
-              <Input name="bandNumber" required={bandNumberRequired} maxLength={50} />
-            </FormField>
-            <FormField label="Declared weight (g, optional)" flex="1">
-              <Input name="weight" type="number" step="1" min="1" />
-            </FormField>
+    <Dialog.Root open={open} onOpenChange={(details) => handleOpenChange(details.open)}>
+      <Portal>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content maxW="2xl">
+            <form key={formKey} action={action}>
+              <input type="hidden" name="eventId" value={eventId} />
+              <input type="hidden" name="eventType" value={eventType} />
+              <Dialog.Header>
+                <Dialog.Title>Add rooster</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Stack gap={LAYOUT_GAP.form}>
+                  {isDerby ? (
+                    <OwnerBarcodeScanRow eventId={eventId} onResolved={setEntryId} />
+                  ) : null}
+                  <EventOwnerEntryPicker
+                    entries={entries}
+                    cocksPerEntry={cocksPerEntry}
+                    value={entryId}
+                    onValueChange={setEntryId}
+                  />
+                  <OwnerRoosterCheckPanel
+                    eventId={eventId}
+                    entry={selectedEntry}
+                    cocksPerEntry={cocksPerEntry}
+                    registrations={registrations}
+                  />
+                  <FormField label="Rooster name" required>
+                    <Input name="entryName" required maxLength={200} />
+                  </FormField>
+                  <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
+                    <FormField label="Band number" required={bandNumberRequired} flex="1">
+                      <Input name="bandNumber" required={bandNumberRequired} maxLength={50} />
+                    </FormField>
+                    <FormField label="Declared weight (g, optional)" flex="1">
+                      <GramWeightInput name="weight" />
+                    </FormField>
+                  </Flex>
+                  <FormField label="Handler name">
+                    <Input name="handlerName" maxLength={200} />
+                  </FormField>
+                  <RoosterEntryCoreFields slotKey="" mode="staff" catalog={catalog} required />
+                  {state.error ? (
+                    <Text fontSize="sm" color="red.500">
+                      {state.error}
+                    </Text>
+                  ) : null}
+                  {state.success ? (
+                    <Text fontSize="sm" color="green.600">
+                      {state.success}
+                    </Text>
+                  ) : null}
+                </Stack>
+              </Dialog.Body>
+              <Dialog.Footer>
+                <ButtonGroup>
+                  <Dialog.ActionTrigger asChild>
+                    <Button variant="outline" type="button">
+                      Cancel
+                    </Button>
+                  </Dialog.ActionTrigger>
+                  <Button
+                    type="submit"
+                    loading={pending}
+                    disabled={!canSubmit}
+                    size="md"
+                    data-testid="roosters-save-button"
+                  >
+                    Save rooster
+                  </Button>
+                </ButtonGroup>
+              </Dialog.Footer>
+            </form>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
+  )
+}
+
+function RoosterListCard({
+  eventId,
+  registration,
+  feeSettings,
+  highlighted,
+}: {
+  eventId: string
+  registration: RegistrationListItem
+  feeSettings: EventFeeSettings
+  highlighted: boolean
+}) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const paymentBadge = getRoosterEntryPaymentDisplay(
+    registration.reg_payment_status,
+    feeSettings
+  )
+
+  useEffect(() => {
+    if (highlighted && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [highlighted])
+
+  return (
+    <Box
+      ref={rowRef}
+      id={`rooster-${registration.id}`}
+      borderWidth="1px"
+      borderColor={highlighted ? 'green.500' : 'border'}
+      rounded="md"
+      p={4}
+      bg={highlighted ? 'bg.subtle' : undefined}
+      data-registration-id={registration.id}
+    >
+      <Flex
+        justify="space-between"
+        align={{ base: 'stretch', md: 'start' }}
+        gap={4}
+        direction={{ base: 'column', md: 'row' }}
+      >
+        <Stack gap={1} flex="1">
+          <Text fontWeight="semibold">
+            Cock #{registration.cock_number} · {formatBandNumberForDisplay(registration.band_number)}
+          </Text>
+          <Text fontSize="sm" color="fg.muted">
+            #{registration.entry_number} {registration.entry_name}
+            {registration.handler_name ? ` · Handler ${registration.handler_name}` : ''}
+            {registration.breed || registration.color_marking
+              ? ` · ${[registration.breed, registration.color_marking].filter(Boolean).join(' · ')}`
+              : ''}
+          </Text>
+          <Flex gap={2} wrap="wrap">
+            {paymentBadge ? (
+              <Badge colorPalette={paymentBadge.colorPalette} size="sm">
+                {paymentBadge.label}
+              </Badge>
+            ) : null}
+            <Badge colorPalette={statusColor(registration.registration_status)} size="sm">
+              {REGISTRATION_STATUS_LABELS[registration.registration_status]}
+            </Badge>
+            <Badge colorPalette={eligibilityColor(registration.eligibility_status)} size="sm">
+              {ELIGIBILITY_STATUS_LABELS[registration.eligibility_status]}
+            </Badge>
+            <Badge colorPalette={inspectionColor(registration.inspection_status)} size="sm">
+              {INSPECTION_STATUS_LABELS[registration.inspection_status]}
+            </Badge>
           </Flex>
-          <FormField label="Handler name">
-            <Input name="handlerName" maxLength={200} />
-          </FormField>
-          <RoosterEntryCoreFields slotKey="" mode="staff" catalog={catalog} required />
-          {state.error ? (
-            <Text fontSize="sm" color="red.500">
-              {state.error}
-            </Text>
-          ) : null}
-          {state.success ? (
-            <Text fontSize="sm" color="green.600">
-              {state.success}
-            </Text>
-          ) : null}
-          <Button type="submit" loading={pending} disabled={!canSubmit} alignSelf="flex-start">
-            Add rooster
-          </Button>
         </Stack>
-      </form>
-    </PanelCard>
+
+        <Button
+          asChild
+          size="md"
+          variant="outline"
+          alignSelf={{ base: 'stretch', md: 'flex-start' }}
+          data-testid="roosters-view-details-button"
+        >
+          <Link href={`/dashboard/events/${eventId}/roosters/${registration.id}`}>
+            View rooster details
+          </Link>
+        </Button>
+      </Flex>
+    </Box>
   )
 }
 
@@ -155,7 +320,12 @@ export function EventRoostersClient({
   highlightId,
   initialEntryId,
 }: EventRoostersClientProps) {
+  const [addOpen, setAddOpen] = useState(Boolean(initialEntryId))
   const [statusFilter, setStatusFilter] = useState<'' | RegistrationWorkflowStatus>('')
+
+  useEffect(() => {
+    if (initialEntryId) setAddOpen(true)
+  }, [initialEntryId])
 
   const filtered = useMemo(() => {
     return registrations.filter((row) => {
@@ -171,7 +341,19 @@ export function EventRoostersClient({
         description={`${eventName} · ${registrations.length} cock${registrations.length === 1 ? '' : 's'} registered. Entry fees stay pending until Payments.`}
       />
 
-      <AddRoosterForm
+      <Button
+        variant="outline"
+        size="md"
+        alignSelf="flex-start"
+        data-testid="roosters-add-toggle"
+        onClick={() => setAddOpen(true)}
+      >
+        Add rooster
+      </Button>
+
+      <AddRoosterDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
         eventId={eventId}
         eventType={eventType}
         entries={entries}
@@ -207,105 +389,23 @@ export function EventRoostersClient({
         </NativeSelect.Root>
       </Flex>
 
-      <PanelCard flush>
-        <Flex
-          px={4}
-          py={4}
-          borderBottomWidth="1px"
-          borderColor="border"
-          fontWeight="medium"
-          fontSize="sm"
-          display={{ base: 'none', lg: 'flex' }}
-        >
-          <Box flex="0.5">Cock</Box>
-          <Box flex="1.2">Owner</Box>
-          <Box flex="0.7">Payment</Box>
-          <Box flex="0.9">Registration</Box>
-          <Box flex="0.8">Eligibility</Box>
-          <Box flex="0.8">Inspection</Box>
-          <Box flex="0.6" textAlign="right">
-            Actions
-          </Box>
-        </Flex>
-
-        {filtered.length === 0 ? (
-          <Box px={4} py={8} textAlign="center">
-            <Text color="fg.muted">No roosters yet. Register owners first, then add cocks here.</Text>
-          </Box>
-        ) : (
-          filtered.map((registration) => (
-            <Box
+      {filtered.length === 0 ? (
+        <PanelCard title="Roosters">
+          <Text color="fg.muted">No roosters yet. Register owners first, then add cocks here.</Text>
+        </PanelCard>
+      ) : (
+        <Stack gap={4}>
+          {filtered.map((registration) => (
+            <RoosterListCard
               key={registration.id}
-              id={`rooster-${registration.id}`}
-              px={4}
-              py={4}
-              borderBottomWidth="1px"
-              borderColor="border"
-              bg={highlightId === registration.id ? 'bg.subtle' : undefined}
-            >
-              <Flex direction={{ base: 'column', lg: 'row' }} gap={3} align={{ lg: 'center' }}>
-                <Box flex="0.5">
-                  <Text fontWeight="semibold">#{registration.cock_number}</Text>
-                  <Text fontSize="xs" color="fg.muted">
-                    {formatBandNumberForDisplay(registration.band_number)}
-                  </Text>
-                  {registration.breed || registration.color_marking ? (
-                    <Text fontSize="xs" color="fg.muted">
-                      {[registration.breed, registration.color_marking]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </Text>
-                  ) : null}
-                </Box>
-                <Box flex="1.2">
-                  <Text fontWeight="medium">
-                    #{registration.entry_number} · {registration.entry_name}
-                  </Text>
-                </Box>
-                <Box flex="0.7">
-                  {(() => {
-                    const paymentDisplay = getRoosterEntryPaymentDisplay(
-                      registration.reg_payment_status,
-                      feeSettings
-                    )
-                    return paymentDisplay ? (
-                      <Badge size="sm" colorPalette={paymentDisplay.colorPalette}>
-                        {paymentDisplay.label}
-                      </Badge>
-                    ) : null
-                  })()}
-                </Box>
-                <Box flex="0.9">
-                  <Badge colorPalette={statusColor(registration.registration_status)} size="sm">
-                    {REGISTRATION_STATUS_LABELS[registration.registration_status]}
-                  </Badge>
-                </Box>
-                <Box flex="0.8">
-                  <Badge colorPalette={eligibilityColor(registration.eligibility_status)} size="sm">
-                    {ELIGIBILITY_STATUS_LABELS[registration.eligibility_status]}
-                  </Badge>
-                </Box>
-                <Box flex="0.8">
-                  <Text fontSize="sm" textTransform="capitalize">
-                    {registration.inspection_status.replace(/_/g, ' ')}
-                  </Text>
-                </Box>
-                <Box flex="0.6">
-                  <Flex justify={{ base: 'flex-start', lg: 'flex-end' }} gap={2}>
-                    {eventType === 'derby' ? (
-                      <Button asChild size="xs" variant="outline">
-                        <Link href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}>
-                          Print slip
-                        </Link>
-                      </Button>
-                    ) : null}
-                  </Flex>
-                </Box>
-              </Flex>
-            </Box>
-          ))
-        )}
-      </PanelCard>
+              eventId={eventId}
+              registration={registration}
+              feeSettings={feeSettings}
+              highlighted={highlightId === registration.id}
+            />
+          ))}
+        </Stack>
+      )}
     </PageStack>
   )
 }

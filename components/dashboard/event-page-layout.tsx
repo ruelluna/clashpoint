@@ -33,7 +33,13 @@ export async function EventPageLayout({
 
   return (
     <PageStack>
-      <EventDetailTabs eventId={eventId} eventName={eventName} visibleTabs={tabs} />
+      <EventDetailTabs
+        eventId={eventId}
+        eventName={eventName}
+        eventStatus={event?.status}
+        isPublic={event?.is_public ?? false}
+        visibleTabs={tabs}
+      />
       {children}
     </PageStack>
   )

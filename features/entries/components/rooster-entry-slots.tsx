@@ -3,6 +3,7 @@
 import { Flex, Input, Text } from '@chakra-ui/react'
 
 import { FormField, LAYOUT_GAP, PanelCard } from '@/components/dashboard'
+import { GramWeightInput } from '@/features/entries/components/gram-weight-input'
 import { RoosterEntryCoreFields } from '@/features/entries/components/rooster-entry-core-fields'
 import {
   EligibilityStatusSummary,
@@ -116,11 +117,8 @@ function RoosterSlotFields({
           />
         </FormField>
         <FormField label="Weight (g)" required={required} flex="1">
-          <Input
+          <GramWeightInput
             name={weightField}
-            type="number"
-            step="1"
-            min="1"
             required={required}
             defaultValue={
               defaults?.weight != null ? String(defaults.weight) : undefined

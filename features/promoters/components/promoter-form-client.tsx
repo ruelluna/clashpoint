@@ -17,7 +17,6 @@ import { useActionState, useState } from 'react'
 
 import { ButtonGroup, FormField, LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import {
-  changePromoterStatusAction,
   createPromoterAction,
   linkPromoterUserAction,
   updatePromoterAction,
@@ -32,6 +31,7 @@ import type {
   Promoter,
   PromoterEventHistoryItem,
   PromoterStatus,
+  PromoterStatusHistoryItem,
 } from '@/features/promoters/types'
 
 const initialState: PromoterActionState = {}
@@ -50,17 +50,29 @@ type PromoterFormClientProps =
       mode: 'edit'
       promoter: Promoter
       eventHistory?: PromoterEventHistoryItem[]
+      statusHistory?: PromoterStatusHistoryItem[]
     }
+
+function formatStatusTransition(
+  fromStatus: PromoterStatus | null,
+  toStatus: PromoterStatus
+) {
+  const toLabel = PROMOTER_STATUS_LABELS[toStatus]
+  if (!fromStatus) return toLabel
+  return `${PROMOTER_STATUS_LABELS[fromStatus]} → ${toLabel}`
+}
 
 export function PromoterFormClient(props: PromoterFormClientProps) {
   const isCreate = props.mode === 'create'
   const promoter = props.mode === 'edit' ? props.promoter : null
   const eventHistory = props.mode === 'edit' ? (props.eventHistory ?? []) : []
+  const statusHistory = props.mode === 'edit' ? (props.statusHistory ?? []) : []
 
   const [giveLoginAccess, setGiveLoginAccess] = useState(false)
   const [commissionType, setCommissionType] = useState<CommissionType>(
     promoter?.commission_type ?? 'none'
   )
+  const [status, setStatus] = useState<PromoterStatus>(promoter?.status ?? 'active')
 
   const [createState, createAction, createPending] = useActionState(
     createPromoterAction,
@@ -68,10 +80,6 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
   )
   const [updateState, updateAction, updatePending] = useActionState(
     updatePromoterAction,
-    initialState
-  )
-  const [statusState, statusAction, statusPending] = useActionState(
-    changePromoterStatusAction,
     initialState
   )
   const [linkState, linkAction, linkPending] = useActionState(
@@ -85,6 +93,8 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
 
   const showCommissionValue =
     commissionType === 'fixed' || commissionType === 'percentage'
+  const showStatusChangeReason =
+    !isCreate && promoter != null && status !== promoter.status
 
   return (
     <PageStack maxW="2xl">
@@ -170,7 +180,10 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 <NativeSelect.Root>
                   <NativeSelect.Field
                     name="status"
-                    defaultValue={promoter?.status ?? 'active'}
+                    value={status}
+                    onChange={(event) =>
+                      setStatus(event.currentTarget.value as PromoterStatus)
+                    }
                   >
                     {promoterStatuses.map(([value, label]) => (
                       <option key={value} value={value}>
@@ -179,6 +192,18 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                     ))}
                   </NativeSelect.Field>
                 </NativeSelect.Root>
+              </FormField>
+            ) : null}
+            {showStatusChangeReason ? (
+              <FormField
+                label="Reason for status change"
+              >
+                <Textarea
+                  name="statusChangeReason"
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Why is this status changing?"
+                />
               </FormField>
             ) : null}
             <FormField label="Notes">
@@ -190,9 +215,10 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 <Checkbox.Root
                   checked={giveLoginAccess}
                   onCheckedChange={(details) =>
-                    setGiveLoginAccess(details.checked === true)
+                    setGiveLoginAccess(Boolean(details.checked))
                   }
                 >
+                  <Checkbox.HiddenInput />
                   <Checkbox.Control />
                   <Checkbox.Label>
                     Give this promoter portal login access
@@ -276,39 +302,42 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
       ) : null}
 
       {!isCreate ? (
-        <PanelCard title="Quick status change">
-          <form action={statusAction}>
-            <input type="hidden" name="promoterId" value={promoter?.id ?? ''} />
-            <Flex gap={LAYOUT_GAP.form} wrap="wrap" align="flex-end" direction={{ base: 'column', sm: 'row' }}>
-              <FormField label="New status" minW={{ sm: '12rem' }}>
-                <NativeSelect.Root size="sm">
-                  <NativeSelect.Field name="status" defaultValue={promoter?.status}>
-                    {promoterStatuses.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </NativeSelect.Field>
-                </NativeSelect.Root>
-              </FormField>
-              <FormField label="Reason (optional)" flex="1" minW={{ sm: '12rem' }}>
-                <Input name="reason" placeholder="Reason for status change" />
-              </FormField>
-              <Button type="submit" size="md" loading={statusPending} width={{ base: 'full', sm: 'auto' }}>
-                Update status
-              </Button>
-            </Flex>
-            {statusState.error ? (
-              <Text color="fg.error" fontSize="sm" mt={2}>
-                {statusState.error}
+        <PanelCard flush title="Status history">
+          {statusHistory.length === 0 ? (
+            <Box px={4} py={6}>
+              <Text fontSize="sm" color="fg.muted">
+                No status changes recorded yet.
               </Text>
-            ) : null}
-            {statusState.success ? (
-              <Text color="fg.success" fontSize="sm" mt={2}>
-                {statusState.success}
-              </Text>
-            ) : null}
-          </form>
+            </Box>
+          ) : (
+            statusHistory.map((entry) => (
+              <Flex
+                key={entry.id}
+                px={4}
+                py={3}
+                borderBottomWidth="1px"
+                borderColor="border"
+                direction="column"
+                gap={1}
+              >
+                <Flex
+                  justify="space-between"
+                  gap={2}
+                  direction={{ base: 'column', sm: 'row' }}
+                >
+                  <Text fontSize="sm" fontWeight="medium">
+                    {formatStatusTransition(entry.fromStatus, entry.toStatus)}
+                  </Text>
+                  <Text fontSize="sm" color="fg.muted">
+                    {new Date(entry.createdAt).toLocaleString()}
+                  </Text>
+                </Flex>
+                <Text fontSize="sm" color="fg.muted">
+                  Reason: {entry.reason ?? '—'}
+                </Text>
+              </Flex>
+            ))
+          )}
         </PanelCard>
       ) : null}
 

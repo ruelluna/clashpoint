@@ -42,3 +42,12 @@ export type PromoterEventHistoryItem = {
   status: string
   event_type: string
 }
+
+export type PromoterStatusHistoryItem = {
+  id: string
+  createdAt: string
+  fromStatus: PromoterStatus | null
+  toStatus: PromoterStatus
+  reason?: string
+  action: string
+}

@@ -105,7 +105,7 @@ export function OwnerDetailClient({
         description={`${eventName} · ${roosterSlotsUsed} of ${cocksPerEntry} cock slot(s) used`}
         actions={
           <ButtonGroup>
-            {eventType === 'derby' && entry.owner_barcode ? (
+            {entry.owner_barcode ? (
               <Button asChild size="sm" variant="outline">
                 <Link href={`/dashboard/events/${eventId}/owners/${entry.id}/print`}>
                   Print OWNER slip
@@ -276,15 +276,13 @@ export function OwnerDetailClient({
                       View on Roosters
                     </Link>
                   </Button>
-                  {eventType === 'derby' ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link
-                        href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}
-                      >
-                        Print slip
-                      </Link>
-                    </Button>
-                  ) : null}
+                  <Button asChild size="sm" variant="outline">
+                    <Link
+                      href={`/dashboard/events/${eventId}/roosters/${registration.id}/print`}
+                    >
+                      Print slip
+                    </Link>
+                  </Button>
                 </ButtonGroup>
               </Flex>
             ))}

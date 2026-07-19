@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   createRoosterSchema,
   evaluateWeightStatus,
+  evaluateWeightStatusGrams,
+  inspectionWeightGramsSchema,
+  recordInspectionWeightSchema,
   recordWeightSchema,
   validateCockCount,
   verifyWeightSchema,
@@ -39,12 +42,63 @@ describe('evaluateWeightStatus', () => {
   })
 })
 
+describe('evaluateWeightStatusGrams', () => {
+  it('passes weight within min and max grams', () => {
+    expect(evaluateWeightStatusGrams(2100, 2000, 2500)).toBe('passed')
+  })
+
+  it('fails weight below minimum grams', () => {
+    expect(evaluateWeightStatusGrams(1900, 2000, 2500)).toBe('failed')
+  })
+
+  it('fails weight above maximum grams', () => {
+    expect(evaluateWeightStatusGrams(2600, 2000, 2500)).toBe('failed')
+  })
+})
+
+describe('inspectionWeightGramsSchema', () => {
+  it('accepts whole grams up to 10000', () => {
+    expect(inspectionWeightGramsSchema.safeParse(2100).success).toBe(true)
+    expect(inspectionWeightGramsSchema.safeParse(10000).success).toBe(true)
+  })
+
+  it('rejects weight above 10000 g', () => {
+    expect(inspectionWeightGramsSchema.safeParse(10001).success).toBe(false)
+  })
+
+  it('rejects fractional grams', () => {
+    expect(inspectionWeightGramsSchema.safeParse(2100.5).success).toBe(false)
+  })
+})
+
+describe('recordInspectionWeightSchema', () => {
+  it('accepts valid inspection weight input', () => {
+    const result = recordInspectionWeightSchema.safeParse({
+      eventId,
+      roosterRecordId: roosterId,
+      officialWeightGrams: 2150,
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects weight above inspection maximum', () => {
+    const result = recordInspectionWeightSchema.safeParse({
+      eventId,
+      roosterRecordId: roosterId,
+      officialWeightGrams: 10001,
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
 describe('recordWeightSchema', () => {
-  it('accepts valid weight input', () => {
+  it('accepts valid weight input in grams', () => {
     const result = recordWeightSchema.safeParse({
       eventId,
       roosterRecordId: roosterId,
-      officialWeight: 2.15,
+      officialWeight: 2150,
     })
 
     expect(result.success).toBe(true)
@@ -55,6 +109,16 @@ describe('recordWeightSchema', () => {
       eventId,
       roosterRecordId: roosterId,
       officialWeight: 0,
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects weight above 9999 g', () => {
+    const result = recordWeightSchema.safeParse({
+      eventId,
+      roosterRecordId: roosterId,
+      officialWeight: 10000,
     })
 
     expect(result.success).toBe(false)
@@ -101,7 +165,7 @@ describe('createRoosterSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects missing breed, color, or notes', () => {
+  it('rejects missing breed or color', () => {
     const result = createRoosterSchema.safeParse({
       eventId,
       entryId,
@@ -114,12 +178,29 @@ describe('createRoosterSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('allows optional notes', () => {
+    const result = createRoosterSchema.safeParse({
+      eventId,
+      entryId,
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 2150,
+      breed: 'Talisayon',
+      colorMarking: 'Red',
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.notes).toBeUndefined()
+    }
+  })
+
   it('rejects missing band number', () => {
     const result = createRoosterSchema.safeParse({
       eventId,
       entryId,
       bandNumber: '',
-      weight: 2.15,
+      weight: 2150,
     })
 
     expect(result.success).toBe(false)

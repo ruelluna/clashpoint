@@ -2,7 +2,6 @@ import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
 import type {
-  ChangePromoterStatusInput,
   CreatePromoterInput,
   LinkPromoterUserInput,
   QuickCreatePromoterInput,
@@ -162,7 +161,7 @@ export async function updatePromoter(
   const { data: existing } = await supabase
     .from('promoters')
     .select(
-      'name, contact_person, phone, email, address, status, commission_type, commission_value, notes'
+      'name, contact_person, phone, email, address, status, commission_type, commission_value, notes, user_id'
     )
     .eq('id', input.promoterId)
     .is('deleted_at', null)
@@ -190,61 +189,71 @@ export async function updatePromoter(
 
   if (error) return { error: error.message }
 
-  await writeAuditLog({
-    actorId,
-    action: 'promoter.updated',
-    entityType: 'promoter',
-    entityId: input.promoterId,
-    oldValues: existing,
-    newValues: {
-      name: input.name,
-      contact_person: input.contactPerson ?? null,
-      phone: input.phone ?? null,
-      email: input.email ?? null,
-      address: input.address ?? null,
-      status: input.status,
-      commission_type: input.commissionType,
-      commission_value: commissionValueForDb(
-        input.commissionType,
-        input.commissionValue
-      ),
-      notes: input.notes ?? null,
-    },
-  })
+  const statusChanged = existing.status !== input.status
+  const updatedValues = {
+    name: input.name,
+    contact_person: input.contactPerson ?? null,
+    phone: input.phone ?? null,
+    email: input.email ?? null,
+    address: input.address ?? null,
+    status: input.status,
+    commission_type: input.commissionType,
+    commission_value: commissionValueForDb(
+      input.commissionType,
+      input.commissionValue
+    ),
+    notes: input.notes ?? null,
+  }
 
-  return {}
-}
+  const profileChanged =
+    existing.name !== updatedValues.name ||
+    existing.contact_person !== updatedValues.contact_person ||
+    existing.phone !== updatedValues.phone ||
+    existing.email !== updatedValues.email ||
+    existing.address !== updatedValues.address ||
+    existing.commission_type !== updatedValues.commission_type ||
+    existing.commission_value !== updatedValues.commission_value ||
+    existing.notes !== updatedValues.notes
 
-export async function changeStatus(
-  actorId: string,
-  input: ChangePromoterStatusInput
-): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: existing } = await supabase
-    .from('promoters')
-    .select('status')
-    .eq('id', input.promoterId)
-    .is('deleted_at', null)
-    .single()
+  if (profileChanged) {
+    await writeAuditLog({
+      actorId,
+      action: 'promoter.updated',
+      entityType: 'promoter',
+      entityId: input.promoterId,
+      oldValues: existing,
+      newValues: updatedValues,
+    })
+  }
 
-  if (!existing) return { error: 'Promoter not found' }
+  if (statusChanged) {
+    await writeAuditLog({
+      actorId,
+      action: 'promoter.status_changed',
+      entityType: 'promoter',
+      entityId: input.promoterId,
+      oldValues: { status: existing.status },
+      newValues: { status: input.status },
+      reason: input.statusChangeReason,
+    })
 
-  const { error } = await supabase
-    .from('promoters')
-    .update({ status: input.status })
-    .eq('id', input.promoterId)
+    if (existing.user_id) {
+      const profileUpdate =
+        input.status === 'active'
+          ? { is_active: true, deactivated_at: null }
+          : {
+              is_active: false,
+              deactivated_at: new Date().toISOString(),
+            }
 
-  if (error) return { error: error.message }
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(profileUpdate)
+        .eq('id', existing.user_id)
 
-  await writeAuditLog({
-    actorId,
-    action: 'promoter.status_changed',
-    entityType: 'promoter',
-    entityId: input.promoterId,
-    oldValues: { status: existing.status },
-    newValues: { status: input.status },
-    reason: input.reason,
-  })
+      if (profileError) return { error: profileError.message }
+    }
+  }
 
   return {}
 }

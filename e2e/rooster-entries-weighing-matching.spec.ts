@@ -44,12 +44,14 @@ async function registerOwner(page: Page, eventId: string, ownerName: string) {
 
 async function addRooster(page: Page, eventId: string, band: string) {
   await page.goto(`/dashboard/events/${eventId}/roosters`)
+  await page.getByTestId('roosters-add-toggle').click()
+  await expect(page.getByRole('dialog')).toBeVisible()
   const ownerPicker = page.getByTestId('event-owner-entry-picker').getByRole('combobox')
   await ownerPicker.click()
   await page.getByRole('option').first().click()
   await page.locator('input[name="bandNumber"]').fill(band)
   await fillStaffRoosterCoreFields(page, band)
-  await page.getByRole('button', { name: 'Add rooster' }).click()
+  await page.getByTestId('roosters-save-button').click()
   await expect(page.getByText(band)).toBeVisible({ timeout: 15_000 })
 }
 
@@ -58,20 +60,16 @@ async function completeInspectionForEntry(page: Page, eventId: string, searchTex
   await page.getByTestId('inspection-rooster-search-input').fill(searchText)
   await page.getByRole('button', { name: 'Find' }).click()
   const row = page.locator('[data-registration-id]').first()
-  await row.locator('input[name="officialWeight"]').fill('2.1')
+  await row.locator('input[name="officialWeight"]').fill('2100')
   await row.getByRole('button', { name: 'Record' }).click()
   await expect(row.getByText('Weight recorded', { exact: false })).toBeVisible({
     timeout: 15_000,
   })
-  await row.getByRole('button', { name: 'Verify weight' }).click()
-  await expect(row.getByText('Weight verified', { exact: false })).toBeVisible({
-    timeout: 15_000,
-  })
-  await row.locator('select[name="inspectionStatus"]').selectOption('passed')
-  await row.getByRole('button', { name: 'Save inspection' }).click()
+  await row.getByTestId('inspection-approve-button').click()
   await expect(row.getByText('Inspection recorded', { exact: false })).toBeVisible({
     timeout: 15_000,
   })
+  await expect(row.getByTestId('inspection-open-button')).toHaveText('Edit inspection')
 }
 
 test.describe('Owners → roosters → inspection → matching @auth', () => {

@@ -8,6 +8,7 @@ import { createFirstAdminUser } from '@/features/auth/service'
 import { POST_BOOTSTRAP_REDIRECT, safeRedirectPath } from '@/features/auth/utils'
 import { getProfile } from '@/lib/auth/queries'
 import { canAccessDashboardForProfile } from '@/lib/auth/permissions'
+import { resolvePromoterSignInAccess } from '@/lib/auth/promoter-access'
 import { createClient } from '@/lib/supabase/server'
 
 export type SignInState = {
@@ -52,7 +53,20 @@ export async function signInAction(
 
   const profile = await getProfile(user.id)
 
-  if (!profile || !(await canAccessDashboardForProfile(profile))) {
+  if (!profile) {
+    await supabase.auth.signOut()
+    return { error: 'Access denied. Staff account required.' }
+  }
+
+  if (profile.role === 'promoter') {
+    const access = await resolvePromoterSignInAccess(profile)
+    if (!access.allowed) {
+      await supabase.auth.signOut()
+      return { error: access.message }
+    }
+  }
+
+  if (!(await canAccessDashboardForProfile(profile))) {
     await supabase.auth.signOut()
     return { error: 'Access denied. Staff account required.' }
   }

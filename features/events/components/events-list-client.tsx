@@ -1,52 +1,129 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, Grid, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
 import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { EventStatusBadges } from '@/features/events/components/event-status-badges'
 import {
   DERBY_TYPE_LABELS,
-  EVENT_STATUS_LABELS,
   EVENT_TYPE_LABELS,
 } from '@/features/events/schema'
 import type { EventListItem } from '@/features/events/types'
+import { formatEventDateTime } from '@/lib/format/datetime'
 
 type EventsListClientProps = {
   events: EventListItem[]
   canManage: boolean
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
-}
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'PHP',
-  }).format(amount)
-}
-
-function statusColor(status: EventListItem['status']) {
-  switch (status) {
-    case 'draft':
-      return 'gray'
-    case 'open':
-      return 'green'
-    case 'ongoing':
-      return 'blue'
-    case 'completed':
-      return 'purple'
-    case 'cancelled':
-      return 'red'
-    case 'archived':
-      return 'orange'
-    default:
-      return 'yellow'
+function formatEventType(event: EventListItem) {
+  const label = EVENT_TYPE_LABELS[event.event_type]
+  if (event.event_type === 'derby' && event.derby_type) {
+    return `${label} · ${DERBY_TYPE_LABELS[event.derby_type]}`
   }
+  return label
+}
+
+function formatVenueLine(event: EventListItem) {
+  return `${event.venue}${event.promoter_name ? ` · ${event.promoter_name}` : ''}`
+}
+
+function EventListRow({ event }: { event: EventListItem }) {
+  const venueLine = formatVenueLine(event)
+  const typeLine = formatEventType(event)
+  const dateLine = formatEventDateTime(event.event_date)
+
+  return (
+    <Box
+      px={4}
+      py={3}
+      borderBottomWidth="1px"
+      borderColor="border"
+      _hover={{ bg: 'bg.subtle' }}
+    >
+      <Link href={`/dashboard/events/${event.id}`}>
+        <Grid
+          w="full"
+          templateColumns={{ base: '1fr auto', lg: '2fr 1fr 1fr 1fr' }}
+          templateRows={{ base: 'repeat(3, auto)', lg: 'auto' }}
+          columnGap={{ base: 4, lg: 2 }}
+          rowGap={{ base: 1, lg: 0 }}
+          alignItems={{ lg: 'center' }}
+        >
+          <Box gridColumn={1} gridRow={{ base: 1, lg: 1 }} minW={0}>
+            <Text fontWeight={{ base: 'semibold', lg: 'medium' }} truncate>
+              {event.name}
+            </Text>
+            <Text fontSize="sm" color="fg.muted" display={{ base: 'none', lg: 'block' }}>
+              {venueLine}
+            </Text>
+          </Box>
+
+          <Box
+            gridColumn={{ base: 2, lg: 4 }}
+            gridRow={{ base: 1, lg: 1 }}
+            justifySelf={{ base: 'end', lg: 'start' }}
+          >
+            <EventStatusBadges
+              status={event.status}
+              isPublic={event.is_public}
+              justify={{ base: 'flex-end', lg: 'flex-start' }}
+            />
+          </Box>
+
+          <Text
+            gridColumn={1}
+            gridRow={2}
+            fontSize="sm"
+            color="fg.muted"
+            display={{ base: 'block', lg: 'none' }}
+            truncate
+          >
+            {venueLine}
+          </Text>
+
+          <Text
+            gridColumn={2}
+            gridRow={2}
+            fontSize="sm"
+            color="fg.muted"
+            textAlign="right"
+            display={{ base: 'block', lg: 'none' }}
+          >
+            {typeLine}
+          </Text>
+
+          <Text
+            gridColumn={{ base: 1, lg: 2 }}
+            gridRow={{ base: 3, lg: 1 }}
+            fontSize="sm"
+            display={{ base: 'block', lg: 'none' }}
+          >
+            {dateLine}
+          </Text>
+
+          <Text
+            gridColumn={{ lg: 2 }}
+            gridRow={{ lg: 1 }}
+            fontSize="sm"
+            display={{ base: 'none', lg: 'block' }}
+          >
+            {dateLine}
+          </Text>
+
+          <Text
+            gridColumn={{ lg: 3 }}
+            gridRow={{ lg: 1 }}
+            fontSize="sm"
+            display={{ base: 'none', lg: 'block' }}
+          >
+            {typeLine}
+          </Text>
+        </Grid>
+      </Link>
+    </Box>
+  )
 }
 
 export function EventsListClient({ events, canManage }: EventsListClientProps) {
@@ -90,51 +167,7 @@ export function EventsListClient({ events, canManage }: EventsListClientProps) {
             ) : null}
           </Box>
         ) : (
-          events.map((event) => (
-            <Flex
-              key={event.id}
-              asChild
-              px={4}
-              py={3}
-              borderBottomWidth="1px"
-              borderColor="border"
-              direction={{ base: 'column', lg: 'row' }}
-              gap={2}
-              align={{ lg: 'center' }}
-              _hover={{ bg: 'bg.subtle' }}
-            >
-              <Link href={`/dashboard/events/${event.id}`}>
-                <Box flex="2">
-                  <Text fontWeight="medium">{event.name}</Text>
-                  <Text fontSize="sm" color="fg.muted">
-                    {event.venue}
-                    {event.promoter_name ? ` · ${event.promoter_name}` : ''}
-                  </Text>
-                </Box>
-                <Box flex="1">
-                  <Text fontSize="sm">{formatDate(event.event_date)}</Text>
-                </Box>
-                <Box flex="1">
-                  <Text fontSize="sm">
-                    {EVENT_TYPE_LABELS[event.event_type]}
-                    {event.event_type === 'derby' && event.derby_type
-                      ? ` · ${DERBY_TYPE_LABELS[event.derby_type]}`
-                      : ''}
-                  </Text>
-                </Box>
-                <Box flex="1">
-                  <Badge colorPalette={statusColor(event.status)}>
-                    {EVENT_STATUS_LABELS[event.status]}
-                  </Badge>
-                  {event.is_public ? (
-                    <Badge ml={2} variant="subtle">
-                      Public
-                    </Badge>
-                  ) : null}
-                </Box>
-              </Link>
-            </Flex>
-          ))
+          events.map((event) => <EventListRow key={event.id} event={event} />)
         )}
       </PanelCard>
     </PageStack>

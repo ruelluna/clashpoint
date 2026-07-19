@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-const { writeAuditLog, createClient } = vi.hoisted(() => ({
+const { writeAuditLog, createClient, createExtendedClient } = vi.hoisted(() => ({
   writeAuditLog: vi.fn(),
   createClient: vi.fn(),
+  createExtendedClient: vi.fn(),
 }))
 
 vi.mock('@/features/audit/service', () => ({
@@ -15,6 +16,11 @@ vi.mock('@/features/entries/queries', () => ({
   entryHasMatchReferences: vi.fn(),
   getPairedRosterIdsForEntry: vi.fn(),
   listEntryNumbersForEvent: vi.fn(),
+  listOwnerBarcodesForEvent: vi.fn(),
+}))
+
+vi.mock('@/lib/supabase/extended', () => ({
+  createExtendedClient,
 }))
 
 vi.mock('@/features/events/queries', () => ({
@@ -32,13 +38,105 @@ vi.mock('@/lib/supabase/server', () => ({
 import {
   entryHasMatchReferences,
   getPairedRosterIdsForEntry,
+  listEntryNumbersForEvent,
+  listOwnerBarcodesForEvent,
 } from '@/features/entries/queries'
-import { deleteEntry, updateEntryRoosters } from '@/features/entries/service'
+import { createEntry, deleteEntry, updateEntryRoosters } from '@/features/entries/service'
 import { getEvent } from '@/features/events/queries'
 
 const eventId = '00000000-0000-4000-8000-000000000001'
 const entryId = '00000000-0000-4000-8000-000000000002'
 const roosterId = '00000000-0000-4000-8000-000000000003'
+const newEntryId = '00000000-0000-4000-8000-000000000004'
+
+describe('createEntry', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(listEntryNumbersForEvent).mockResolvedValue([])
+    vi.mocked(listOwnerBarcodesForEvent).mockResolvedValue([])
+  })
+
+  it('assigns owner barcode for classic events without fee snapshot', async () => {
+    const insertEntry = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { id: newEntryId },
+          error: null,
+        }),
+      }),
+    })
+
+    const from = vi.fn((table: string) => {
+      if (table === 'events') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: {
+                    id: eventId,
+                    name: 'Classic Open',
+                    status: 'open',
+                    max_entries: null,
+                    registration_deadline: null,
+                    event_type: 'classic',
+                    entry_fee: 0,
+                    registration_fee_enabled: false,
+                    registration_fee_amount: 0,
+                    rooster_entry_fee_enabled: false,
+                    rooster_entry_fee_amount: 0,
+                    cash_bond_enabled: false,
+                    cash_bond_amount: 0,
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        }
+      }
+
+      if (table === 'entries') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          }),
+          insert: insertEntry,
+        }
+      }
+
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        }),
+      }
+    })
+
+    createClient.mockResolvedValue({ from })
+    createExtendedClient.mockResolvedValue({ from })
+
+    const result = await createEntry('actor-1', {
+      eventId,
+      ownerName: 'Classic Farm',
+      entrySource: 'staff_encoded',
+    })
+
+    expect(result.error).toBeUndefined()
+    expect(result.ownerBarcode).toMatch(/^OWN-/)
+    expect(insertEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner_barcode: expect.stringMatching(/^OWN-/),
+        fee_snapshot: null,
+      })
+    )
+  })
+})
 
 describe('deleteEntry', () => {
   beforeEach(() => {

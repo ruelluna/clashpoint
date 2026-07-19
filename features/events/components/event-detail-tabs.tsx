@@ -4,6 +4,9 @@ import { Box, Flex, Link as ChakraLink, Tabs, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import { EventStatusBadges } from '@/features/events/components/event-status-badges'
+import type { EventStatus } from '@/features/events/types'
+
 export type EventTabItem = {
   slug: string
   label: string
@@ -54,12 +57,16 @@ function resolveActiveTabValue(
 type EventDetailTabsProps = {
   eventId: string
   eventName: string
+  eventStatus?: EventStatus
+  isPublic?: boolean
   visibleTabs?: EventTabItem[]
 }
 
 export function EventDetailTabs({
   eventId,
   eventName,
+  eventStatus,
+  isPublic = false,
   visibleTabs = DEFAULT_TABS,
 }: EventDetailTabsProps) {
   const pathname = usePathname()
@@ -68,14 +75,24 @@ export function EventDetailTabs({
 
   return (
     <Flex direction="column" gap={4}>
-      <Box>
-        <Text fontSize="2xl" fontWeight="semibold">
-          {eventName}
-        </Text>
-        <ChakraLink asChild fontSize="sm" color="fg.muted">
-          <Link href="/dashboard/events">← Back to events</Link>
-        </ChakraLink>
-      </Box>
+      <Flex justify="space-between" align="flex-start" gap={4} w="full">
+        <Box flex="1" minW={0}>
+          <Text fontSize="2xl" fontWeight="semibold">
+            {eventName}
+          </Text>
+          <ChakraLink asChild fontSize="sm" color="fg.muted">
+            <Link href="/dashboard/events">← Back to events</Link>
+          </ChakraLink>
+        </Box>
+        {eventStatus ? (
+          <EventStatusBadges
+            status={eventStatus}
+            isPublic={isPublic}
+            flexShrink={0}
+            justify="flex-end"
+          />
+        ) : null}
+      </Flex>
 
       <Tabs.Root value={activeValue} variant="outline" size="sm">
         <Box overflowX="auto">

@@ -5,7 +5,9 @@ import type {
   PromoterEventHistoryItem,
   PromoterListItem,
   PromoterStatus,
+  PromoterStatusHistoryItem,
 } from '@/features/promoters/types'
+import { mapAuditLogToStatusHistoryItem } from '@/features/promoters/status-history'
 import { createClient } from '@/lib/supabase/server'
 
 export async function listPromoters(
@@ -56,4 +58,33 @@ export async function getPromoterEventHistory(
 
   if (error) throw error
   return (data ?? []) as PromoterEventHistoryItem[]
+}
+
+export async function listPromoterStatusHistory(
+  promoterId: string,
+  limit = 20
+): Promise<PromoterStatusHistoryItem[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('audit_logs')
+    .select('id, action, old_values, new_values, created_at')
+    .eq('entity_type', 'promoter')
+    .eq('entity_id', promoterId)
+    .in('action', ['promoter.status_changed', 'promoter.updated'])
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+
+  return (data ?? [])
+    .map((row) =>
+      mapAuditLogToStatusHistoryItem({
+        id: row.id as string,
+        action: row.action as string,
+        old_values: row.old_values,
+        new_values: row.new_values,
+        created_at: row.created_at as string,
+      })
+    )
+    .filter((item): item is PromoterStatusHistoryItem => item != null)
 }

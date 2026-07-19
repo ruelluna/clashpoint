@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { Badge, Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
 
 import {
-  ButtonGroup,
   DetailFieldRow,
   LAYOUT_GAP,
   PanelCard,
@@ -89,24 +88,47 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
         )
       : null
 
+  const eventTypeLabel =
+    EVENT_TYPE_LABELS[event.event_type] +
+    (isDerby && event.derby_type ? ` · ${DERBY_TYPE_LABELS[event.derby_type]}` : '')
+
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>
       <Stack gap={LAYOUT_GAP.page}>
-        <Flex justify="space-between" align="center" wrap="wrap" gap={LAYOUT_GAP.buttons}>
-          <Flex align="center" gap={2}>
-            <Badge>{EVENT_STATUS_LABELS[event.status]}</Badge>
-            {event.is_public ? <Badge variant="subtle">Public</Badge> : null}
-          </Flex>
-          {canManage ? (
-            <ButtonGroup>
-              <Button asChild size="sm" variant="outline">
+        <Box borderWidth="1px" borderColor="border" rounded="md" p={4}>
+          <Flex
+            justify="space-between"
+            align={{ base: 'stretch', md: 'start' }}
+            gap={4}
+            direction={{ base: 'column', md: 'row' }}
+          >
+            <Stack gap={1} flex="1">
+              <Text fontWeight="semibold">{event.name}</Text>
+              <Text fontSize="sm" color="fg.muted">
+                {event.venue} · {formatDate(event.event_date)} · {eventTypeLabel}
+              </Text>
+              <Flex gap={2} wrap="wrap">
+                <Badge>{EVENT_STATUS_LABELS[event.status]}</Badge>
+                {event.is_public ? <Badge variant="subtle">Public</Badge> : null}
+              </Flex>
+            </Stack>
+            {canManage ? (
+              <Button
+                asChild
+                size="md"
+                variant="outline"
+                alignSelf={{ base: 'stretch', md: 'flex-start' }}
+              >
                 <Link href={`/dashboard/events/${event.id}/edit`}>Edit event</Link>
               </Button>
-            </ButtonGroup>
-          ) : null}
-        </Flex>
+            ) : null}
+          </Flex>
+        </Box>
 
-        <PanelCard title="Event details">
+        <Box borderWidth="1px" borderColor="border" rounded="md" p={4}>
+          <Text fontWeight="semibold" mb={4}>
+            Event details
+          </Text>
           <Stack gap={LAYOUT_GAP.form} fontSize="sm">
             <DetailFieldRow label="Venue">{event.venue}</DetailFieldRow>
             <DetailFieldRow label="Date">{formatDate(event.event_date)}</DetailFieldRow>
@@ -162,7 +184,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
               </Box>
             ) : null}
           </Stack>
-        </PanelCard>
+        </Box>
 
         {eligibilitySummary ? (
           <EligibilityPolicySummaryPanel

@@ -5,6 +5,7 @@ import {
   PROMOTER_CREATED_IN_PROMOTERS_MESSAGE,
   type DeactivateUserInput,
   type InviteUserInput,
+  type ReactivateUserInput,
   type UpdateUserModulesInput,
   type UpdateUserRoleInput,
 } from '@/features/users/schema'
@@ -218,6 +219,38 @@ export async function deactivateUser(
   await writeAuditLog({
     actorId,
     action: 'user.deactivated',
+    entityType: 'user',
+    entityId: input.userId,
+    reason: input.reason,
+  })
+
+  return {}
+}
+
+export async function reactivateUser(
+  actorId: string,
+  input: ReactivateUserInput
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('is_active')
+    .eq('id', input.userId)
+    .single()
+
+  if (!existing) return { error: 'User not found' }
+  if (existing.is_active) return { error: 'User is already active' }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ is_active: true, deactivated_at: null })
+    .eq('id', input.userId)
+
+  if (error) return { error: error.message }
+
+  await writeAuditLog({
+    actorId,
+    action: 'user.reactivated',
     entityType: 'user',
     entityId: input.userId,
     reason: input.reason,

@@ -6,6 +6,7 @@ import { modulesToPermissions } from '@/lib/auth/modules'
 import { getProfile } from '@/lib/auth/queries'
 import { getUser } from '@/lib/auth/session'
 import type { AppRole, Profile } from '@/lib/auth/types'
+import { canPromoterAccessApp } from '@/lib/auth/promoter-access'
 import { createClient } from '@/lib/supabase/server'
 
 export const SYSTEM_OWNER_ROLES: AppRole[] = ['admin', 'system_owner']
@@ -78,6 +79,10 @@ export async function canAccessDashboardForProfile(
     return false
   }
 
+  if (profile.role === 'promoter') {
+    return canPromoterAccessApp(profile)
+  }
+
   if (profile.role !== 'staff') {
     return true
   }
@@ -135,7 +140,18 @@ export async function requirePortalAccess(): Promise<Profile> {
   if (!user) redirect('/login')
 
   const profile = await getProfile(user.id)
-  if (!profile || !profile.is_active || !canAccessPortal(profile.role)) {
+  if (!profile || !canAccessPortal(profile.role)) {
+    redirect('/access-denied')
+  }
+
+  if (profile.role === 'promoter') {
+    if (!(await canPromoterAccessApp(profile))) {
+      redirect('/access-denied')
+    }
+    return profile
+  }
+
+  if (!profile.is_active) {
     redirect('/access-denied')
   }
 

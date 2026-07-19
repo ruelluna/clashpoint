@@ -15,14 +15,24 @@ import {
 import {
   buildCreateRoosterSchema,
   recordWeightSchema,
+  recordInspectionWeightSchema,
   verifyWeightSchema,
 } from '@/features/weighing/schema'
-import { createRoosterForEntry, recordWeight, verifyWeight } from '@/features/weighing/service'
+import {
+  createRoosterForEntry,
+  recordWeight,
+  recordAndVerifyWeightFromGrams,
+  verifyWeight,
+} from '@/features/weighing/service'
 import { revalidateEventRoostersPaths } from '@/features/event-roosters/revalidate'
-import { getEvent } from '@/features/events/queries'
 import { requireAnyPermission } from '@/lib/auth/permissions'
 
-export type WeighingActionState = { error?: string; success?: string }
+export type WeighingActionState = {
+  error?: string
+  success?: string
+  weightStatus?: 'passed' | 'failed'
+  weighingId?: string
+}
 
 export async function createRoosterAction(
   _prev: WeighingActionState,
@@ -65,8 +75,7 @@ export async function createRoosterAction(
 
   revalidateEventRoostersPaths(parsed.data.eventId)
 
-  const event = await getEvent(parsed.data.eventId)
-  if (event?.event_type === 'derby' && result.roosterId) {
+  if (result.roosterId) {
     redirect(`/dashboard/events/${parsed.data.eventId}/roosters/${result.roosterId}/print`)
   }
 
@@ -128,4 +137,39 @@ export async function verifyWeightAction(
   revalidateEventRoostersPaths(parsed.data.eventId)
 
   return { success: 'Weight verified' }
+}
+
+export async function recordAndVerifyWeightAction(
+  _prev: WeighingActionState,
+  formData: FormData
+): Promise<WeighingActionState> {
+  const profile = await requireAnyPermission([
+    'weighing.record',
+    'weighing.verify',
+    'inspection.record',
+    'cock_entry.manage',
+    'entries.manage',
+  ])
+
+  const parsed = recordInspectionWeightSchema.safeParse({
+    eventId: formData.get('eventId'),
+    roosterRecordId: formData.get('roosterRecordId'),
+    officialWeightGrams: formData.get('officialWeightGrams'),
+    notes: formData.get('notes')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid weight' }
+  }
+
+  const result = await recordAndVerifyWeightFromGrams(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  revalidateEventRoostersPaths(parsed.data.eventId)
+
+  return {
+    success: result.weightStatus === 'passed' ? 'Weight passed' : 'Weight failed',
+    weightStatus: result.weightStatus,
+    weighingId: result.weighingId,
+  }
 }

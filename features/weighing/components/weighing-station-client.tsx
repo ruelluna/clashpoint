@@ -4,6 +4,7 @@ import { Badge, Box, Button, Flex, Input, NativeSelect, Stack, Text } from '@cha
 import { useActionState, useMemo, useState } from 'react'
 
 import { LAYOUT_GAP, FormField, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { GramWeightInput } from '@/features/entries/components/gram-weight-input'
 import {
   createRoosterAction,
   recordWeightAction,
@@ -15,8 +16,8 @@ import type { WeighingEntrySummary, WeighingStationItem } from '@/features/weigh
 
 type WeighingStationClientProps = {
   eventId: string
-  minWeight: number | null
-  maxWeight: number | null
+  minWeightGrams: number | null
+  maxWeightGrams: number | null
   cocksPerEntry: number
   entries: WeighingEntrySummary[]
   items: WeighingStationItem[]
@@ -76,8 +77,8 @@ function CreateRoosterForm({
             <FormField label="Band number" required flex="1">
               <Input name="bandNumber" required maxLength={50} />
             </FormField>
-            <FormField label="Weight (kg)" required flex="1">
-              <Input name="weight" type="number" step="0.01" min="0" required />
+            <FormField label="Weight (g)" required flex="1">
+              <GramWeightInput name="weight" required />
             </FormField>
           </Flex>
           <FormField label="Handler name">
@@ -132,14 +133,14 @@ function RecordWeightForm({
       <input type="hidden" name="eventId" value={eventId} />
       <input type="hidden" name="roosterRecordId" value={item.rooster_event_registration_id} />
       <Flex gap={2} align="center" direction={{ base: 'column', sm: 'row' }} wrap="wrap">
-        <Input
+        <Text fontSize="sm" fontWeight="medium" whiteSpace="nowrap">
+          Official weight (g)
+        </Text>
+        <GramWeightInput
           name="officialWeight"
-          type="number"
-          step="0.01"
-          min="0"
           size="md"
           width={{ base: 'full', sm: '24' }}
-          placeholder="kg"
+          placeholder="g"
           defaultValue={
             item.official_weight != null ? String(item.official_weight) : ''
           }
@@ -208,16 +209,16 @@ function VerifyWeightForm({
 
 export function WeighingStationClient({
   eventId,
-  minWeight,
-  maxWeight,
+  minWeightGrams,
+  maxWeightGrams,
   cocksPerEntry,
   entries,
   items,
   embedded = false,
 }: WeighingStationClientProps) {
   const weightRange =
-    minWeight != null || maxWeight != null
-      ? `${minWeight ?? '—'} – ${maxWeight ?? '—'} kg`
+    minWeightGrams != null || maxWeightGrams != null
+      ? `${minWeightGrams ?? '—'} – ${maxWeightGrams ?? '—'} g`
       : 'No weight limits configured'
 
   const sortedItems = useMemo(
@@ -315,7 +316,7 @@ export function WeighingStationClient({
                     </Box>
                     <Box as="td" px={3} py={3}>
                       {item.official_weight != null
-                        ? `${item.official_weight} kg`
+                        ? `${item.official_weight} g`
                         : '—'}
                     </Box>
                     <Box as="td" px={3} py={3}>

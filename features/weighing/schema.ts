@@ -15,10 +15,27 @@ export const weightStatusSchema = z.enum([
   'for_review',
 ])
 
+export const inspectionWeightGramsSchema = weightGramsSchema.max(
+  10000,
+  'Weight cannot exceed 10000 g'
+)
+
 export const recordWeightSchema = z.object({
   eventId: z.string().uuid(),
   roosterRecordId: z.string().uuid(),
-  officialWeight: z.coerce.number().positive('Weight must be greater than zero'),
+  officialWeight: weightGramsSchema,
+  notes: z
+    .string()
+    .max(500)
+    .optional()
+    .or(z.literal(''))
+    .transform((value) => value || undefined),
+})
+
+export const recordInspectionWeightSchema = z.object({
+  eventId: z.string().uuid(),
+  roosterRecordId: z.string().uuid(),
+  officialWeightGrams: inspectionWeightGramsSchema,
   notes: z
     .string()
     .max(500)
@@ -74,13 +91,14 @@ export function buildCreateRoosterSchema(bandingRequired: boolean) {
       breed: requiredText(100, 'Breed is required'),
       colorMarking: roosterColorMarkingSchema,
       handlerName: optionalText(200),
-      notes: requiredText(2000, 'Notes are required'),
+      notes: optionalText(2000),
     })
     .extend(entryRoosterRegistryFieldsSchema)
 }
 
 export const createRoosterSchema = buildCreateRoosterSchema(true)
 export type RecordWeightInput = z.infer<typeof recordWeightSchema>
+export type RecordInspectionWeightInput = z.infer<typeof recordInspectionWeightSchema>
 export type VerifyWeightInput = z.infer<typeof verifyWeightSchema>
 export type CreateRoosterInput = z.infer<typeof createRoosterSchema>
 

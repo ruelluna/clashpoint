@@ -4,6 +4,44 @@ import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import { listAuditLogs } from '@/features/audit/queries'
 import { requirePermission } from '@/lib/auth/permissions'
 
+function readRecord(value: unknown): Record<string, unknown> | null {
+  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>
+  }
+  return null
+}
+
+function formatAuditStatusLine(log: {
+  old_values: unknown
+  new_values: unknown
+}): string | null {
+  const oldValues = readRecord(log.old_values)
+  const newValues = readRecord(log.new_values)
+  const oldStatus = oldValues?.status
+  const newStatus = newValues?.status
+
+  if (
+    typeof oldStatus === 'string' &&
+    typeof newStatus === 'string' &&
+    oldStatus !== newStatus
+  ) {
+    return `Status: ${oldStatus} → ${newStatus}`
+  }
+
+  return null
+}
+
+function formatAuditReasonLine(log: { new_values: unknown }): string | null {
+  const newValues = readRecord(log.new_values)
+  const reason = newValues?.reason
+
+  if (typeof reason === 'string' && reason.trim()) {
+    return `Reason: ${reason}`
+  }
+
+  return null
+}
+
 export default async function AuditPage({
   searchParams,
 }: {
@@ -25,7 +63,11 @@ export default async function AuditPage({
         {logs.length === 0 ? (
           <Text color="fg.muted">No audit entries found.</Text>
         ) : (
-          logs.map((log) => (
+          logs.map((log) => {
+            const statusLine = formatAuditStatusLine(log)
+            const reasonLine = formatAuditReasonLine(log)
+
+            return (
             <Flex
               key={log.id}
               px={0}
@@ -48,8 +90,19 @@ export default async function AuditPage({
               <Text fontSize="xs" color="fg.muted">
                 Entity: {log.entity_id}
               </Text>
+              {statusLine ? (
+                <Text fontSize="sm" color="fg.muted">
+                  {statusLine}
+                </Text>
+              ) : null}
+              {reasonLine ? (
+                <Text fontSize="sm" color="fg.muted">
+                  {reasonLine}
+                </Text>
+              ) : null}
             </Flex>
-          ))
+            )
+          })
         )}
       </PanelCard>
     </PageStack>
