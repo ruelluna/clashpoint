@@ -25,7 +25,12 @@ import {
 import { OwnerBarcodeScannerDialog } from '@/features/entries/components/owner-barcode-scanner-dialog'
 import type { EntryListItem } from '@/features/entries/types'
 import { PAYMENT_STATUS_LABELS } from '@/features/entries/schema'
+import type { AdminHandoverCandidate, CashierSessionSummary } from '@/features/cashier-sessions/types'
 import type { EventFeeSettings } from '@/features/events/fee-utils'
+import { CashierCloseSessionForm } from '@/features/payments/components/cashier-close-session-form'
+import { CashierHandoverForm } from '@/features/payments/components/cashier-handover-form'
+import { CashierOpenSessionForm } from '@/features/payments/components/cashier-open-session-form'
+import { CashierTerminalClock } from '@/features/payments/components/cashier-terminal-clock'
 import type { PaymentCategory } from '@/features/payments/fee-calc'
 import {
   getCashierDuesAction,
@@ -37,6 +42,7 @@ import {
 import { getCashierPaymentCategoryOptions } from '@/features/payments/dues'
 import { PAYMENT_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
 import type { CashierTargetMatch, PaymentLedgerItem } from '@/features/payments/types'
+import { formatEventDateTime } from '@/lib/format/datetime'
 
 type CashierClientProps = {
   eventId: string
@@ -44,7 +50,11 @@ type CashierClientProps = {
   feeSettings: EventFeeSettings
   entries: EntryListItem[]
   payments: PaymentLedgerItem[]
-  revolvingFundBalance: number
+  canOperate: boolean
+  cashierDisplayName: string
+  session: CashierSessionSummary | null
+  defaultOpeningFloat: number
+  adminCandidates: AdminHandoverCandidate[]
   initialBarcode?: string | null
 }
 
@@ -59,10 +69,7 @@ function formatCurrency(amount: number) {
 
 function formatDate(iso: string | null) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
+  return formatEventDateTime(iso)
 }
 
 function paymentStatusColor(
@@ -85,13 +92,15 @@ function paymentStatusColor(
 function RefundForm({
   payment,
   eventId,
+  canOperate,
 }: {
   payment: PaymentLedgerItem
   eventId: string
+  canOperate: boolean
 }) {
   const [showForm, setShowForm] = useState(false)
   const [state, action, pending] = useActionState(refundPaymentAction, initialState)
-  if (payment.paymentStatus === 'refunded') return null
+  if (payment.paymentStatus === 'refunded' || !canOperate) return null
 
   return (
     <Box mt={2}>
@@ -141,7 +150,11 @@ export function CashierClient({
   feeSettings,
   entries,
   payments,
-  revolvingFundBalance,
+  canOperate,
+  cashierDisplayName,
+  session,
+  defaultOpeningFloat,
+  adminCandidates,
   initialBarcode,
 }: CashierClientProps) {
   const scanInputRef = useRef<HTMLInputElement>(null)
@@ -156,10 +169,18 @@ export function CashierClient({
     recordPaymentAction,
     initialState
   )
+  const [lastPaymentId, setLastPaymentId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (recordState.paymentId) {
+      setLastPaymentId(recordState.paymentId)
+    }
+  }, [recordState.paymentId])
   const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('entry_fees')
   const [paymentMethod, setPaymentMethod] = useState<
     keyof typeof PAYMENT_METHOD_LABELS
   >('cash')
+  const [sessionPanel, setSessionPanel] = useState<'none' | 'handover' | 'end'>('none')
 
   const applyMatch = useCallback((match: CashierTargetMatch) => {
     setActiveMatch(match)
@@ -259,24 +280,85 @@ export function CashierClient({
     applyMatch(result.match)
   }
 
+  const terminalReady = canOperate && session != null
+
   return (
     <PageStack>
       <PageHeader
-        title="Cashier"
+        title="Cashier Terminal"
         description={`${eventName} · ${feeSummary}`}
         actions={
-          <Box textAlign={{ base: 'left', sm: 'right' }}>
-            <Text fontSize="sm" color="fg.muted">
-              Revolving fund
+          <Stack gap={1} align={{ base: 'flex-start', sm: 'flex-end' }}>
+            <Text fontSize="sm" fontWeight="medium" data-testid="cashier-display-name">
+              Cashier: {cashierDisplayName}
             </Text>
-            <Text fontSize="xl" fontWeight="semibold" data-testid="cashier-fund-balance">
-              {formatCurrency(revolvingFundBalance)}
-            </Text>
-          </Box>
+            <CashierTerminalClock />
+            {session ? (
+              <Text fontSize="xs" color="fg.muted">
+                Session opened {formatDate(session.openedAt)}
+                {' · '}
+                Opening float {formatCurrency(session.openingFloatAmount)}
+              </Text>
+            ) : null}
+            {!canOperate ? (
+              <Text fontSize="xs" color="fg.muted">
+                Read-only view
+              </Text>
+            ) : null}
+          </Stack>
         }
       />
 
-      <PanelCard title="Scan or search">
+      {canOperate && !session ? (
+        <CashierOpenSessionForm eventId={eventId} defaultOpeningFloat={defaultOpeningFloat} />
+      ) : null}
+
+      {terminalReady ? (
+        <Stack gap={LAYOUT_GAP.form}>
+          {sessionPanel === 'none' ? (
+            <ButtonGroup>
+              <Button
+                size="md"
+                variant="outline"
+                onClick={() => setSessionPanel('handover')}
+                data-testid="cashier-show-handover"
+              >
+                Record admin handover
+              </Button>
+              <Button
+                size="md"
+                variant="outline"
+                colorPalette="red"
+                onClick={() => setSessionPanel('end')}
+                data-testid="cashier-show-end-session"
+              >
+                End access
+              </Button>
+            </ButtonGroup>
+          ) : null}
+          {sessionPanel === 'handover' ? (
+            <CashierHandoverForm
+              eventId={eventId}
+              sessionId={session.id}
+              adminCandidates={adminCandidates}
+              onCancel={() => setSessionPanel('none')}
+              onSuccess={() => setSessionPanel('none')}
+            />
+          ) : null}
+          {sessionPanel === 'end' ? (
+            <CashierCloseSessionForm
+              eventId={eventId}
+              sessionId={session.id}
+              onCancel={() => setSessionPanel('none')}
+              onSuccess={() => setSessionPanel('none')}
+            />
+          ) : null}
+        </Stack>
+      ) : null}
+
+      {terminalReady ? (
+        <>
+        <PanelCard title="Scan or search">
         <Stack gap={LAYOUT_GAP.form}>
           <Flex direction="column" gap={2} maxW="2xl">
             <Input
@@ -408,7 +490,7 @@ export function CashierClient({
               </Stack>
             )}
 
-            {activeMatch.dues.totalOutstanding > 0 ? (
+            {activeMatch.dues.totalOutstanding > 0 && terminalReady ? (
               <form action={recordAction}>
                 <Stack gap={LAYOUT_GAP.form} maxW="xl">
                   <input type="hidden" name="eventId" value={eventId} />
@@ -475,6 +557,31 @@ export function CashierClient({
                       {recordState.error}
                     </Text>
                   ) : null}
+                  {recordState.success ? (
+                    <Stack gap={2}>
+                      <Text fontSize="sm" color="green.600">
+                        {recordState.success}
+                      </Text>
+                      {lastPaymentId ? (
+                        <ButtonGroup>
+                          <Button asChild size="sm" variant="outline">
+                            <Link
+                              href={`/dashboard/events/${eventId}/payments/${lastPaymentId}/print`}
+                            >
+                              Print receipt
+                            </Link>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setLastPaymentId(null)}
+                          >
+                            Continue
+                          </Button>
+                        </ButtonGroup>
+                      ) : null}
+                    </Stack>
+                  ) : null}
 
                   <Button
                     type="submit"
@@ -486,6 +593,10 @@ export function CashierClient({
                   </Button>
                 </Stack>
               </form>
+            ) : activeMatch.dues.totalOutstanding > 0 && !terminalReady ? (
+              <Text fontSize="sm" color="fg.muted">
+                Open a cashier session to collect payments.
+              </Text>
             ) : (
               <Text fontSize="sm" color="green.600">
                 This entry is fully paid.
@@ -493,6 +604,8 @@ export function CashierClient({
             )}
           </Stack>
         </PanelCard>
+      ) : null}
+        </>
       ) : null}
 
       <PanelCard flush>
@@ -574,22 +687,24 @@ export function CashierClient({
                   </Link>
                 </Box>
               </Flex>
-              <RefundForm payment={payment} eventId={eventId} />
+              <RefundForm payment={payment} eventId={eventId} canOperate={terminalReady} />
             </Box>
           ))
         )}
       </PanelCard>
 
-      <OwnerBarcodeScannerDialog
-        open={scannerOpen}
-        onOpenChange={setScannerOpen}
-        onScan={(barcode) => {
-          setScanValue(barcode)
-          void resolveQuery(barcode)
-        }}
-        title="Scan barcode"
-        hint="Point the camera at an OWNER or COCK entry slip barcode."
-      />
+      {terminalReady ? (
+        <OwnerBarcodeScannerDialog
+          open={scannerOpen}
+          onOpenChange={setScannerOpen}
+          onScan={(barcode) => {
+            setScanValue(barcode)
+            void resolveQuery(barcode)
+          }}
+          title="Scan barcode"
+          hint="Point the camera at an OWNER or COCK entry slip barcode."
+        />
+      ) : null}
     </PageStack>
   )
 }

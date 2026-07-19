@@ -3,6 +3,7 @@ import 'server-only'
 import { redirect } from 'next/navigation'
 
 import { modulesToPermissions } from '@/lib/auth/modules'
+import { canOperateAsStaff } from '@/lib/auth/operational-access'
 import { getProfile } from '@/lib/auth/queries'
 import { getUser } from '@/lib/auth/session'
 import type { AppRole, Profile } from '@/lib/auth/types'
@@ -115,6 +116,26 @@ export async function requirePermission(
 
   const allowed = await hasPermission(user.id, permission)
   if (!allowed) redirect('/access-denied')
+
+  return profile
+}
+
+export async function requireOperationalPermission(
+  permission: string
+): Promise<Profile> {
+  const profile = await requirePermission(permission)
+  if (!canOperateAsStaff(profile)) redirect('/access-denied')
+  return profile
+}
+
+export async function requireSystemOwner(): Promise<Profile> {
+  const user = await getUser()
+  if (!user) redirect('/login')
+
+  const profile = await getProfile(user.id)
+  if (!profile || !profile.is_active || !isSystemOwnerRole(profile.role)) {
+    redirect('/access-denied')
+  }
 
   return profile
 }

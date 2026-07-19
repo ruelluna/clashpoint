@@ -9,6 +9,8 @@ import {
   listMatchesByEvent,
 } from '@/features/matches/queries'
 import { getUser } from '@/lib/auth/session'
+import { canOperateAsStaff } from '@/lib/auth/operational-access'
+import { getProfile } from '@/lib/auth/queries'
 import { hasPermission, requirePermission } from '@/lib/auth/permissions'
 
 type MatchingPageProps = {
@@ -29,7 +31,11 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
   ])
 
   const user = await getUser()
-  const canManage = user ? await hasPermission(user.id, 'matches.manage') : false
+  const profile = user ? await getProfile(user.id) : null
+  const canManage =
+    Boolean(user && profile) &&
+    canOperateAsStaff(profile!) &&
+    (await hasPermission(user!.id, 'matches.manage'))
 
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>

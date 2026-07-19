@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { hasAdminCredentials, signInAsAdmin } from './fixtures/auth'
+import { hasAdminCredentials, signInAsAdmin, signInAsEventOrganizer } from './fixtures/auth'
 
 const eventDetailUrl = /\/dashboard\/events\/[0-9a-f-]{36}/
 
@@ -81,21 +81,33 @@ async function registerOwnerForEvent(
   await page.waitForURL(new RegExp(`/dashboard/events/${eventId}/owners/[^/]+/print`))
 }
 
-test.describe('Cashier @auth', () => {
-  test('looks up entry and collects payment', async ({ page }) => {
-    test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
+async function openCashierSession(page: Page) {
+  await page.getByTestId('cashier-opening-float').fill('1000')
+  await page.getByTestId('cashier-open-session').click()
+  await expect(page.getByTestId('cashier-scan-input')).toBeVisible({ timeout: 15_000 })
+}
+
+test.describe('Cashier Terminal @auth', () => {
+  test('opens session, collects payment, and offers optional print', async ({ page }) => {
+    test.skip(
+      !hasAdminCredentials(),
+      'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD for organizer bootstrap'
+    )
 
     const suffix = uniqueSuffix()
     const eventName = `E2E Cashier ${suffix}`
     const ownerName = `Cashier Farm ${suffix}`
 
-    await signInAsAdmin(page)
+    await signInAsEventOrganizer(page)
     const eventId = await createOpenDerbyEvent(page, eventName)
     await registerOwnerForEvent(page, eventId, ownerName, `Contact ${suffix}`)
 
     await page.goto(`/dashboard/events/${eventId}/payments`)
-    await expect(page.getByRole('heading', { name: 'Cashier' })).toBeVisible()
-    await expect(page.getByTestId('cashier-fund-balance')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Cashier Terminal' })).toBeVisible()
+    await expect(page.getByTestId('cashier-display-name')).toBeVisible()
+    await expect(page.getByTestId('cashier-terminal-clock')).toBeVisible()
+
+    await openCashierSession(page)
 
     await page.getByTestId('cashier-scan-input').fill(ownerName)
     await page.getByRole('button', { name: 'Look up' }).click()
@@ -114,26 +126,41 @@ test.describe('Cashier @auth', () => {
       const amount = await amountInput.inputValue()
       expect(Number(amount)).toBeGreaterThan(0)
       await page.getByTestId('cashier-record-payment').click()
-      await page.waitForURL(new RegExp(`/dashboard/events/${eventId}/payments/[^/]+/print`))
-      await expect(page.getByText(/PAY-/i).first()).toBeVisible()
+      await expect(page.getByText('Payment recorded')).toBeVisible({ timeout: 15_000 })
+      await expect(page.getByRole('link', { name: 'Print receipt' })).toBeVisible()
       await expect(page.getByText('Registration & entry fees')).toBeVisible()
     } else {
-      // No fees configured — still verify wrong-event barcode guard
-      await page.goto(`/dashboard/events/${eventId}/payments`)
       await page.getByTestId('cashier-scan-input').fill('OWN-ABCDEF12-0001')
       await page.getByRole('button', { name: 'Look up' }).click()
       await expect(page.getByText(/does not belong to this event/i)).toBeVisible()
     }
   })
 
-  test('rejects barcode from another event', async ({ page }) => {
+  test('admin sees read-only cashier terminal without session controls', async ({ page }) => {
     test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
 
     const suffix = uniqueSuffix()
     await signInAsAdmin(page)
+    const eventId = await createOpenDerbyEvent(page, `E2E Cashier Admin ${suffix}`)
+
+    await page.goto(`/dashboard/events/${eventId}/payments`)
+    await expect(page.getByText('Read-only view')).toBeVisible()
+    await expect(page.getByTestId('cashier-open-session')).toHaveCount(0)
+    await expect(page.getByTestId('cashier-scan-input')).toHaveCount(0)
+  })
+
+  test('rejects barcode from another event', async ({ page }) => {
+    test.skip(
+      !hasAdminCredentials(),
+      'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD for organizer bootstrap'
+    )
+
+    const suffix = uniqueSuffix()
+    await signInAsEventOrganizer(page)
     const eventId = await createOpenDerbyEvent(page, `E2E Cashier Guard ${suffix}`)
 
     await page.goto(`/dashboard/events/${eventId}/payments`)
+    await openCashierSession(page)
     await page.getByTestId('cashier-scan-input').fill('OWN-ABCDEF12-0001')
     await page.getByRole('button', { name: 'Look up' }).click()
     await expect(page.getByText(/does not belong to this event/i)).toBeVisible()

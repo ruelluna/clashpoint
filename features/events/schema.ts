@@ -98,6 +98,10 @@ const eventFieldsSchema = z.object({
     .number()
     .nonnegative('Revolving fund cannot be negative')
     .default(0),
+  cashierOpeningFloatDefault: z.coerce
+    .number()
+    .nonnegative('Cashier opening float cannot be negative')
+    .default(0),
   cocksPerEntry: z.coerce.number().int().positive().default(2),
   registrationRules: z.string().max(50000).nullable().optional(),
   legalAuthorized: z.boolean().default(true),

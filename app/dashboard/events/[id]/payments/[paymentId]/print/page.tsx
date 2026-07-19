@@ -26,9 +26,15 @@ export default async function PaymentPrintPage({ params }: PaymentPrintPageProps
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>
       <PageStack maxW="md">
-        <PaymentReceiptSlip payment={{ ...payment, eventName: event.name }} />
+        <PaymentReceiptSlip
+          payment={{
+            ...payment,
+            eventName: event.name,
+            sessionOpenedAt: payment.sessionOpenedAt,
+          }}
+        />
         <Button asChild variant="outline" alignSelf="flex-start" className="no-print">
-          <Link href={`/dashboard/events/${id}/payments`}>Back to payments</Link>
+          <Link href={`/dashboard/events/${id}/payments`}>Back to Cashier Terminal</Link>
         </Button>
       </PageStack>
     </EventPageLayout>

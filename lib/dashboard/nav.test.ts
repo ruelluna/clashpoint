@@ -66,6 +66,17 @@ describe('filterNavItemsByPermissions', () => {
       dashboardNavItemConfigs.some((item) => item.href === '/dashboard/roosters')
     ).toBe(false)
   })
+
+  it('shows Transactions only for system owners', () => {
+    const staffFiltered = filterNavItemsByPermissions(dashboardNavItemConfigs, [
+      'payments.manage',
+      'events.view',
+    ])
+    expect(staffFiltered.some((item) => item.href === '/dashboard/transactions')).toBe(false)
+
+    const ownerFiltered = filterNavItemsByPermissions(dashboardNavItemConfigs, ['*'])
+    expect(ownerFiltered.some((item) => item.href === '/dashboard/transactions')).toBe(true)
+  })
 })
 
 describe('prependActiveEventNavItem', () => {
