@@ -14,12 +14,16 @@ import {
   Text,
   Tooltip,
 } from '@chakra-ui/react'
-import { LogOutIcon, LayoutDashboard } from 'lucide-react'
+import { Calendar, LayoutDashboard, LogOutIcon } from 'lucide-react'
 
 import { signOutAction } from '@/features/auth/actions'
 import {
+  activeEventNavHref,
   dashboardNavItemConfigs,
   filterNavItemsByPermissions,
+  isDashboardNavItemActive,
+  prependActiveEventNavItem,
+  type ActiveEventNavConfig,
 } from '@/lib/dashboard/nav'
 import {
   dashboardNavIconsByHref,
@@ -35,14 +39,31 @@ function getInitials(displayName: string) {
     .slice(0, 2)
 }
 
-function buildNavItems(permissionIds: string[]): DashboardNavItem[] {
-  return filterNavItemsByPermissions(
+function buildNavItems(
+  permissionIds: string[],
+  activeEvent?: ActiveEventNavConfig | null
+): DashboardNavItem[] {
+  const filtered = filterNavItemsByPermissions(
     dashboardNavItemConfigs,
     permissionIds
-  ).map((item) => ({
-    ...item,
-    icon: dashboardNavIconsByHref[item.href] ?? LayoutDashboard,
-  }))
+  )
+  const withActive = prependActiveEventNavItem(
+    filtered,
+    activeEvent,
+    permissionIds
+  )
+
+  return withActive.map((item) => {
+    const isActiveEventItem =
+      activeEvent != null && item.href === activeEventNavHref(activeEvent.id)
+
+    return {
+      ...item,
+      icon: isActiveEventItem
+        ? Calendar
+        : (dashboardNavIconsByHref[item.href] ?? LayoutDashboard),
+    }
+  })
 }
 
 type AppSidebarProps = {
@@ -50,6 +71,7 @@ type AppSidebarProps = {
   avatarUrl?: string | null
   collapsed: boolean
   permissionIds: string[]
+  activeEvent?: ActiveEventNavConfig | null
   onNavigate?: () => void
 }
 
@@ -106,7 +128,14 @@ function NavItem({
         <Icon asChild boxSize={4}>
           <NavIcon />
         </Icon>
-        <Text flex="1">{label}</Text>
+        <Text flex="1" truncate>
+          {label}
+        </Text>
+        {badge ? (
+          <Badge size="sm" variant="subtle" colorPalette="blue">
+            {badge}
+          </Badge>
+        ) : null}
       </Link>
     </Button>
   )
@@ -160,11 +189,15 @@ export function AppSidebar({
   avatarUrl,
   collapsed,
   permissionIds,
+  activeEvent = null,
   onNavigate,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const initials = getInitials(displayName)
-  const navItems = buildNavItems(permissionIds)
+  const navItems = buildNavItems(permissionIds, activeEvent)
+  const activeEventHref = activeEvent
+    ? activeEventNavHref(activeEvent.id)
+    : null
 
   return (
     <Flex direction="column" height="full" bg="bg.subtle">
@@ -246,9 +279,7 @@ export function AppSidebar({
           {navItems.map((item) => {
             const isActive =
               !item.disabled &&
-              (pathname === item.href ||
-                (item.href !== '/dashboard' &&
-                  pathname.startsWith(`${item.href}/`)))
+              isDashboardNavItemActive(pathname, item.href, activeEventHref)
 
             return (
               <NavItem

@@ -6,7 +6,12 @@ import {
   signInAsAdmin,
   signInAsEventOrganizer,
 } from './fixtures/auth'
-import { deleteTestUser, canManageProfiles } from './helpers/test-users'
+import {
+  canManageProfiles,
+  clearActiveEvents,
+  deleteTestUser,
+  hasServiceRoleCredentials,
+} from './helpers/test-users'
 
 const eventDetailUrl = /\/dashboard\/events\/[0-9a-f-]{36}/
 const eventEditUrl = /\/dashboard\/events\/[0-9a-f-]{36}\/edit/
@@ -416,5 +421,45 @@ test.describe('Event creation type @auth', () => {
     await page.reload()
     await expect(inspectionSection.getByRole('switch')).toHaveAttribute('data-checked', '')
     await expect(weightVerification).toBeChecked()
+  })
+
+  test('sets active event and pins it first in the sidebar', async ({ page }) => {
+    test.skip(
+      !(await canRunSeededEventTests()) || !hasServiceRoleCredentials(),
+      'Needs seeded event credentials and SUPABASE_SERVICE_ROLE_KEY to clear active events'
+    )
+
+    await clearActiveEvents()
+
+    const organizer = await signInForEventTests(page)
+    disposableUserId = organizer?.id ?? null
+    const eventName = `E2E Active Event ${Date.now()}`
+
+    await page.goto('/dashboard/events/new')
+    await fillBaseEventFields(page, eventName)
+    await eventTypeSelect(page).selectOption('classic')
+    await page.getByRole('button', { name: 'Create event' }).click()
+    await page.waitForURL(eventDetailUrl)
+
+    await page.getByRole('button', { name: 'Set as active event' }).click()
+    await expect(page.getByText('Event set as active')).toBeVisible()
+    await expect(page.getByText('Active', { exact: true }).first()).toBeVisible()
+
+    await page.goto('/dashboard')
+    const navLinks = page.locator('aside').locator('a').filter({
+      has: page.getByText(eventName),
+    })
+    await expect(navLinks.first()).toBeVisible()
+
+    const orderedNavLinks = page
+      .locator('aside')
+      .getByText('Navigation', { exact: true })
+      .locator('xpath=following-sibling::*[1]')
+      .locator('a')
+    await expect(orderedNavLinks.first()).toContainText(eventName)
+
+    await orderedNavLinks.first().click()
+    await expect(page).toHaveURL(eventDetailUrl)
+    await expect(page.getByText(eventName).first()).toBeVisible()
   })
 })

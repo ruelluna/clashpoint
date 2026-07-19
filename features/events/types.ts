@@ -73,6 +73,7 @@ export type EventRow = {
   draw_rule: string
   tie_breaker_rule: string
   status: EventStatus
+  is_active: boolean
   guaranteed_prize_amount: number | null
   house_deduction: number | null
   venue_share: number | null
@@ -114,9 +115,15 @@ export type EventListItem = Pick<
   | 'derby_type'
   | 'derby_age_type'
   | 'status'
+  | 'is_active'
   | 'entry_fee'
   | 'tax_per_fight'
   | 'is_public'
 > & {
   promoter_name: string | null
+}
+
+export type ActiveEventNavItem = {
+  id: string
+  name: string
 }

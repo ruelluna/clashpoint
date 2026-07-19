@@ -16,6 +16,7 @@ import { PanelLeftIcon } from 'lucide-react'
 import { AppSidebar } from '@/components/dashboard/app-sidebar'
 import { LAYOUT_GAP } from '@/components/dashboard/spacing'
 import { ColorModeButton } from '@/components/ui/color-mode-button'
+import type { ActiveEventNavConfig } from '@/lib/dashboard/nav'
 
 const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_COLLAPSED = '4rem'
@@ -24,6 +25,7 @@ type DashboardShellProps = {
   displayName: string
   avatarUrl?: string | null
   permissionIds: string[]
+  activeEvent?: ActiveEventNavConfig | null
   children: React.ReactNode
 }
 
@@ -31,6 +33,7 @@ export function DashboardShell({
   displayName,
   avatarUrl,
   permissionIds,
+  activeEvent = null,
   children,
 }: DashboardShellProps) {
   const pathname = usePathname()
@@ -75,6 +78,7 @@ export function DashboardShell({
           avatarUrl={avatarUrl}
           collapsed={collapsed}
           permissionIds={permissionIds}
+          activeEvent={activeEvent}
         />
       </Box>
 
@@ -93,6 +97,7 @@ export function DashboardShell({
                 avatarUrl={avatarUrl}
                 collapsed={false}
                 permissionIds={permissionIds}
+                activeEvent={activeEvent}
                 onNavigate={() => setMobileOpen(false)}
               />
             </Drawer.Body>

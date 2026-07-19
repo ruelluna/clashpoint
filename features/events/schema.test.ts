@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { createEventSchema, defaultTaxPerFight } from '@/features/events/schema'
+import {
+  clearEventActiveSchema,
+  createEventSchema,
+  defaultTaxPerFight,
+  setEventActiveSchema,
+} from '@/features/events/schema'
 
 const basePrizeStructure = {
   prizeType: 'percentage' as const,
@@ -144,5 +149,21 @@ describe('createEventSchema event_type', () => {
   it('uses type-aware default tax per fight helper', () => {
     expect(defaultTaxPerFight('classic')).toBe(50)
     expect(defaultTaxPerFight('derby')).toBe(100)
+  })
+})
+
+describe('setEventActiveSchema / clearEventActiveSchema', () => {
+  const eventId = '00000000-0000-4000-8000-000000000001'
+
+  it('accepts a valid event id', () => {
+    expect(setEventActiveSchema.safeParse({ eventId }).success).toBe(true)
+    expect(clearEventActiveSchema.safeParse({ eventId }).success).toBe(true)
+  })
+
+  it('rejects missing or invalid event ids', () => {
+    expect(setEventActiveSchema.safeParse({}).success).toBe(false)
+    expect(setEventActiveSchema.safeParse({ eventId: 'not-a-uuid' }).success).toBe(
+      false
+    )
   })
 })

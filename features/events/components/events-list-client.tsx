@@ -68,6 +68,7 @@ function EventListRow({ event }: { event: EventListItem }) {
             <EventStatusBadges
               status={event.status}
               isPublic={event.is_public}
+              isActive={event.is_active}
               justify={{ base: 'flex-end', lg: 'flex-start' }}
             />
           </Box>

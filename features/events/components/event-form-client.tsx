@@ -35,6 +35,7 @@ import {
   updateEventAction,
   type ActionState,
 } from '@/features/events/actions'
+import { EventActiveControls } from '@/features/events/components/event-active-controls'
 import {
   COCKS_PER_ENTRY_BY_DERBY_TYPE,
   getNextStatuses,
@@ -65,6 +66,7 @@ type EventFormClientProps = {
   canManage: boolean
   eligibilityPolicy?: DerbyEligibilityPolicyRow | null
   canManageEligibility?: boolean
+  blockingActiveEvent?: { id: string; name: string } | null
 }
 
 const initialState: ActionState = {}
@@ -183,6 +185,7 @@ export function EventFormClient({
   canManage,
   eligibilityPolicy = null,
   canManageEligibility = false,
+  blockingActiveEvent = null,
 }: EventFormClientProps) {
   const router = useRouter()
   const action = mode === 'create' ? createEventAction : updateEventAction
@@ -304,7 +307,14 @@ export function EventFormClient({
             : 'Configure event details and prize structure.'
         }
         actions={
-          event ? <Badge>{EVENT_STATUS_LABELS[event.status]}</Badge> : undefined
+          event ? (
+            <Flex gap={2} wrap="wrap" align="center">
+              <Badge>{EVENT_STATUS_LABELS[event.status]}</Badge>
+              {event.is_active ? (
+                <Badge colorPalette="blue">Active</Badge>
+              ) : null}
+            </Flex>
+          ) : undefined
         }
       />
 
@@ -338,6 +348,16 @@ export function EventFormClient({
             </Text>
           ) : null}
         </PanelCard>
+      ) : null}
+
+      {event && canManage ? (
+        <EventActiveControls
+          eventId={event.id}
+          eventName={event.name}
+          status={event.status}
+          isActive={event.is_active}
+          blockingActiveEvent={blockingActiveEvent}
+        />
       ) : null}
 
       <PanelCard>

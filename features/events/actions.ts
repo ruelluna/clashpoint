@@ -4,14 +4,18 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import {
+  clearEventActiveSchema,
   createEventSchema,
+  setEventActiveSchema,
   transitionStatusSchema,
   updateEventSchema,
   updatePrizeStructureSchema,
 } from '@/features/events/schema'
 import { parseRegistrationRules } from '@/features/events/registration-rules'
 import {
+  clearEventActive,
   createEvent,
+  setEventActive,
   transitionStatus,
   updateEvent,
   updatePrizeStructure,
@@ -222,9 +226,58 @@ export async function transitionStatusAction(
   const result = await transitionStatus(profile.id, parsed.data)
   if (result.error) return { error: result.error }
 
+  revalidatePath('/dashboard')
   revalidatePath('/dashboard/events')
   revalidatePath(`/dashboard/events/${parsed.data.eventId}`)
   return { success: 'Status updated' }
+}
+
+export async function setEventActiveAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const profile = await requirePermission('events.manage')
+
+  const parsed = setEventActiveSchema.safeParse({
+    eventId: formData.get('eventId'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await setEventActive(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/events')
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/edit`)
+  return { success: 'Event set as active' }
+}
+
+export async function clearEventActiveAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const profile = await requirePermission('events.manage')
+
+  const parsed = clearEventActiveSchema.safeParse({
+    eventId: formData.get('eventId'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await clearEventActive(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/events')
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/edit`)
+  return { success: 'Active event cleared' }
 }
 
 export async function updatePrizeStructureAction(

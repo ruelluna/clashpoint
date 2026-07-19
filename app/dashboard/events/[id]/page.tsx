@@ -16,7 +16,8 @@ import {
   hasEligibilityOptionsConfigured,
 } from '@/features/eligibility/policy-summary'
 import { getEntryFormEligibilityContext } from '@/features/eligibility/registration-bridge'
-import { getEventWithPrize } from '@/features/events/queries'
+import { EventActiveControls } from '@/features/events/components/event-active-controls'
+import { getActiveEvent, getEventWithPrize } from '@/features/events/queries'
 import { getEventPrizePoolCollected } from '@/features/events/prize-pool'
 import {
   DERBY_TYPE_LABELS,
@@ -61,6 +62,9 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
 
   const user = await getUser()
   const canManage = user ? await hasPermission(user.id, 'events.manage') : false
+  const activeEvent = canManage ? await getActiveEvent() : null
+  const blockingActiveEvent =
+    activeEvent && activeEvent.id !== event.id ? activeEvent : null
 
   const eligibilityContext = isDerby ? await getEntryFormEligibilityContext(id) : null
   const eligibilityPolicy =
@@ -109,6 +113,9 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
               </Text>
               <Flex gap={2} wrap="wrap">
                 <Badge>{EVENT_STATUS_LABELS[event.status]}</Badge>
+                {event.is_active ? (
+                  <Badge colorPalette="blue">Active</Badge>
+                ) : null}
                 {event.is_public ? <Badge variant="subtle">Public</Badge> : null}
               </Flex>
             </Stack>
@@ -124,6 +131,16 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             ) : null}
           </Flex>
         </Box>
+
+        {canManage ? (
+          <EventActiveControls
+            eventId={event.id}
+            eventName={event.name}
+            status={event.status}
+            isActive={event.is_active}
+            blockingActiveEvent={blockingActiveEvent}
+          />
+        ) : null}
 
         <Box borderWidth="1px" borderColor="border" rounded="md" p={4}>
           <Text fontWeight="semibold" mb={4}>

@@ -224,10 +224,20 @@ export const updatePrizeStructureSchema = z.object({
   prizeStructure: prizeStructureSchema,
 })
 
+export const setEventActiveSchema = z.object({
+  eventId: z.string().uuid(),
+})
+
+export const clearEventActiveSchema = z.object({
+  eventId: z.string().uuid(),
+})
+
 export type CreateEventInput = z.infer<typeof createEventSchema>
 export type UpdateEventInput = z.infer<typeof updateEventSchema>
 export type TransitionStatusInput = z.infer<typeof transitionStatusSchema>
 export type UpdatePrizeStructureInput = z.infer<typeof updatePrizeStructureSchema>
+export type SetEventActiveInput = z.infer<typeof setEventActiveSchema>
+export type ClearEventActiveInput = z.infer<typeof clearEventActiveSchema>
 export type PrizeStructureInput = z.infer<typeof prizeStructureSchema>
 
 export const EVENT_TYPE_LABELS: Record<z.infer<typeof eventTypeSchema>, string> = {

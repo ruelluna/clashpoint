@@ -239,6 +239,7 @@ export type Database = {
           draw_rule: string
           tie_breaker_rule: string
           status: Database['public']['Enums']['event_status']
+          is_active: boolean
           guaranteed_prize_amount: number | null
           house_deduction: number | null
           venue_share: number | null
@@ -298,6 +299,7 @@ export type Database = {
           draw_rule?: string
           tie_breaker_rule?: string
           status?: Database['public']['Enums']['event_status']
+          is_active?: boolean
           guaranteed_prize_amount?: number | null
           house_deduction?: number | null
           venue_share?: number | null
@@ -357,6 +359,7 @@ export type Database = {
           draw_rule?: string
           tie_breaker_rule?: string
           status?: Database['public']['Enums']['event_status']
+          is_active?: boolean
           guaranteed_prize_amount?: number | null
           house_deduction?: number | null
           venue_share?: number | null
@@ -626,6 +629,7 @@ export type Database = {
           amount: number
           balance_after: number
           description: string | null
+          source_payment_id: string | null
           created_by: string | null
           created_at: string
         }
@@ -636,6 +640,7 @@ export type Database = {
           amount: number
           balance_after: number
           description?: string | null
+          source_payment_id?: string | null
           created_by?: string | null
           created_at?: string
         }
@@ -646,6 +651,7 @@ export type Database = {
           amount?: number
           balance_after?: number
           description?: string | null
+          source_payment_id?: string | null
           created_by?: string | null
           created_at?: string
         }
@@ -655,6 +661,13 @@ export type Database = {
             columns: ['event_id']
             isOneToOne: false
             referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'event_revolving_fund_ledger_source_payment_id_fkey'
+            columns: ['source_payment_id']
+            isOneToOne: false
+            referencedRelation: 'payments'
             referencedColumns: ['id']
           },
         ]
@@ -1533,7 +1546,7 @@ export type Database = {
         | 'cash_bond'
         | 'adjustment'
         | 'legacy'
-      revolving_fund_entry_type: 'opening' | 'adjustment'
+      revolving_fund_entry_type: 'opening' | 'adjustment' | 'collection' | 'refund'
       registration_payment_status:
         | 'not_required'
         | 'unpaid'

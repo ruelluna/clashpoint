@@ -216,3 +216,17 @@ export async function deleteTestUser(userId: string) {
 
   await supabase.auth.admin.deleteUser(userId)
 }
+
+/** Clears the single-active event flag so E2E can activate a fresh event. */
+export async function clearActiveEvents() {
+  const supabase = getAdminClient()
+
+  if (!supabase) {
+    return
+  }
+
+  await supabase
+    .from('events')
+    .update({ is_active: false })
+    .eq('is_active', true)
+}

@@ -49,6 +49,10 @@ export function isTerminalStatus(status: EventStatus): boolean {
   return status === 'archived'
 }
 
+export function canActivateEvent(status: EventStatus): boolean {
+  return status !== 'archived'
+}
+
 export function canEditEventDetails(status: EventStatus): boolean {
   return status === 'draft' || status === 'open'
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  canActivateEvent,
   getRegistrationClosedReason,
   isRegistrationOpen,
   resolveCocksPerEntry,
@@ -32,5 +33,18 @@ describe('isRegistrationOpen', () => {
     expect(
       getRegistrationClosedReason({ status: 'draft', registration_deadline: null })
     ).toMatch(/not open/i)
+  })
+})
+
+describe('canActivateEvent', () => {
+  it('allows non-archived statuses including open and draft', () => {
+    expect(canActivateEvent('draft')).toBe(true)
+    expect(canActivateEvent('open')).toBe(true)
+    expect(canActivateEvent('ongoing')).toBe(true)
+    expect(canActivateEvent('completed')).toBe(true)
+  })
+
+  it('blocks archived events', () => {
+    expect(canActivateEvent('archived')).toBe(false)
   })
 })

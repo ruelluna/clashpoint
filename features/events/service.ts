@@ -10,13 +10,16 @@ import {
   type EventFeeSettings,
 } from '@/features/events/fee-utils'
 import type {
+  ClearEventActiveInput,
   CreateEventInput,
+  SetEventActiveInput,
   TransitionStatusInput,
   UpdateEventInput,
   UpdatePrizeStructureInput,
 } from '@/features/events/schema'
 import type { EventRow } from '@/features/events/types'
 import {
+  canActivateEvent,
   canEditEventDetails,
   isValidStatusTransition,
   resolveCocksPerEntry,
@@ -333,7 +336,7 @@ export async function transitionStatus(
 
   const { data: existing, error: fetchError } = await supabase
     .from('events')
-    .select('status, name')
+    .select('status, name, is_active')
     .eq('id', input.eventId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -343,6 +346,8 @@ export async function transitionStatus(
 
   const currentStatus = existing.status as EventRow['status']
   const nextStatus = input.status
+  const clearActive =
+    nextStatus === 'completed' || nextStatus === 'cancelled'
 
   if (!isValidStatusTransition(currentStatus, nextStatus)) {
     return {
@@ -355,6 +360,7 @@ export async function transitionStatus(
     .update({
       status: nextStatus,
       ...(nextStatus === 'open' ? { is_public: true } : {}),
+      ...(clearActive ? { is_active: false } : {}),
     })
     .eq('id', input.eventId)
 
@@ -365,9 +371,136 @@ export async function transitionStatus(
     action: 'event.status_changed',
     entityType: 'event',
     entityId: input.eventId,
-    oldValues: { status: currentStatus },
-    newValues: { status: nextStatus, name: existing.name },
+    oldValues: {
+      status: currentStatus,
+      is_active: Boolean(existing.is_active),
+    },
+    newValues: {
+      status: nextStatus,
+      name: existing.name,
+      ...(clearActive ? { is_active: false } : {}),
+    },
     reason: input.reason,
+  })
+
+  if (clearActive && existing.is_active) {
+    await writeAuditLog({
+      actorId,
+      action: 'event.deactivated',
+      entityType: 'event',
+      entityId: input.eventId,
+      oldValues: { is_active: true },
+      newValues: { is_active: false, name: existing.name, status: nextStatus },
+      reason: 'Cleared automatically when event was finished or cancelled',
+    })
+  }
+
+  return {}
+}
+
+const ACTIVE_EVENT_CONFLICT_MESSAGE =
+  'Another event is already active. Finish or clear that event before activating a different one.'
+
+function isUniqueViolation(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === '23505') return true
+  return Boolean(error.message?.toLowerCase().includes('events_one_active'))
+}
+
+export async function setEventActive(
+  actorId: string,
+  input: SetEventActiveInput
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('events')
+    .select('id, name, status, is_active')
+    .eq('id', input.eventId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (fetchError) return { error: fetchError.message }
+  if (!existing) return { error: 'Event not found' }
+
+  const status = existing.status as EventRow['status']
+  if (!canActivateEvent(status)) {
+    return { error: 'Archived events cannot be set as the active event.' }
+  }
+
+  if (existing.is_active) return {}
+
+  const { data: peer, error: peerError } = await supabase
+    .from('events')
+    .select('id, name')
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .neq('id', input.eventId)
+    .maybeSingle()
+
+  if (peerError) return { error: peerError.message }
+  if (peer) {
+    return {
+      error: `${ACTIVE_EVENT_CONFLICT_MESSAGE} Active event: ${peer.name}.`,
+    }
+  }
+
+  const { error } = await supabase
+    .from('events')
+    .update({ is_active: true })
+    .eq('id', input.eventId)
+    .is('deleted_at', null)
+
+  if (error) {
+    if (isUniqueViolation(error)) {
+      return { error: ACTIVE_EVENT_CONFLICT_MESSAGE }
+    }
+    return { error: error.message }
+  }
+
+  await writeAuditLog({
+    actorId,
+    action: 'event.activated',
+    entityType: 'event',
+    entityId: input.eventId,
+    oldValues: { is_active: false },
+    newValues: { is_active: true, name: existing.name },
+  })
+
+  return {}
+}
+
+export async function clearEventActive(
+  actorId: string,
+  input: ClearEventActiveInput
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('events')
+    .select('id, name, is_active')
+    .eq('id', input.eventId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (fetchError) return { error: fetchError.message }
+  if (!existing) return { error: 'Event not found' }
+  if (!existing.is_active) return {}
+
+  const { error } = await supabase
+    .from('events')
+    .update({ is_active: false })
+    .eq('id', input.eventId)
+
+  if (error) return { error: error.message }
+
+  await writeAuditLog({
+    actorId,
+    action: 'event.deactivated',
+    entityType: 'event',
+    entityId: input.eventId,
+    oldValues: { is_active: true },
+    newValues: { is_active: false, name: existing.name },
   })
 
   return {}

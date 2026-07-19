@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  activeEventNavHref,
   dashboardNavItemConfigs,
   filterNavItemsByPermissions,
+  isDashboardNavItemActive,
+  prependActiveEventNavItem,
 } from '@/lib/dashboard/nav'
 
 describe('filterNavItemsByPermissions', () => {
@@ -62,5 +65,66 @@ describe('filterNavItemsByPermissions', () => {
     expect(
       dashboardNavItemConfigs.some((item) => item.href === '/dashboard/roosters')
     ).toBe(false)
+  })
+})
+
+describe('prependActiveEventNavItem', () => {
+  const activeEvent = {
+    id: '00000000-0000-4000-8000-000000000001',
+    name: 'Summer Derby',
+  }
+
+  it('prepends the active event before Dashboard when permitted', () => {
+    const items = filterNavItemsByPermissions(dashboardNavItemConfigs, [
+      'events.view',
+    ])
+    const withActive = prependActiveEventNavItem(
+      items,
+      activeEvent,
+      ['events.view']
+    )
+
+    expect(withActive[0]).toMatchObject({
+      label: 'Summer Derby',
+      href: activeEventNavHref(activeEvent.id),
+      badge: 'Active',
+    })
+    expect(withActive[1]?.href).toBe('/dashboard')
+  })
+
+  it('does not prepend without events permissions', () => {
+    const items = filterNavItemsByPermissions(dashboardNavItemConfigs, [
+      'audit.view',
+    ])
+    const withActive = prependActiveEventNavItem(items, activeEvent, [
+      'audit.view',
+    ])
+
+    expect(withActive.map((item) => item.href)[0]).toBe('/dashboard')
+    expect(
+      withActive.some((item) => item.href === activeEventNavHref(activeEvent.id))
+    ).toBe(false)
+  })
+})
+
+describe('isDashboardNavItemActive', () => {
+  const activeHref = '/dashboard/events/00000000-0000-4000-8000-000000000001'
+
+  it('marks the active event nav when under that event path', () => {
+    expect(
+      isDashboardNavItemActive(`${activeHref}/matching`, activeHref, activeHref)
+    ).toBe(true)
+  })
+
+  it('does not mark Events list when viewing the pinned active event', () => {
+    expect(
+      isDashboardNavItemActive(activeHref, '/dashboard/events', activeHref)
+    ).toBe(false)
+  })
+
+  it('marks Events list on the events index', () => {
+    expect(
+      isDashboardNavItemActive('/dashboard/events', '/dashboard/events', activeHref)
+    ).toBe(true)
   })
 })

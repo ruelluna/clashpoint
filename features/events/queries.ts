@@ -1,6 +1,7 @@
 import 'server-only'
 
 import type {
+  ActiveEventNavItem,
   EventListItem,
   EventRow,
   EventWithPrize,
@@ -19,6 +20,7 @@ type EventListRow = {
   derby_format: EventListItem['derby_type']
   derby_type: EventListItem['derby_age_type']
   status: EventListItem['status']
+  is_active: boolean
   entry_fee: number
   tax_per_fight: number
   is_public: boolean
@@ -35,7 +37,7 @@ export async function listEvents(): Promise<EventListItem[]> {
   const { data, error } = await supabase
     .from('events')
     .select(
-      'id, name, venue, event_date, event_type, derby_format, derby_type, status, entry_fee, tax_per_fight, is_public, promoters ( name )'
+      'id, name, venue, event_date, event_type, derby_format, derby_type, status, is_active, entry_fee, tax_per_fight, is_public, promoters ( name )'
     )
     .is('deleted_at', null)
     .order('event_date', { ascending: false })
@@ -51,11 +53,27 @@ export async function listEvents(): Promise<EventListItem[]> {
     derby_type: row.derby_format,
     derby_age_type: row.derby_type,
     status: row.status,
+    is_active: Boolean(row.is_active),
     entry_fee: Number(row.entry_fee),
     tax_per_fight: Number(row.tax_per_fight),
     is_public: row.is_public,
     promoter_name: row.promoters?.name ?? null,
   }))
+}
+
+export async function getActiveEvent(): Promise<ActiveEventNavItem | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, name')
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  return { id: data.id, name: data.name }
 }
 
 export async function getEvent(eventId: string): Promise<EventRow | null> {
@@ -156,6 +174,7 @@ function mapEventRow(data: Record<string, unknown>): EventRow {
     draw_rule: data.draw_rule as string,
     tie_breaker_rule: data.tie_breaker_rule as string,
     status: data.status as EventRow['status'],
+    is_active: Boolean(data.is_active),
     guaranteed_prize_amount:
       data.guaranteed_prize_amount != null
         ? Number(data.guaranteed_prize_amount)

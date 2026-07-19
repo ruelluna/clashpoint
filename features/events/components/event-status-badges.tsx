@@ -27,11 +27,13 @@ export function eventStatusColorPalette(status: EventStatus) {
 type EventStatusBadgesProps = FlexProps & {
   status: EventStatus
   isPublic?: boolean
+  isActive?: boolean
 }
 
 export function EventStatusBadges({
   status,
   isPublic = false,
+  isActive = false,
   ...props
 }: EventStatusBadgesProps) {
   return (
@@ -39,6 +41,11 @@ export function EventStatusBadges({
       <Badge colorPalette={eventStatusColorPalette(status)} size="sm">
         {EVENT_STATUS_LABELS[status]}
       </Badge>
+      {isActive ? (
+        <Badge colorPalette="blue" size="sm">
+          Active
+        </Badge>
+      ) : null}
       {isPublic ? (
         <Badge variant="subtle" size="sm">
           Public

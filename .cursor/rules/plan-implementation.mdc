@@ -108,6 +108,7 @@ YYYYMMDD-HHMM-<task-slug>-breakdown.md
 - Summary (what changed and why)
 - Bullet changelog of player-visible / organizer-visible changes
 - Files touched (grouped: `app/`, `features/`, `supabase/`, `lib/`)
+- **Stage command** (required) — a copy-paste `git add` that lists **every monorepo path** this breakdown owns (explicit paths only; never `git add .` or `git add -A`). Purpose: when multiple Cursor agent windows leave a dirty tree, the user can stage only this work. Include the breakdown file itself. Do **not** run the command unless the user asks to stage or commit. Nested doc repos (`docs/admins`, `docs/users`) get a separate note or `git -C` add block if markdown there was edited.
 - Deploy steps if any (Supabase migration, Vercel, env vars)
 - Manual test steps (URLs, flows — not Pest; suggest what to click/verify)
 - E2E specs added/updated or N/A with reason; `npx playwright test` command when applicable
@@ -115,6 +116,20 @@ YYYYMMDD-HHMM-<task-slug>-breakdown.md
 - Suggested doc commits if applicable
 - Linear paste block (Title, Description, Comment/instructions, Documentation links)
 - Published doc links when updated
+
+### Stage command format
+
+Place a `## Stage files` section after Files touched. Use a single multiline `git add` with one path per line:
+
+```bash
+git add \
+  path/to/file-a.ts \
+  path/to/file-b.ts \
+  .cursor/breakdowns/YYYYMMDD-HHMM-<task-slug>-breakdown.md
+```
+
+Omit paths that live only in nested/gitignored doc repos from the monorepo `git add`; call those out under a short "Docs repo (stage separately)" note instead.
+
 
 ## 5. Implementation summary (required)
 
@@ -170,6 +185,7 @@ User: https://<org>.github.io/clashpoint-user-docs/joining-a-fight
 Before finishing, confirm in the reply:
 
 - [ ] Breakdown file created or updated in `.cursor/breakdowns/`
+- [ ] Breakdown includes `## Stage files` with an explicit `git add` for this work only
 - [ ] Admin doc updated (or N/A with reason)
 - [ ] Admin docs: no CLI, shell blocks, or `.cursor/` references (per `documentation.mdc`)
 - [ ] User doc updated (or N/A with reason)

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 
 import { EventFormClient } from '@/features/events/components/event-form-client'
-import { getEventWithPrize } from '@/features/events/queries'
+import { getActiveEvent, getEventWithPrize } from '@/features/events/queries'
 import { getDerbyEligibilityPolicy } from '@/features/eligibility/queries'
 import { listPromoters } from '@/features/promoters/queries'
 import { getUser } from '@/lib/auth/session'
@@ -14,11 +14,12 @@ type EditEventPageProps = {
 export default async function EditEventPage({ params }: EditEventPageProps) {
   await requirePermission('events.view')
   const { id } = await params
-  const [event, promoters, user, policy] = await Promise.all([
+  const [event, promoters, user, policy, activeEvent] = await Promise.all([
     getEventWithPrize(id),
     listPromoters('active'),
     getUser(),
     getDerbyEligibilityPolicy(id),
+    getActiveEvent(),
   ])
 
   if (!event) notFound()
@@ -30,6 +31,9 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
       ])
     : [false, false]
 
+  const blockingActiveEvent =
+    activeEvent && activeEvent.id !== event.id ? activeEvent : null
+
   return (
     <EventFormClient
       mode="edit"
@@ -38,6 +42,7 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
       canManage={canManage}
       eligibilityPolicy={policy}
       canManageEligibility={canManageEligibility}
+      blockingActiveEvent={blockingActiveEvent}
     />
   )
 }
