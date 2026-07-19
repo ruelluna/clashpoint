@@ -14,6 +14,25 @@ Added two idempotent Node seed commands that create matching-ready demo events w
 - Both clear any current active event, then set the seeded event as the sole active event (unlike UI activate, which refuses when a peer is active).
 - Re-running a command deletes the prior event of that seed name and recreates it.
 
+## Changelog (2026-07-19 23:21) — revolving fund opening
+
+- Classic seed sets `revolving_fund_initial` to **50000** and posts matching `event_revolving_fund_ledger` opening row.
+- Derby seed sets `revolving_fund_initial` to **200000** and posts opening ledger row.
+- Shared `insertDemoEvent` always creates the opening ledger entry (same as `createEvent`).
+
+## Changelog (2026-07-19 23:31) — seeded payment collections
+
+- Each seeded payment now posts a matching `collection` row on `event_revolving_fund_ledger` (same as `recordPayment`).
+- Running `balance_after` chains from opening balance through all seeded collections.
+- Classic demo: opening 50000 + 5200 collected = balance 55200 (12 collection rows).
+- Derby demo: opening 200000 + 15500 collected = balance 215500 (11 collection rows).
+- `source_payment_id` is set when the cashier-posts migration is applied; otherwise collection rows omit it.
+
+## Changelog (2026-07-19 23:35) — auto-bootstrap admin
+
+- Demo seeders auto-create the first admin when `needs_bootstrap` is true and `ruelluna@gmail.com` is missing (password `password`, overridable via `SEED_FIRST_ADMIN_*` env vars).
+- `npm run seed:first-admin` is optional before classic/derby demo seeds on a fresh DB.
+
 ## Files touched
 
 - `scripts/lib/seed-demo-shared.mjs` — env, service client, actor, teardown, activate, inserts
@@ -28,10 +47,10 @@ git add \
   scripts/lib/seed-demo-shared.mjs \
   scripts/seed-classic-demo.mjs \
   scripts/seed-derby-demo.mjs \
-  package.json \
-  .cursor/breakdowns/20260719-2306-classic-derby-seeders-breakdown.md \
-  .cursor/rules/plan-implementation.mdc
+  .cursor/breakdowns/20260719-2306-classic-derby-seeders-breakdown.md
 ```
+
+
 
 ## Deploy steps
 
@@ -39,7 +58,7 @@ git add \
 
 None. Local/dev only. Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Prefer a non-production database.
 
-Prerequisite: `npm run seed:first-admin` (or an existing profile for `SEED_FIRST_ADMIN_EMAIL`, default `ruelluna@gmail.com`).
+Prerequisite: Supabase env vars only. On a fresh DB (`needs_bootstrap`), demo seeds create `ruelluna@gmail.com` / `password` automatically; otherwise use an existing seed admin or run `npm run seed:first-admin`.
 
 ## Manual test steps
 
@@ -66,21 +85,23 @@ N/A — Node scripts with direct service-role inserts.
 ## Suggested ClashPoint commit
 
 ```
-Summary: Add classic and derby demo seed commands for cashier and matching practice
+Summary: Seed opening revolving fund on classic and derby demos
 
-body: Idempotent Node seeds create matching-ready events with owners, roosters, and mixed dues, then take over the sole active event so local ops practice does not fight the UI activate guard.
+body: Cashier practice needs a starting ledger balance; seeds now set revolving_fund_initial and post the opening event_revolving_fund_ledger row like createEvent.
 ```
 
 ## Commit commands
 
 ```bash
 git commit -m "$(cat <<'EOF'
-Add classic and derby demo seed commands for cashier and matching practice
+Post revolving fund collections for seeded cashier payments
 
-Idempotent Node seeds create matching-ready events with owners, roosters, and mixed dues, then take over the sole active event so local ops practice does not fight the UI activate guard.
+Seeded payments bypass recordPayment; add matching collection ledger rows so revolving fund balance reflects partial and paid demo entries.
 EOF
 )"
 ```
+
+
 
 ## Linear paste block
 

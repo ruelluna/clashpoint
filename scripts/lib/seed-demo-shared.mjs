@@ -66,25 +66,81 @@ async function findUserByEmail(supabase, email) {
   }
 }
 
-export async function resolveSeedActor(supabase) {
-  const email = process.env.SEED_FIRST_ADMIN_EMAIL ?? 'ruelluna@gmail.com'
-  const user = await findUserByEmail(supabase, email)
-  if (!user) {
+function seedAdminCredentials() {
+  return {
+    email: process.env.SEED_FIRST_ADMIN_EMAIL ?? 'ruelluna@gmail.com',
+    password: process.env.SEED_FIRST_ADMIN_PASSWORD ?? 'password',
+    displayName: process.env.SEED_FIRST_ADMIN_DISPLAY_NAME ?? 'Ruel Luna',
+  }
+}
+
+async function createBootstrapAdminUser(supabase, { email, password, displayName }) {
+  const { data: created, error: createError } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { display_name: displayName },
+  })
+
+  if (createError || !created.user) {
+    if (createError?.message?.toLowerCase().includes('already been registered')) {
+      const existing = await findUserByEmail(supabase, email)
+      if (!existing) {
+        throw new Error(`Email ${email} is registered but user lookup failed.`)
+      }
+      return existing
+    }
+    throw new Error(createError?.message ?? 'Failed to create bootstrap admin user')
+  }
+
+  console.log(`Created bootstrap admin ${email} (user id: ${created.user.id})`)
+  return created.user
+}
+
+async function waitForProfile(supabase, userId, email, attempts = 10) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id, display_name, role')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (error) throw error
+    if (profile) return profile
+
+    await new Promise((resolve) => setTimeout(resolve, 200))
+  }
+
+  throw new Error(`Profile missing for ${email} (${userId}) after bootstrap.`)
+}
+
+async function ensureBootstrapAdminIfNeeded(supabase) {
+  const { email, password, displayName } = seedAdminCredentials()
+  let user = await findUserByEmail(supabase, email)
+
+  if (user) return user
+
+  const { data: needsBootstrap, error: bootstrapError } = await supabase.rpc('needs_bootstrap')
+  if (bootstrapError) {
+    throw new Error(`Unable to verify bootstrap state: ${bootstrapError.message}`)
+  }
+
+  if (!needsBootstrap) {
     throw new Error(
-      `No auth user for ${email}. Run npm run seed:first-admin first.`
+      `No auth user for ${email} and bootstrap is already complete. ` +
+        'Use an existing admin or run npm run seed:first-admin.'
     )
   }
 
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('id, display_name, role')
-    .eq('id', user.id)
-    .maybeSingle()
+  user = await createBootstrapAdminUser(supabase, { email, password, displayName })
+  return user
+}
 
-  if (error) throw error
-  if (!profile) {
-    throw new Error(`Profile missing for ${email} (${user.id}).`)
-  }
+export async function resolveSeedActor(supabase) {
+  const { email } = seedAdminCredentials()
+  const user = await ensureBootstrapAdminIfNeeded(supabase)
+
+  const profile = await waitForProfile(supabase, user.id, email)
 
   return { userId: user.id, email, profile }
 }
@@ -234,9 +290,117 @@ export async function activateSeedEvent(supabase, eventId) {
   return { previous: peer, activated }
 }
 
+export async function insertOpeningRevolvingFund(supabase, { eventId, actorId, amount }) {
+  const openingAmount = Number(Math.max(0, amount).toFixed(2))
+
+  const { error } = await supabase.from('event_revolving_fund_ledger').insert({
+    event_id: eventId,
+    entry_type: 'opening',
+    amount: openingAmount,
+    balance_after: openingAmount,
+    description: 'Opening revolving fund balance',
+    created_by: actorId,
+  })
+
+  if (error) throw error
+  return openingAmount
+}
+
+/**
+ * Mirrors recordPayment → postRevolvingFundLedgerEntry(collection).
+ * Mutates ledgerBalanceRef.current after each post.
+ */
+export async function postSeedCollectionLedgerEntry(
+  supabase,
+  { eventId, actorId, paymentId, paymentReference, entryName, amountPaid, ledgerBalanceRef }
+) {
+  const amount = Number(Math.max(0, amountPaid).toFixed(2))
+  ledgerBalanceRef.current = Number((ledgerBalanceRef.current + amount).toFixed(2))
+
+  const basePayload = {
+    event_id: eventId,
+    entry_type: 'collection',
+    amount,
+    balance_after: ledgerBalanceRef.current,
+    description: `Collection ${paymentReference} — ${entryName}`,
+    created_by: actorId,
+  }
+
+  if (paymentId) {
+    const { error: linkedError } = await supabase
+      .from('event_revolving_fund_ledger')
+      .insert({ ...basePayload, source_payment_id: paymentId })
+
+    if (!linkedError) return ledgerBalanceRef.current
+
+    if (linkedError.code !== 'PGRST204') throw linkedError
+  }
+
+  const { error } = await supabase.from('event_revolving_fund_ledger').insert(basePayload)
+  if (error) throw error
+  return ledgerBalanceRef.current
+}
+
+async function insertSeedPaymentWithCollection(
+  supabase,
+  {
+    eventId,
+    actorId,
+    entryId,
+    entryName,
+    paymentSeq,
+    amountDue,
+    paymentCategory,
+    notes,
+    paidAt,
+    ledgerBalanceRef,
+    tallies,
+  }
+) {
+  const paymentReference = formatPaymentReference(eventId, paymentSeq)
+  const amountPaid = Number(amountDue.toFixed(2))
+
+  const { data: payment, error: payError } = await supabase
+    .from('payments')
+    .insert({
+      payment_reference: paymentReference,
+      entry_id: entryId,
+      event_id: eventId,
+      amount_due: amountPaid,
+      amount_paid: amountPaid,
+      balance: 0,
+      payment_method: 'cash',
+      payment_status: 'paid',
+      payment_category: paymentCategory,
+      received_by: actorId,
+      paid_at: paidAt,
+      notes,
+    })
+    .select('id')
+    .single()
+
+  if (payError) throw payError
+
+  await postSeedCollectionLedgerEntry(supabase, {
+    eventId,
+    actorId,
+    paymentId: payment.id,
+    paymentReference,
+    entryName,
+    amountPaid,
+    ledgerBalanceRef,
+  })
+
+  tallies.collections += 1
+  tallies.collectedAmount = Number((tallies.collectedAmount + amountPaid).toFixed(2))
+}
+
 export async function insertDemoEvent(supabase, { actorId, venue, event }) {
   const today = new Date()
   const eventDate = today.toISOString()
+  const revolvingFundInitial = Number(
+    Math.max(0, event.revolvingFundInitial ?? 0).toFixed(2)
+  )
 
   const payload = {
     name: event.name,
@@ -263,7 +427,7 @@ export async function insertDemoEvent(supabase, { actorId, venue, event }) {
     require_rooster_entry_approval: event.requireRoosterEntryApproval ?? false,
     eligibility_enforcement_enabled: false,
     classification_matching_enabled: false,
-    revolving_fund_initial: event.revolvingFundInitial ?? 0,
+    revolving_fund_initial: revolvingFundInitial,
     scoring_system: 'points',
     draw_rule: '0.5 points',
     tie_breaker_rule: 'shared_championship',
@@ -282,7 +446,15 @@ export async function insertDemoEvent(supabase, { actorId, venue, event }) {
 
   const { data, error } = await supabase.from('events').insert(payload).select('id, name').single()
   if (error) throw error
-  return data
+
+  // Mirror createEvent: always post an opening ledger row (amount may be 0).
+  await insertOpeningRevolvingFund(supabase, {
+    eventId: data.id,
+    actorId,
+    amount: revolvingFundInitial,
+  })
+
+  return { ...data, revolvingFundInitial }
 }
 
 export async function insertPrizeStructure(supabase, eventId, prizeStructure) {
@@ -303,6 +475,7 @@ export async function insertPrizeStructure(supabase, eventId, prizeStructure) {
  * @param {number} options.cocksPerEntry
  * @param {object} options.fees
  * @param {boolean} options.includeFeeSnapshot
+ * @param {number} options.revolvingFundInitial
  */
 export async function seedOwnersEntriesAndRoosters({
   supabase,
@@ -312,11 +485,15 @@ export async function seedOwnersEntriesAndRoosters({
   cocksPerEntry,
   fees,
   includeFeeSnapshot,
+  revolvingFundInitial = 0,
 }) {
   const snapshot = includeFeeSnapshot ? feeSnapshotFromSettings(fees) : null
   const now = new Date().toISOString()
   let paymentSeq = 0
   let cockSeq = 0
+  const ledgerBalanceRef = {
+    current: Number(Math.max(0, revolvingFundInitial).toFixed(2)),
+  }
 
   const tallies = {
     owners: ownerNames.length,
@@ -324,6 +501,9 @@ export async function seedOwnersEntriesAndRoosters({
     partial: 0,
     paid: 0,
     roosters: 0,
+    collections: 0,
+    collectedAmount: 0,
+    revolvingFundFinalBalance: ledgerBalanceRef.current,
   }
 
   const colors = ['Red', 'White', 'Grey', 'Black', 'Hennie', 'Lemon', 'Bulik', 'Sweater']
@@ -431,50 +611,53 @@ export async function seedOwnersEntriesAndRoosters({
       const amountDue = computeCategoryDue('registration', fees, roosterCount)
       if (amountDue > 0) {
         paymentSeq += 1
-        const { error: payError } = await supabase.from('payments').insert({
-          payment_reference: formatPaymentReference(eventId, paymentSeq),
-          entry_id: entry.id,
-          event_id: eventId,
-          amount_due: amountDue,
-          amount_paid: amountDue,
-          balance: 0,
-          payment_method: 'cash',
-          payment_status: 'paid',
-          payment_category: 'registration',
-          received_by: actorId,
-          paid_at: now,
+        await insertSeedPaymentWithCollection(supabase, {
+          eventId,
+          actorId,
+          entryId: entry.id,
+          entryName: ownerName,
+          paymentSeq,
+          amountDue,
+          paymentCategory: 'registration',
           notes: 'Seed partial (registration only)',
+          paidAt: now,
+          ledgerBalanceRef,
+          tallies,
         })
-        if (payError) throw payError
       }
     } else if (tier === 'paid') {
       for (const category of categories) {
         const amountDue = computeCategoryDue(category, fees, roosterCount)
         if (amountDue <= 0) continue
         paymentSeq += 1
-        const { error: payError } = await supabase.from('payments').insert({
-          payment_reference: formatPaymentReference(eventId, paymentSeq),
-          entry_id: entry.id,
-          event_id: eventId,
-          amount_due: amountDue,
-          amount_paid: amountDue,
-          balance: 0,
-          payment_method: 'cash',
-          payment_status: 'paid',
-          payment_category: category,
-          received_by: actorId,
-          paid_at: now,
+        await insertSeedPaymentWithCollection(supabase, {
+          eventId,
+          actorId,
+          entryId: entry.id,
+          entryName: ownerName,
+          paymentSeq,
+          amountDue,
+          paymentCategory: category,
           notes: 'Seed full payment',
+          paidAt: now,
+          ledgerBalanceRef,
+          tallies,
         })
-        if (payError) throw payError
       }
     }
   }
 
+  tallies.revolvingFundFinalBalance = ledgerBalanceRef.current
   return tallies
 }
 
-export function printSeedSummary({ eventId, eventName, tallies, kind }) {
+export function printSeedSummary({
+  eventId,
+  eventName,
+  tallies,
+  kind,
+  revolvingFundInitial,
+}) {
   console.log('')
   console.log(`=== ${kind} demo seed complete ===`)
   console.log(`Event: ${eventName}`)
@@ -483,10 +666,22 @@ export function printSeedSummary({ eventId, eventName, tallies, kind }) {
     `Owners: ${tallies.owners} (unpaid ${tallies.unpaid}, partial ${tallies.partial}, paid ${tallies.paid})`
   )
   console.log(`Roosters: ${tallies.roosters}`)
+  if (revolvingFundInitial != null) {
+    console.log(`Revolving fund opening: ${revolvingFundInitial}`)
+  }
+  if (tallies.collections > 0) {
+    console.log(
+      `Revolving fund collections: ${tallies.collections} (${tallies.collectedAmount} collected)`
+    )
+  }
+  if (tallies.revolvingFundFinalBalance != null) {
+    console.log(`Revolving fund balance: ${tallies.revolvingFundFinalBalance}`)
+  }
   console.log('')
   console.log('Dashboard:')
   console.log(`  Overview:  /dashboard/events/${eventId}`)
   console.log(`  Cashier:   /dashboard/events/${eventId}/payments`)
+  console.log(`  Revolving: /dashboard/events/${eventId}/revolving-fund`)
   console.log(`  Owners:    /dashboard/events/${eventId}/owners`)
   console.log(`  Matching:  /dashboard/events/${eventId}/matching`)
   console.log('')
