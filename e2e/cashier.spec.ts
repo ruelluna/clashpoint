@@ -8,6 +8,37 @@ function uniqueSuffix() {
   return Date.now().toString(36)
 }
 
+async function enableEventFees(page: Page) {
+  const registrationFeeSection = page
+    .locator('div')
+    .filter({ has: page.getByText('Registration fee (per owner)', { exact: true }) })
+    .first()
+  const registrationFeeSwitch = registrationFeeSection.getByRole('switch')
+  if (await registrationFeeSwitch.count()) {
+    const checked = await registrationFeeSwitch.getAttribute('data-checked')
+    if (checked == null) {
+      await registrationFeeSwitch.click()
+    }
+    await page.locator('input[name="registrationFeeAmount"]').fill('500')
+  }
+
+  const roosterEntryFeeSection = page
+    .locator('div')
+    .filter({ has: page.getByText('Entry fee (per rooster)', { exact: true }) })
+    .first()
+  const roosterEntryFeeSwitch = roosterEntryFeeSection.getByRole('switch')
+  if (await roosterEntryFeeSwitch.count()) {
+    const checked = await roosterEntryFeeSwitch.getAttribute('data-checked')
+    if (checked == null) {
+      await roosterEntryFeeSwitch.click()
+    }
+    await page.locator('input[name="roosterEntryFeeAmount"]').fill('200')
+  }
+
+  await page.getByRole('button', { name: /Save changes|Update event|Save/i }).first().click()
+  await page.waitForLoadState('networkidle')
+}
+
 async function createOpenDerbyEvent(page: Page, name: string) {
   await page.goto('/dashboard/events/new')
   await page.locator('input[name="name"]').fill(name)
@@ -25,21 +56,7 @@ async function createOpenDerbyEvent(page: Page, name: string) {
   const eventId = page.url().replace(/.*\/events\//, '').replace(/\/.*$/, '')
 
   await page.goto(`/dashboard/events/${eventId}/edit`)
-
-  const registrationFeeSection = page
-    .locator('div')
-    .filter({ has: page.getByText('Registration fee (per owner)', { exact: true }) })
-    .first()
-  const registrationFeeSwitch = registrationFeeSection.getByRole('switch')
-  if (await registrationFeeSwitch.count()) {
-    const checked = await registrationFeeSwitch.getAttribute('data-checked')
-    if (checked == null) {
-      await registrationFeeSwitch.click()
-    }
-    await page.locator('input[name="registrationFeeAmount"]').fill('500')
-    await page.getByRole('button', { name: /Save changes|Update event|Save/i }).first().click()
-    await page.waitForLoadState('networkidle')
-  }
+  await enableEventFees(page)
 
   await page.goto(`/dashboard/events/${eventId}/edit`)
   await page.getByRole('button', { name: 'Mark Open' }).click()
@@ -88,11 +105,18 @@ test.describe('Cashier @auth', () => {
 
     const amountInput = page.getByTestId('cashier-amount-paid')
     if (await amountInput.count()) {
+      const categorySelect = page.locator('select[name="paymentCategory"]')
+      await expect(categorySelect).toHaveValue('entry_fees')
+      await expect(categorySelect.locator('option:checked')).toHaveText(
+        'Registration & entry fees'
+      )
+
       const amount = await amountInput.inputValue()
       expect(Number(amount)).toBeGreaterThan(0)
       await page.getByTestId('cashier-record-payment').click()
       await page.waitForURL(new RegExp(`/dashboard/events/${eventId}/payments/[^/]+/print`))
       await expect(page.getByText(/PAY-/i).first()).toBeVisible()
+      await expect(page.getByText('Registration & entry fees')).toBeVisible()
     } else {
       // No fees configured — still verify wrong-event barcode guard
       await page.goto(`/dashboard/events/${eventId}/payments`)

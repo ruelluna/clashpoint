@@ -34,6 +34,7 @@ import {
   refundPaymentAction,
   type PaymentActionState,
 } from '@/features/payments/actions'
+import { getCashierPaymentCategoryOptions } from '@/features/payments/dues'
 import { PAYMENT_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
 import type { CashierTargetMatch, PaymentLedgerItem } from '@/features/payments/types'
 
@@ -155,7 +156,7 @@ export function CashierClient({
     recordPaymentAction,
     initialState
   )
-  const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('registration')
+  const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('entry_fees')
   const [paymentMethod, setPaymentMethod] = useState<
     keyof typeof PAYMENT_METHOD_LABELS
   >('cash')
@@ -208,12 +209,19 @@ export function CashierClient({
     void resolveQuery(initialBarcode)
   }, [initialBarcode, resolveQuery])
 
+  const paymentCategoryOptions = useMemo(() => {
+    if (!activeMatch) return []
+    return getCashierPaymentCategoryOptions(activeMatch.dues)
+  }, [activeMatch])
+
   const suggestedAmount = useMemo(() => {
     if (!activeMatch) return 0
-    const line = activeMatch.dues.lines.find((item) => item.category === paymentCategory)
-    if (line) return line.outstanding
+    const selected = paymentCategoryOptions.find(
+      (option) => option.category === paymentCategory
+    )
+    if (selected) return selected.outstanding
     return activeMatch.dues.suggestedAmount
-  }, [activeMatch, paymentCategory])
+  }, [activeMatch, paymentCategory, paymentCategoryOptions])
 
   const feeSummary = useMemo(() => {
     const parts: string[] = []
@@ -415,11 +423,9 @@ export function CashierClient({
                           setPaymentCategory(event.currentTarget.value as PaymentCategory)
                         }
                       >
-                        {activeMatch.dues.lines
-                          .filter((line) => line.outstanding > 0)
-                          .map((line) => (
-                            <option key={line.category} value={line.category}>
-                              {line.label}
+                        {paymentCategoryOptions.map((option) => (
+                            <option key={option.category} value={option.category}>
+                              {option.label}
                             </option>
                           ))}
                       </NativeSelect.Field>

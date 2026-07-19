@@ -12,6 +12,7 @@ import {
 import {
   classifyCashierQuery,
   computeOutstandingDues,
+  getEntryFeesOutstanding,
   type EntryOutstandingDues,
 } from '@/features/payments/dues'
 import {
@@ -277,22 +278,47 @@ export async function recordPayment(
   if (!event) return { error: 'Event not found' }
 
   const category = input.paymentCategory ?? 'legacy'
-  const dueResult = await getEntryAmountDue(input.entryId, input.eventId, category)
-  if (dueResult.error) return { error: dueResult.error }
 
-  const amountDue = dueResult.amountDue ?? 0
-  const { totalPaid: existingPaid, error: totalsError } =
-    category === 'legacy'
-      ? await getEntryPaymentTotals(input.entryId)
-      : await getEntryCategoryPaid(input.entryId, category)
+  let amountDue: number
+  let projectedTotal: number
+  let balance: number
+  let paymentStatus: PaymentStatus
 
-  if (totalsError) return { error: totalsError }
+  if (category === 'entry_fees') {
+    const duesResult = await getEntryOutstandingDues(input.eventId, input.entryId)
+    if (duesResult.error || !duesResult.dues) {
+      return { error: duesResult.error ?? 'Could not load entry dues' }
+    }
 
-  const projectedTotal = existingPaid + input.amountPaid
-  const { balance, paymentStatus } = calculateBalance(amountDue, projectedTotal)
+    const combinedOutstanding = getEntryFeesOutstanding(duesResult.dues.lines)
+    if (combinedOutstanding <= 0) {
+      return { error: 'No registration or entry fees are outstanding' }
+    }
+    if (input.amountPaid > combinedOutstanding) {
+      return { error: 'Payment exceeds the amount due for this category' }
+    }
 
-  if (projectedTotal > amountDue) {
-    return { error: 'Payment exceeds the amount due for this category' }
+    amountDue = combinedOutstanding
+    projectedTotal = input.amountPaid
+    ;({ balance, paymentStatus } = calculateBalance(amountDue, projectedTotal))
+  } else {
+    const dueResult = await getEntryAmountDue(input.entryId, input.eventId, category)
+    if (dueResult.error) return { error: dueResult.error }
+
+    amountDue = dueResult.amountDue ?? 0
+    const { totalPaid: existingPaid, error: totalsError } =
+      category === 'legacy'
+        ? await getEntryPaymentTotals(input.entryId)
+        : await getEntryCategoryPaid(input.entryId, category)
+
+    if (totalsError) return { error: totalsError }
+
+    projectedTotal = existingPaid + input.amountPaid
+    ;({ balance, paymentStatus } = calculateBalance(amountDue, projectedTotal))
+
+    if (projectedTotal > amountDue) {
+      return { error: 'Payment exceeds the amount due for this category' }
+    }
   }
 
   const references = await listPaymentReferencesForEvent(input.eventId)

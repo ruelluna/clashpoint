@@ -3,7 +3,7 @@ import 'server-only'
 import { sumPrizePoolFromPayments } from '@/features/events/prize-pool-utils'
 import { createClient } from '@/lib/supabase/server'
 
-const PRIZE_POOL_CATEGORIES = ['registration', 'rooster_entry'] as const
+const PRIZE_POOL_CATEGORIES = ['registration', 'rooster_entry', 'entry_fees'] as const
 
 export { sumPrizePoolFromPayments } from '@/features/events/prize-pool-utils'
 
