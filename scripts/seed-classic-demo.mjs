@@ -1,6 +1,7 @@
 /**
  * Demo seed: classic event with owners + roosters for cashier and matching practice.
  * Run: npm run seed:classic-demo
+ *      npm run seed:classic-demo -- --linked
  *
  * Creates the event in **In Progress** so matching works immediately after seed.
  * Replaces any event named identically, then makes this event the sole active event.
@@ -12,7 +13,7 @@ import {
   deleteSeedEventsByName,
   DEMO_EVENT_STATUS,
   insertDemoEvent,
-  loadEnvFiles,
+  prepareSeedEnvironment,
   printSeedSummary,
   resolveSeedActor,
   resolveVenue,
@@ -53,7 +54,7 @@ const FEES = {
 const REVOLVING_FUND_INITIAL = 50_000
 
 async function main() {
-  loadEnvFiles()
+  prepareSeedEnvironment()
   const supabase = createServiceClient()
   const actor = await resolveSeedActor(supabase)
   const venue = await resolveVenue(supabase)

@@ -12,7 +12,9 @@
     "test:e2e": "playwright test",
     "seed:first-admin": "node scripts/seed-first-admin.mjs",
     "seed:classic-demo": "node scripts/seed-classic-demo.mjs",
-    "seed:derby-demo": "node scripts/seed-derby-demo.mjs"
+    "seed:classic-demo:linked": "node scripts/seed-classic-demo.mjs --linked",
+    "seed:derby-demo": "node scripts/seed-derby-demo.mjs",
+    "seed:derby-demo:linked": "node scripts/seed-derby-demo.mjs --linked"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

@@ -3,34 +3,160 @@
  * Uses service role — never import into the Next.js app.
  */
 
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 
-export function loadEnvFiles() {
-  for (const relativePath of ['.env.local', '.env']) {
-    const filePath = path.join(process.cwd(), relativePath)
-    if (!fs.existsSync(filePath)) continue
+function loadEnvFile(relativePath, { override = false } = {}) {
+  const filePath = path.join(process.cwd(), relativePath)
+  if (!fs.existsSync(filePath)) return
 
-    const content = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim()
-      if (!trimmed || trimmed.startsWith('#')) continue
-      const separatorIndex = trimmed.indexOf('=')
-      if (separatorIndex === -1) continue
-      const key = trimmed.slice(0, separatorIndex).trim()
-      let value = trimmed.slice(separatorIndex + 1).trim()
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1)
-      }
-      if (!(key in process.env)) {
-        process.env[key] = value
-      }
+  const content = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex === -1) continue
+    const key = trimmed.slice(0, separatorIndex).trim()
+    let value = trimmed.slice(separatorIndex + 1).trim()
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+    if (override || !(key in process.env)) {
+      process.env[key] = value
     }
   }
+}
+
+export function loadEnvFiles() {
+  loadEnvFile('.env.local')
+  loadEnvFile('.env')
+}
+
+/** Parse `npm run seed:* -- --linked` style flags. */
+export function parseSeedCliArgs(argv = process.argv.slice(2)) {
+  return { linked: argv.includes('--linked') }
+}
+
+function readLinkedProjectRef() {
+  const refPath = path.join(process.cwd(), 'supabase', '.temp', 'project-ref')
+  if (!fs.existsSync(refPath)) {
+    throw new Error(
+      'No linked Supabase project found. Run: supabase link --project-ref <ref>'
+    )
+  }
+
+  const ref = fs.readFileSync(refPath, 'utf8').trim()
+  if (!ref) {
+    throw new Error('Linked project ref is empty. Re-run supabase link.')
+  }
+
+  return ref
+}
+
+function readLinkedProjectMeta(projectRef) {
+  const metaPath = path.join(process.cwd(), 'supabase', '.temp', 'linked-project.json')
+  if (!fs.existsSync(metaPath)) {
+    return { ref: projectRef, name: projectRef }
+  }
+
+  try {
+    const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'))
+    return {
+      ref: meta.ref ?? projectRef,
+      name: meta.name ?? projectRef,
+    }
+  } catch {
+    return { ref: projectRef, name: projectRef }
+  }
+}
+
+function runSupabaseCommand(args) {
+  const options = {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }
+
+  if (process.platform === 'win32') {
+    return execFileSync('supabase.cmd', args, { ...options, shell: true })
+  }
+
+  return execFileSync('supabase', args, options)
+}
+
+function fetchLinkedServiceRoleKey(projectRef) {
+  const output = runSupabaseCommand([
+    'projects',
+    'api-keys',
+    '--project-ref',
+    projectRef,
+    '-o',
+    'json',
+  ])
+
+  const keys = JSON.parse(output.trim())
+  if (!Array.isArray(keys)) {
+    throw new Error('Unexpected supabase projects api-keys output.')
+  }
+
+  const serviceRole = keys.find((key) => key.name === 'service_role' && key.type === 'legacy')
+  if (!serviceRole?.api_key) {
+    throw new Error('Could not resolve service_role key for linked project.')
+  }
+
+  return serviceRole.api_key
+}
+
+/**
+ * Point seed scripts at the Supabase project from `supabase link` (not local `supabase status`).
+ * Optional `.env.linked` can supply SUPABASE_SERVICE_ROLE_KEY if CLI key fetch is unavailable.
+ */
+export function applyLinkedSupabaseEnv() {
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY
+  delete process.env.NEXT_PUBLIC_SUPABASE_URL
+  loadEnvFile('.env.linked', { override: true })
+
+  const projectRef = readLinkedProjectRef()
+  const meta = readLinkedProjectMeta(projectRef)
+  const url = `https://${projectRef}.supabase.co`
+
+  process.env.NEXT_PUBLIC_SUPABASE_URL = url
+
+  try {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = fetchLinkedServiceRoleKey(projectRef)
+  } catch (error) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)} ` +
+          'Run supabase login, or set SUPABASE_SERVICE_ROLE_KEY in .env.linked.'
+      )
+    }
+  }
+
+  console.log(`Target: linked Supabase — ${meta.name} (${projectRef})`)
+  console.log(`API URL: ${url}`)
+  console.warn('WARNING: seed writes go to the linked remote project, not local Supabase.')
+
+  return meta
+}
+
+/** Load env files, optionally switch to linked Supabase when `--linked` is passed. */
+export function prepareSeedEnvironment(argv = process.argv.slice(2)) {
+  const { linked } = parseSeedCliArgs(argv)
+
+  if (linked) {
+    applyLinkedSupabaseEnv()
+    loadEnvFile('.env.local')
+    loadEnvFile('.env')
+  } else {
+    loadEnvFiles()
+  }
+
+  return { linked }
 }
 
 export function createServiceClient() {
@@ -39,7 +165,8 @@ export function createServiceClient() {
 
   if (!url || !serviceRoleKey) {
     throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Add them to .env.local.'
+      'Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. ' +
+        'Add them to .env.local, or run with --linked after supabase link.'
     )
   }
 
@@ -473,6 +600,35 @@ export async function insertPrizeStructure(supabase, eventId, prizeStructure) {
   if (error) throw error
 }
 
+async function findOrCreateSeedCompetitor(supabase, actorId, ownerName, contact) {
+  const displayName = ownerName.trim()
+  const { data: existing, error: lookupError } = await supabase
+    .from('competitors')
+    .select('id')
+    .is('deleted_at', null)
+    .ilike('display_name', displayName)
+    .maybeSingle()
+
+  if (lookupError) throw lookupError
+  if (existing?.id) return existing.id
+
+  const { data: created, error: createError } = await supabase
+    .from('competitors')
+    .insert({
+      display_name: displayName,
+      contact_full_name: contact.contactFullName,
+      contact_number: contact.contactNumber,
+      email: contact.email,
+      created_by: actorId,
+      updated_by: actorId,
+    })
+    .select('id')
+    .single()
+
+  if (createError) throw createError
+  return created.id
+}
+
 /**
  * @param {object} options
  * @param {import('@supabase/supabase-js').SupabaseClient} options.supabase
@@ -531,16 +687,26 @@ export async function seedOwnersEntriesAndRoosters({
           ? 'paid'
           : 'unpaid'
 
+    const contactFullName = `${ownerName} Contact`
+    const contactNumber = `+63917${String(1000000 + i).slice(0, 7)}`
+    const email = `seed-owner-${i + 1}@example.com`
+    const competitorId = await findOrCreateSeedCompetitor(supabase, actorId, ownerName, {
+      contactFullName,
+      contactNumber,
+      email,
+    })
+
     const { data: entry, error: entryError } = await supabase
       .from('entries')
       .insert({
         event_id: eventId,
+        competitor_id: competitorId,
         entry_number: entryNumber,
         entry_name: ownerName,
         owner_name: ownerName,
-        contact_full_name: `${ownerName} Contact`,
-        contact_number: `+63917${String(1000000 + i).slice(0, 7)}`,
-        email: `seed-owner-${i + 1}@example.com`,
+        contact_full_name: contactFullName,
+        contact_number: contactNumber,
+        email,
         entry_source: 'staff_encoded',
         registration_status: 'approved',
         payment_status: paymentStatus,

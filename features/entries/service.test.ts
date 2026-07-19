@@ -35,6 +35,14 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient,
 }))
 
+vi.mock('@/features/competitors/queries', () => ({
+  getCompetitor: vi.fn(),
+}))
+
+vi.mock('@/features/competitors/service', () => ({
+  findOrCreateCompetitor: vi.fn(),
+}))
+
 import {
   entryHasMatchReferences,
   getPairedRosterIdsForEntry,
@@ -43,6 +51,7 @@ import {
 } from '@/features/entries/queries'
 import { createEntry, deleteEntry, updateEntryRoosters } from '@/features/entries/service'
 import { getEvent } from '@/features/events/queries'
+import { findOrCreateCompetitor } from '@/features/competitors/service'
 
 const eventId = '00000000-0000-4000-8000-000000000001'
 const entryId = '00000000-0000-4000-8000-000000000002'
@@ -54,6 +63,9 @@ describe('createEntry', () => {
     vi.clearAllMocks()
     vi.mocked(listEntryNumbersForEvent).mockResolvedValue([])
     vi.mocked(listOwnerBarcodesForEvent).mockResolvedValue([])
+    vi.mocked(findOrCreateCompetitor).mockResolvedValue({
+      competitorId: '00000000-0000-4000-8000-000000000099',
+    })
   })
 
   it('assigns owner barcode for classic events without fee snapshot', async () => {
@@ -104,6 +116,16 @@ describe('createEntry', () => {
             }),
           }),
           insert: insertEntry,
+        }
+      }
+
+      if (table === 'competitors') {
+        return {
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          }),
         }
       }
 

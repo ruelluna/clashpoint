@@ -33,6 +33,12 @@ Added two idempotent Node seed commands that create matching-ready demo events w
 - Demo seeders auto-create the first admin when `needs_bootstrap` is true and `ruelluna@gmail.com` is missing (password `password`, overridable via `SEED_FIRST_ADMIN_*` env vars).
 - `npm run seed:first-admin` is optional before classic/derby demo seeds on a fresh DB.
 
+## Changelog (2026-07-20 00:10) — --linked flag
+
+- `npm run seed:classic-demo:linked` / `seed:derby-demo:linked` (or `node scripts/... --linked`) targets the Supabase project from `supabase link`, not `.env.local` local URLs.
+- Resolves remote URL + service role via `supabase projects api-keys` (Windows: `supabase.cmd`).
+- Fallback: set `SUPABASE_SERVICE_ROLE_KEY` in `.env.linked` if CLI key fetch fails.
+
 ## Files touched
 
 - `scripts/lib/seed-demo-shared.mjs` — env, service client, actor, teardown, activate, inserts
@@ -47,8 +53,12 @@ git add \
   scripts/lib/seed-demo-shared.mjs \
   scripts/seed-classic-demo.mjs \
   scripts/seed-derby-demo.mjs \
+  package.json \
+  .env.example \
+  supabase/seed.sql \
   .cursor/breakdowns/20260719-2306-classic-derby-seeders-breakdown.md
 ```
+
 
 
 
@@ -94,12 +104,13 @@ body: Cashier practice needs a starting ledger balance; seeds now set revolving_
 
 ```bash
 git commit -m "$(cat <<'EOF'
-Post revolving fund collections for seeded cashier payments
+Add --linked flag for demo seeds on linked Supabase
 
-Seeded payments bypass recordPayment; add matching collection ledger rows so revolving fund balance reflects partial and paid demo entries.
+Demo seed scripts can target supabase link remote project via --linked or npm seed:*:linked scripts, fetching remote service role keys instead of local .env.local credentials.
 EOF
 )"
 ```
+
 
 
 

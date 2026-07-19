@@ -3,6 +3,7 @@ import 'server-only'
 import { writeAuditLog } from '@/features/audit/service'
 import { resolveRegistrationBandNumber } from '@/features/entries/band-display'
 import { getCompetitor } from '@/features/competitors/queries'
+import { findOrCreateCompetitor } from '@/features/competitors/service'
 import { applyRegistrationEligibility } from '@/features/eligibility/registration-bridge'
 import {
   entryHasMatchReferences,
@@ -156,7 +157,39 @@ export async function resolveEntryCompetitor(
     return { competitorId: competitor.id }
   }
 
-  return { competitorId: null }
+  const ownerName = input.ownerName.trim()
+  if (!ownerName) {
+    return { competitorId: null }
+  }
+
+  const createResult = await findOrCreateCompetitor(actorId, {
+    displayName: ownerName,
+    contactFullName: input.contactFullName,
+    contactDesignation: input.contactDesignation,
+    contactNumber: input.contactNumber,
+    email: input.email,
+    address: undefined,
+    notes: undefined,
+  })
+
+  if (createResult.error) {
+    return { error: createResult.error }
+  }
+
+  if (!createResult.competitorId) {
+    return { error: 'Failed to resolve owner registry record' }
+  }
+
+  const syncResult = await syncCompetitorContactFields(
+    actorId,
+    createResult.competitorId,
+    input
+  )
+  if (syncResult.error) {
+    return { error: syncResult.error }
+  }
+
+  return { competitorId: createResult.competitorId }
 }
 
 export async function createEntry(
