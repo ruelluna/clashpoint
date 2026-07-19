@@ -79,8 +79,21 @@ export function PaymentReceiptSlip({ payment }: PaymentReceiptSlipProps) {
           {formatCurrency(payment.amountDue)}
         </Text>
         <Text fontSize="lg" fontWeight="bold">
-          Paid: {formatCurrency(payment.amountPaid)}
+          Amount collected: {formatCurrency(payment.amountPaid)}
         </Text>
+        {payment.paymentMethod === 'cash' && payment.amountTendered != null ? (
+          <>
+            <Text fontSize="sm">
+              <Text as="span" color="fg.muted">
+                Cash tendered:{' '}
+              </Text>
+              {formatCurrency(payment.amountTendered)}
+            </Text>
+            <Text fontSize="sm" fontWeight="semibold">
+              Change: {formatCurrency(payment.changeGiven ?? 0)}
+            </Text>
+          </>
+        ) : null}
         <Text fontSize="sm">
           <Text as="span" color="fg.muted">
             Balance:{' '}

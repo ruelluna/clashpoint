@@ -39,6 +39,8 @@ type PaymentLedgerRow = {
   entry_id: string
   amount_due: number
   amount_paid: number
+  amount_tendered: number | null
+  change_given: number | null
   balance: number
   payment_method: string | null
   receipt_number: string | null
@@ -69,6 +71,8 @@ function mapPaymentLedgerRow(row: PaymentLedgerRow) {
     ownerName: row.entries?.owner_name ?? '—',
     amountDue: Number(row.amount_due),
     amountPaid: Number(row.amount_paid),
+    amountTendered: row.amount_tendered != null ? Number(row.amount_tendered) : null,
+    changeGiven: row.change_given != null ? Number(row.change_given) : null,
     balance: Number(row.balance),
     paymentMethod: row.payment_method,
     receiptNumber: row.receipt_number,
@@ -96,6 +100,8 @@ export async function listPaymentsByEvent(eventId: string): Promise<PaymentLedge
       entry_id,
       amount_due,
       amount_paid,
+      amount_tendered,
+      change_given,
       balance,
       payment_method,
       receipt_number,
@@ -128,6 +134,8 @@ export async function listPaymentsByEvent(eventId: string): Promise<PaymentLedge
       ownerName: mapped.ownerName,
       amountDue: mapped.amountDue,
       amountPaid: mapped.amountPaid,
+      amountTendered: mapped.amountTendered,
+      changeGiven: mapped.changeGiven,
       balance: mapped.balance,
       paymentMethod: mapped.paymentMethod,
       receiptNumber: mapped.receiptNumber,
@@ -372,6 +380,8 @@ export async function recordPayment(
       event_id: input.eventId,
       amount_due: amountDue,
       amount_paid: input.amountPaid,
+      amount_tendered: input.amountTendered ?? null,
+      change_given: input.changeGiven ?? null,
       balance,
       payment_method: input.paymentMethod,
       receipt_number: input.receiptNumber ?? null,
@@ -410,6 +420,8 @@ export async function recordPayment(
       entry_number: entry.entry_number,
       entry_name: entry.entry_name,
       amount_paid: input.amountPaid,
+      amount_tendered: input.amountTendered ?? null,
+      change_given: input.changeGiven ?? null,
       balance,
       payment_status: paymentStatus,
       cashier_session_id: cashierSessionId,
@@ -443,6 +455,8 @@ export async function getPaymentForEvent(
       entry_id,
       amount_due,
       amount_paid,
+      amount_tendered,
+      change_given,
       balance,
       payment_method,
       receipt_number,
@@ -476,6 +490,8 @@ export async function getPaymentForEvent(
     ownerName: mapped.ownerName,
     amountDue: mapped.amountDue,
     amountPaid: mapped.amountPaid,
+    amountTendered: mapped.amountTendered,
+    changeGiven: mapped.changeGiven,
     balance: mapped.balance,
     paymentMethod: mapped.paymentMethod,
     receiptNumber: mapped.receiptNumber,

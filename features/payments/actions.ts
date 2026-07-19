@@ -20,6 +20,7 @@ export type PaymentActionState = {
   error?: string
   success?: string
   paymentId?: string
+  changeGiven?: number
 }
 
 export type CashierLookupActionResult = CashierLookupResult
@@ -59,6 +60,7 @@ export async function recordPaymentAction(
     eventId: formData.get('eventId'),
     entryId: formData.get('entryId'),
     amountPaid: formData.get('amountPaid'),
+    amountTendered: formData.get('amountTendered'),
     paymentMethod: formData.get('paymentMethod'),
     paymentCategory: formData.get('paymentCategory')?.toString() || undefined,
     receiptNumber: formData.get('receiptNumber')?.toString().trim() || undefined,
@@ -82,6 +84,7 @@ export async function recordPaymentAction(
   return {
     success: 'Payment recorded',
     paymentId: result.paymentId,
+    changeGiven: parsed.data.changeGiven,
   }
 }
 

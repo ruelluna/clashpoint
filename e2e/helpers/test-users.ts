@@ -191,6 +191,62 @@ export async function createStaffTestUser() {
   }
 }
 
+export async function createCashierStaffTestUser() {
+  const supabase = getAdminClient()
+
+  if (!supabase) {
+    throw new Error(
+      'Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for cashier staff auth tests'
+    )
+  }
+
+  const email = `e2e-cashier-staff-${Date.now()}@clashpoint.test`
+  const password = `Test-${crypto.randomUUID()}`
+
+  const { data: created, error: createError } =
+    await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { display_name: 'E2E Cashier Staff' },
+    })
+
+  if (createError || !created.user) {
+    throw createError ?? new Error('Failed to create cashier staff test user')
+  }
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({
+      role: 'staff',
+      display_name: 'E2E Cashier Staff',
+      is_active: true,
+    })
+    .eq('id', created.user.id)
+
+  if (updateError) {
+    await supabase.auth.admin.deleteUser(created.user.id)
+    throw updateError
+  }
+
+  const { error: permissionsError } = await supabase.from('user_permissions').insert([
+    { user_id: created.user.id, permission_id: 'payments.manage' },
+    { user_id: created.user.id, permission_id: 'payments.print' },
+    { user_id: created.user.id, permission_id: 'events.view' },
+  ])
+
+  if (permissionsError) {
+    await supabase.auth.admin.deleteUser(created.user.id)
+    throw permissionsError
+  }
+
+  return {
+    id: created.user.id,
+    email,
+    password,
+  }
+}
+
 export async function removeProfileForUser(userId: string) {
   const supabase = getAdminClient()
 

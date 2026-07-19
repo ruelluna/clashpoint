@@ -865,6 +865,8 @@ export type Database = {
           event_id: string
           amount_due: number
           amount_paid: number
+          amount_tendered: number | null
+          change_given: number | null
           balance: number
           payment_method: Database['public']['Enums']['payment_method'] | null
           receipt_number: string | null
@@ -885,6 +887,8 @@ export type Database = {
           event_id: string
           amount_due: number
           amount_paid?: number
+          amount_tendered?: number | null
+          change_given?: number | null
           balance?: number
           payment_method?: Database['public']['Enums']['payment_method'] | null
           receipt_number?: string | null
@@ -905,6 +909,8 @@ export type Database = {
           event_id?: string
           amount_due?: number
           amount_paid?: number
+          amount_tendered?: number | null
+          change_given?: number | null
           balance?: number
           payment_method?: Database['public']['Enums']['payment_method'] | null
           receipt_number?: string | null

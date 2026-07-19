@@ -22,10 +22,24 @@ vi.mock('@/lib/auth/queries', () => ({
   getProfile: vi.fn(),
 }))
 
+vi.mock('@/lib/auth/session', () => ({
+  getUser: vi.fn(),
+}))
+
+const redirect = vi.hoisted(() => vi.fn())
+
+vi.mock('next/navigation', () => ({
+  redirect,
+}))
+
+import { getProfile } from '@/lib/auth/queries'
+import { getUser } from '@/lib/auth/session'
+
 import {
   canAccessDashboard,
   canAccessDashboardForProfile,
   isSystemOwnerRole,
+  requireNonStaffAnyPermission,
 } from '@/lib/auth/permissions'
 import type { AppRole, Profile } from '@/lib/auth/types'
 
@@ -112,5 +126,45 @@ describe('canAccessDashboardForProfile', () => {
 
     await expect(canAccessDashboardForProfile(staffProfile)).resolves.toBe(false)
     expect(canPromoterAccessApp).not.toHaveBeenCalled()
+  })
+})
+
+describe('requireNonStaffAnyPermission', () => {
+  const staffProfile: Profile = {
+    id: '00000000-0000-4000-8000-000000000002',
+    role: 'staff',
+    display_name: 'Staff',
+    is_active: true,
+    deactivated_at: null,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    redirect.mockImplementation((path: string) => {
+      throw new Error(`redirect:${path}`)
+    })
+    createClient.mockResolvedValue({
+      from: vi.fn(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
+            data: [{ permission_id: 'events.manage' }],
+            error: null,
+          }),
+        }),
+      })),
+    })
+  })
+
+  it('redirects staff users even when they have the required permission', async () => {
+    vi.mocked(getUser).mockResolvedValue({ id: staffProfile.id } as Awaited<
+      ReturnType<typeof getUser>
+    >)
+    vi.mocked(getProfile).mockResolvedValue(staffProfile)
+
+    await expect(
+      requireNonStaffAnyPermission(['events.manage'])
+    ).rejects.toThrow('redirect:/access-denied')
   })
 })
