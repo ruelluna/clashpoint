@@ -109,6 +109,7 @@ YYYYMMDD-HHMM-<task-slug>-breakdown.md
 - Bullet changelog of player-visible / organizer-visible changes
 - Files touched (grouped: `app/`, `features/`, `supabase/`, `lib/`)
 - **Stage command** (required) — a copy-paste `git add` that lists **every monorepo path** this breakdown owns (explicit paths only; never `git add .` or `git add -A`). Purpose: when multiple Cursor agent windows leave a dirty tree, the user can stage only this work. Include the breakdown file itself. Do **not** run the command unless the user asks to stage or commit. Nested doc repos (`docs/admins`, `docs/users`) get a separate note or `git -C` add block if markdown there was edited.
+- **Commit command** (required) — a copy-paste `git commit` using a heredoc whose subject and body match the Suggested ClashPoint commit (and a separate `git -C docs/... commit` heredoc when nested docs were edited). Do **not** run these commands unless the user asks to commit.
 - Deploy steps if any (Supabase migration, Vercel, env vars)
 - Manual test steps (URLs, flows — not Pest; suggest what to click/verify)
 - E2E specs added/updated or N/A with reason; `npx playwright test` command when applicable
@@ -129,6 +130,32 @@ git add \
 ```
 
 Omit paths that live only in nested/gitignored doc repos from the monorepo `git add`; call those out under a short "Docs repo (stage separately)" note instead.
+
+
+### Commit command format
+
+Place a `## Commit commands` section after the Suggested ClashPoint commit (and suggested doc commits). Use the same summary/body text as those suggestions. Subject line only in the first heredoc line (no `Summary:` prefix). Do **not** run unless the user asks to commit.
+
+```bash
+git commit -m "$(cat <<'EOF'
+Add fight join Server Action
+
+Players can join open fights from the event page. Join is validated
+server-side with Zod and RLS.
+EOF
+)"
+```
+
+When nested docs were edited, add a separate block:
+
+```bash
+git -C docs/admins commit -m "$(cat <<'EOF'
+Document fight join for organizers
+
+Operators learn the in-app Join Fight flow and what staff see after success.
+EOF
+)"
+```
 
 
 ## 5. Implementation summary (required)
@@ -186,6 +213,7 @@ Before finishing, confirm in the reply:
 
 - [ ] Breakdown file created or updated in `.cursor/breakdowns/`
 - [ ] Breakdown includes `## Stage files` with an explicit `git add` for this work only
+- [ ] Breakdown includes `## Commit commands` with heredoc `git commit` matching suggested messages
 - [ ] Admin doc updated (or N/A with reason)
 - [ ] Admin docs: no CLI, shell blocks, or `.cursor/` references (per `documentation.mdc`)
 - [ ] User doc updated (or N/A with reason)

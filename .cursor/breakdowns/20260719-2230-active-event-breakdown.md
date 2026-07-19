@@ -15,6 +15,7 @@ Added an orthogonal `is_active` flag on events so staff can designate exactly on
 - Sidebar shows the active event name first (with Active badge) when one exists
 - Admin guide documents Open vs Active and the single-active rule
 - Breakdown template now includes an explicit `git add` stage command (plan-implementation rule)
+- Breakdown template now includes copy-paste `git commit` heredoc commands (plan-implementation rule)
 
 ## Files touched
 
@@ -26,6 +27,7 @@ Added an orthogonal `is_active` flag on events so staff can designate exactly on
 - `lib/dashboard/nav.ts`, `nav.test.ts`
 - `e2e/events.spec.ts`, `e2e/helpers/test-users.ts`
 - `docs/admins/docs/phase-03-events/event-status-workflow.md`
+- `.cursor/rules/plan-implementation.mdc` (stage + commit commands in breakdowns)
 
 ## Stage files
 
@@ -116,6 +118,35 @@ Summary: Document active event vs open status for staff
 
 Clarify that Open is registration and Active is the single staff focus flag,
 including Set/Clear controls and sidebar pin behavior.
+```
+
+## Commit commands
+
+After staging (see Stage files), copy-paste to commit. Do not run until you intend to commit.
+
+### ClashPoint monorepo
+
+```bash
+git commit -m "$(cat <<'EOF'
+Add single active event flag and sidebar pin
+
+Staff can mark one event as the operational focus without changing lifecycle
+statuses. Registration stays on open; the active event is pinned first in
+the dashboard nav and enforced with a partial unique index.
+EOF
+)"
+```
+
+### Admin docs (nested repo)
+
+```bash
+git -C docs/admins commit -m "$(cat <<'EOF'
+Document active event vs open status for staff
+
+Clarify that Open is registration and Active is the single staff focus flag,
+including Set/Clear controls and sidebar pin behavior.
+EOF
+)"
 ```
 
 ## Linear paste block
