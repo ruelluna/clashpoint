@@ -23,6 +23,10 @@ export const recordPaymentSchema = z
     amountTendered: z.coerce.number().nonnegative().optional(),
     paymentMethod: paymentMethodSchema,
     paymentCategory: paymentCategorySchema.optional().default('legacy'),
+    collectEntryFees: z
+      .union([z.boolean(), z.literal('true'), z.literal('false')])
+      .optional()
+      .transform((value) => value === true || value === 'true'),
     receiptNumber: z
       .string()
       .max(100)
@@ -68,6 +72,7 @@ export const recordPaymentSchema = z
       amountPaid: data.amountPaid,
       paymentMethod: data.paymentMethod,
       paymentCategory: data.paymentCategory,
+      collectEntryFees: data.collectEntryFees,
       notes: data.notes,
       receiptNumber: data.paymentMethod === 'cash' ? undefined : data.receiptNumber,
       amountTendered: undefined as number | undefined,

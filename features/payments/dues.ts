@@ -117,6 +117,27 @@ function buildEntryFeeLines(
   return lines
 }
 
+export function splitEntryFeesPayment(
+  amountPaid: number,
+  lines: OutstandingDueLine[]
+): { registration: number; rooster_entry: number } {
+  let remaining = roundMoney(Math.max(0, amountPaid))
+  const registrationLine = lines.find((line) => line.category === 'registration')
+  const roosterLine = lines.find((line) => line.category === 'rooster_entry')
+
+  const toRegistration = roundMoney(
+    Math.min(remaining, registrationLine?.outstanding ?? 0)
+  )
+  remaining = roundMoney(remaining - toRegistration)
+
+  const toRooster = roundMoney(Math.min(remaining, roosterLine?.outstanding ?? 0))
+
+  return {
+    registration: toRegistration,
+    rooster_entry: toRooster,
+  }
+}
+
 export function getEntryFeesOutstanding(lines: OutstandingDueLine[]): number {
   return roundMoney(
     lines
@@ -129,15 +150,6 @@ export function getCashierPaymentCategoryOptions(
   dues: EntryOutstandingDues
 ): CashierPaymentCategoryOption[] {
   const options: CashierPaymentCategoryOption[] = []
-
-  const entryFeesOutstanding = getEntryFeesOutstanding(dues.lines)
-  if (entryFeesOutstanding > 0) {
-    options.push({
-      category: 'entry_fees',
-      label: PAYMENT_CATEGORY_LABELS.entry_fees,
-      outstanding: entryFeesOutstanding,
-    })
-  }
 
   for (const category of ['cash_bond', 'adjustment'] as const) {
     const line = dues.lines.find((item) => item.category === category)
@@ -204,7 +216,7 @@ export function computeOutstandingDues(
 
   const suggestedCategory =
     entryFeesOutstanding > 0
-      ? ('entry_fees' as PaymentCategory)
+      ? null
       : (firstNonEntryOpen?.category ?? null)
   const suggestedAmount =
     entryFeesOutstanding > 0

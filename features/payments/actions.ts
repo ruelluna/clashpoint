@@ -22,6 +22,8 @@ export type PaymentActionState = {
   error?: string
   success?: string
   paymentId?: string
+  paymentIds?: string[]
+  paymentCategories?: string[]
   changeGiven?: number
 }
 
@@ -67,6 +69,7 @@ export async function recordPaymentAction(
     amountTendered: formData.get('amountTendered'),
     paymentMethod: formData.get('paymentMethod'),
     paymentCategory: formData.get('paymentCategory')?.toString() || undefined,
+    collectEntryFees: formData.get('collectEntryFees')?.toString() || undefined,
     receiptNumber: formData.get('receiptNumber')?.toString().trim() || undefined,
     notes: formData.get('notes')?.toString().trim() || undefined,
   })
@@ -88,6 +91,8 @@ export async function recordPaymentAction(
   return {
     success: 'Payment recorded',
     paymentId: result.paymentId,
+    paymentIds: result.paymentIds,
+    paymentCategories: result.paymentCategories,
     changeGiven: parsed.data.changeGiven,
   }
 }
