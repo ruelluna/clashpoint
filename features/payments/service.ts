@@ -13,6 +13,7 @@ import {
   classifyCashierQuery,
   computeOutstandingDues,
   getEntryFeesOutstanding,
+  splitEntryFeesPayment,
   type EntryOutstandingDues,
 } from '@/features/payments/dues'
 import {
@@ -71,8 +72,16 @@ function mapPaymentLedgerRow(row: PaymentLedgerRow) {
     ownerName: row.entries?.owner_name ?? '—',
     amountDue: Number(row.amount_due),
     amountPaid: Number(row.amount_paid),
+<<<<<<< HEAD
     amountTendered: row.amount_tendered != null ? Number(row.amount_tendered) : null,
     changeGiven: row.change_given != null ? Number(row.change_given) : null,
+=======
+<<<<<<< Updated upstream
+=======
+    amountTendered: null,
+    changeGiven: null,
+>>>>>>> Stashed changes
+>>>>>>> cashier-payment-category-updated
     balance: Number(row.balance),
     paymentMethod: row.payment_method,
     receiptNumber: row.receipt_number,
@@ -301,7 +310,11 @@ export async function recordPayment(
   actorId: string,
   input: RecordPaymentInput,
   cashierSessionId: string
-): Promise<{ error?: string; paymentId?: string }> {
+): Promise<{ error?: string; paymentId?: string; paymentIds?: string[]; paymentCategories?: PaymentCategory[] }> {
+  if (input.collectEntryFees) {
+    return recordSplitEntryFeesPayment(actorId, input, cashierSessionId)
+  }
+
   const supabase = await createClient()
 
   const { data: entry, error: entryError } = await supabase
@@ -332,41 +345,22 @@ export async function recordPayment(
   let balance: number
   let paymentStatus: PaymentStatus
 
-  if (category === 'entry_fees') {
-    const duesResult = await getEntryOutstandingDues(input.eventId, input.entryId)
-    if (duesResult.error || !duesResult.dues) {
-      return { error: duesResult.error ?? 'Could not load entry dues' }
-    }
+  const dueResult = await getEntryAmountDue(input.entryId, input.eventId, category)
+  if (dueResult.error) return { error: dueResult.error }
 
-    const combinedOutstanding = getEntryFeesOutstanding(duesResult.dues.lines)
-    if (combinedOutstanding <= 0) {
-      return { error: 'No registration or entry fees are outstanding' }
-    }
-    if (input.amountPaid > combinedOutstanding) {
-      return { error: 'Payment exceeds the amount due for this category' }
-    }
+  amountDue = dueResult.amountDue ?? 0
+  const { totalPaid: existingPaid, error: totalsError } =
+    category === 'legacy'
+      ? await getEntryPaymentTotals(input.entryId)
+      : await getEntryCategoryPaid(input.entryId, category)
 
-    amountDue = combinedOutstanding
-    projectedTotal = input.amountPaid
-    ;({ balance, paymentStatus } = calculateBalance(amountDue, projectedTotal))
-  } else {
-    const dueResult = await getEntryAmountDue(input.entryId, input.eventId, category)
-    if (dueResult.error) return { error: dueResult.error }
+  if (totalsError) return { error: totalsError }
 
-    amountDue = dueResult.amountDue ?? 0
-    const { totalPaid: existingPaid, error: totalsError } =
-      category === 'legacy'
-        ? await getEntryPaymentTotals(input.entryId)
-        : await getEntryCategoryPaid(input.entryId, category)
+  projectedTotal = existingPaid + input.amountPaid
+  ;({ balance, paymentStatus } = calculateBalance(amountDue, projectedTotal))
 
-    if (totalsError) return { error: totalsError }
-
-    projectedTotal = existingPaid + input.amountPaid
-    ;({ balance, paymentStatus } = calculateBalance(amountDue, projectedTotal))
-
-    if (projectedTotal > amountDue) {
-      return { error: 'Payment exceeds the amount due for this category' }
-    }
+  if (projectedTotal > amountDue) {
+    return { error: 'Payment exceeds the amount due for this category' }
   }
 
   const references = await listPaymentReferencesForEvent(input.eventId)
@@ -438,7 +432,148 @@ export async function recordPayment(
   })
   if (fundResult.error) return { error: fundResult.error }
 
-  return { paymentId: data.id }
+  return { paymentId: data.id, paymentIds: [data.id], paymentCategories: [category] }
+}
+
+async function recordSplitEntryFeesPayment(
+  actorId: string,
+  input: RecordPaymentInput,
+  cashierSessionId: string
+): Promise<{ error?: string; paymentId?: string; paymentIds?: string[]; paymentCategories?: PaymentCategory[] }> {
+  const supabase = await createClient()
+
+  const { data: entry, error: entryError } = await supabase
+    .from('entries')
+    .select('id, event_id, entry_number, entry_name, registration_status, payment_status')
+    .eq('id', input.entryId)
+    .eq('event_id', input.eventId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (entryError) return { error: entryError.message }
+  if (!entry) return { error: 'Entry not found' }
+
+  const duesResult = await getEntryOutstandingDues(input.eventId, input.entryId)
+  if (duesResult.error || !duesResult.dues) {
+    return { error: duesResult.error ?? 'Could not load entry dues' }
+  }
+
+  const combinedOutstanding = getEntryFeesOutstanding(duesResult.dues.lines)
+  if (combinedOutstanding <= 0) {
+    return { error: 'No registration or entry fees are outstanding' }
+  }
+  if (input.amountPaid > combinedOutstanding) {
+    return { error: 'Payment exceeds the amount due for entry fees' }
+  }
+
+  const split = splitEntryFeesPayment(input.amountPaid, duesResult.dues.lines)
+  const portions: Array<{ category: 'registration' | 'rooster_entry'; amount: number }> = []
+  if (split.registration > 0) {
+    portions.push({ category: 'registration', amount: split.registration })
+  }
+  if (split.rooster_entry > 0) {
+    portions.push({ category: 'rooster_entry', amount: split.rooster_entry })
+  }
+  if (portions.length === 0) {
+    return { error: 'No entry fee amount to collect' }
+  }
+
+  let references = await listPaymentReferencesForEvent(input.eventId)
+  const paymentIds: string[] = []
+  const paidAt = new Date().toISOString()
+
+  for (const portion of portions) {
+    const line = duesResult.dues.lines.find((item) => item.category === portion.category)
+    if (!line) continue
+
+    const { totalPaid: existingPaid, error: totalsError } = await getEntryCategoryPaid(
+      input.entryId,
+      portion.category
+    )
+    if (totalsError) return { error: totalsError }
+
+    const amountDue = line.amountDue
+    const projectedTotal = existingPaid + portion.amount
+    const { balance, paymentStatus } = calculateBalance(amountDue, projectedTotal)
+
+    if (projectedTotal > amountDue) {
+      return { error: 'Payment exceeds the amount due for this category' }
+    }
+
+    const paymentReference = getNextPaymentReference(input.eventId, references)
+    references = [...references, paymentReference]
+
+    const { data, error } = await supabase
+      .from('payments')
+      .insert({
+        payment_reference: paymentReference,
+        entry_id: input.entryId,
+        event_id: input.eventId,
+        amount_due: amountDue,
+        amount_paid: portion.amount,
+        balance,
+        payment_method: input.paymentMethod,
+        receipt_number: input.receiptNumber ?? null,
+        payment_status: paymentStatus,
+        payment_category: portion.category,
+        received_by: actorId,
+        cashier_session_id: cashierSessionId,
+        paid_at: paidAt,
+        notes: input.notes ?? null,
+      })
+      .select('id')
+      .single()
+
+    if (error || !data) {
+      return { error: error?.message ?? 'Failed to record payment' }
+    }
+
+    paymentIds.push(data.id)
+
+    await writeAuditLog({
+      actorId,
+      action: 'payment.recorded',
+      entityType: 'payment',
+      entityId: data.id,
+      newValues: {
+        payment_reference: paymentReference,
+        entry_id: input.entryId,
+        entry_number: entry.entry_number,
+        entry_name: entry.entry_name,
+        amount_paid: portion.amount,
+        balance,
+        payment_status: paymentStatus,
+        payment_category: portion.category,
+        cashier_session_id: cashierSessionId,
+      },
+    })
+
+    const fundResult = await postRevolvingFundLedgerEntry({
+      eventId: input.eventId,
+      amount: portion.amount,
+      entryType: 'collection',
+      description: `Collection ${paymentReference} — ${entry.entry_name}`,
+      actorId,
+      sourcePaymentId: data.id,
+    })
+    if (fundResult.error) return { error: fundResult.error }
+  }
+
+  const statusResult = await updateEntryPaymentStatus(
+    input.entryId,
+    (await getEntryAmountDue(input.entryId, input.eventId, 'legacy')).amountDue ?? 0
+  )
+  if (statusResult.error) return { error: statusResult.error }
+
+  if (statusResult.paymentStatus) {
+    await syncRegistrationPaymentStatus(input.entryId, statusResult.paymentStatus)
+  }
+
+  return {
+    paymentId: paymentIds[0],
+    paymentIds,
+    paymentCategories: portions.map((portion) => portion.category),
+  }
 }
 
 export async function getPaymentForEvent(

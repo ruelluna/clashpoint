@@ -22,6 +22,10 @@ export const recordPaymentSchema = z
     amountTendered: z.coerce.number().nonnegative().optional(),
     paymentMethod: paymentMethodSchema,
     paymentCategory: paymentCategorySchema.optional().default('legacy'),
+    collectEntryFees: z
+      .union([z.boolean(), z.literal('true'), z.literal('false')])
+      .optional()
+      .transform((value) => value === true || value === 'true'),
     receiptNumber: z
       .string()
       .max(100)

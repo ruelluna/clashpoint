@@ -43,7 +43,7 @@ import {
   refundPaymentAction,
   type PaymentActionState,
 } from '@/features/payments/actions'
-import { getCashierPaymentCategoryOptions } from '@/features/payments/dues'
+import { getCashierPaymentCategoryOptions, getEntryFeesOutstanding } from '@/features/payments/dues'
 import { PAYMENT_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
 import type { CashierTargetMatch, PaymentLedgerItem } from '@/features/payments/types'
 import { formatEventDateTime } from '@/lib/format/datetime'
@@ -173,16 +173,34 @@ export function CashierClient({
     recordPaymentAction,
     initialState
   )
-  const [lastPaymentId, setLastPaymentId] = useState<string | null>(null)
+  const [lastPaymentIds, setLastPaymentIds] = useState<
+    Array<{ id: string; category: PaymentCategory }>
+  >([])
 
   useEffect(() => {
+<<<<<<< Updated upstream
     if (recordState.paymentId) {
       setLastPaymentId(recordState.paymentId)
     }
   }, [recordState.paymentId])
   const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('entry_fees')
+<<<<<<< HEAD
   const [collectAmount, setCollectAmount] = useState(0)
   const [amountTendered, setAmountTendered] = useState(0)
+=======
+=======
+    if (!recordState.paymentIds?.length) return
+    const categories = (recordState.paymentCategories ?? []) as PaymentCategory[]
+    setLastPaymentIds(
+      recordState.paymentIds.map((id, index) => ({
+        id,
+        category: categories[index] ?? 'registration',
+      }))
+    )
+  }, [recordState.paymentIds, recordState.paymentCategories])
+  const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('cash_bond')
+>>>>>>> Stashed changes
+>>>>>>> cashier-payment-category-updated
   const [paymentMethod, setPaymentMethod] = useState<
     keyof typeof PAYMENT_METHOD_LABELS
   >('cash')
@@ -192,8 +210,14 @@ export function CashierClient({
     setActiveMatch(match)
     setMatches([])
     setScanError(null)
+    setLastPaymentIds([])
     const suggested = match.dues.suggestedCategory
-    if (suggested) setPaymentCategory(suggested)
+    if (suggested) {
+      setPaymentCategory(suggested)
+      return
+    }
+    const options = getCashierPaymentCategoryOptions(match.dues)
+    if (options[0]) setPaymentCategory(options[0].category)
   }, [])
 
   const resolveQuery = useCallback(
@@ -236,6 +260,13 @@ export function CashierClient({
     void resolveQuery(initialBarcode)
   }, [initialBarcode, resolveQuery])
 
+  const entryFeesOutstanding = useMemo(() => {
+    if (!activeMatch) return 0
+    return getEntryFeesOutstanding(activeMatch.dues.lines)
+  }, [activeMatch])
+
+  const collectEntryFees = entryFeesOutstanding > 0
+
   const paymentCategoryOptions = useMemo(() => {
     if (!activeMatch) return []
     return getCashierPaymentCategoryOptions(activeMatch.dues)
@@ -243,12 +274,23 @@ export function CashierClient({
 
   const suggestedAmount = useMemo(() => {
     if (!activeMatch) return 0
+    if (collectEntryFees) return entryFeesOutstanding
     const selected = paymentCategoryOptions.find(
       (option) => option.category === paymentCategory
     )
     if (selected) return selected.outstanding
     return activeMatch.dues.suggestedAmount
+<<<<<<< Updated upstream
   }, [activeMatch, paymentCategory, paymentCategoryOptions])
+=======
+  }, [
+    activeMatch,
+    collectEntryFees,
+    entryFeesOutstanding,
+    paymentCategory,
+    paymentCategoryOptions,
+  ])
+>>>>>>> Stashed changes
 
   const collectInputKey = activeMatch
     ? `${activeMatch.entryId}-${paymentCategory}-${suggestedAmount}`
@@ -513,24 +555,36 @@ export function CashierClient({
                   <input type="hidden" name="eventId" value={eventId} />
                   <input type="hidden" name="entryId" value={activeMatch.entryId} />
 
-                  <FormField label="Payment category" required>
-                    <NativeSelect.Root>
-                      <NativeSelect.Field
-                        name="paymentCategory"
-                        value={paymentCategory}
-                        onChange={(event) =>
-                          setPaymentCategory(event.currentTarget.value as PaymentCategory)
-                        }
-                      >
-                        {paymentCategoryOptions.map((option) => (
+                  {collectEntryFees ? (
+                    <input type="hidden" name="collectEntryFees" value="true" />
+                  ) : null}
+
+                  {collectEntryFees ? (
+                    <Text fontSize="sm" color="fg.muted">
+                      Collects registration and rooster entry fees in one payment. Separate
+                      receipts are printed per fee type.
+                    </Text>
+                  ) : paymentCategoryOptions.length > 0 ? (
+                    <FormField label="Payment category" required>
+                      <NativeSelect.Root>
+                        <NativeSelect.Field
+                          name="paymentCategory"
+                          value={paymentCategory}
+                          onChange={(event) =>
+                            setPaymentCategory(event.currentTarget.value as PaymentCategory)
+                          }
+                        >
+                          {paymentCategoryOptions.map((option) => (
                             <option key={option.category} value={option.category}>
                               {option.label}
                             </option>
                           ))}
-                      </NativeSelect.Field>
-                    </NativeSelect.Root>
-                  </FormField>
+                        </NativeSelect.Field>
+                      </NativeSelect.Root>
+                    </FormField>
+                  ) : null}
 
+<<<<<<< HEAD
                   <CashierTenderFields
                     collectAmount={collectAmount}
                     onCollectAmountChange={(value) => {
@@ -561,6 +615,45 @@ export function CashierClient({
                       </NativeSelect.Field>
                     </NativeSelect.Root>
                   </FormField>
+=======
+                  <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
+                    <FormField label="Amount paid" required flex="1">
+                      <Input
+                        name="amountPaid"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        required
+<<<<<<< Updated upstream
+                        key={`${activeMatch.entryId}-${paymentCategory}-${suggestedAmount}`}
+=======
+                        key={`${activeMatch.entryId}-${collectEntryFees ? 'entry-fees' : paymentCategory}-${suggestedAmount}`}
+>>>>>>> Stashed changes
+                        defaultValue={suggestedAmount || undefined}
+                        data-testid="cashier-amount-paid"
+                      />
+                    </FormField>
+                    <FormField label="Payment method" flex="1">
+                      <NativeSelect.Root>
+                        <NativeSelect.Field
+                          name="paymentMethod"
+                          value={paymentMethod}
+                          onChange={(event) =>
+                            setPaymentMethod(
+                              event.currentTarget.value as keyof typeof PAYMENT_METHOD_LABELS
+                            )
+                          }
+                        >
+                          {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                            <option key={value} value={value} disabled={value !== 'cash'}>
+                              {label}
+                            </option>
+                          ))}
+                        </NativeSelect.Field>
+                      </NativeSelect.Root>
+                    </FormField>
+                  </Flex>
+>>>>>>> cashier-payment-category-updated
 
                   <FormField label="Notes">
                     <Textarea name="notes" rows={2} maxLength={2000} />
@@ -576,27 +669,45 @@ export function CashierClient({
                       <Text fontSize="sm" color="green.600">
                         {recordState.success}
                       </Text>
+<<<<<<< HEAD
                       {recordState.changeGiven != null && recordState.changeGiven > 0 ? (
                         <Text fontSize="sm" fontWeight="medium" data-testid="cashier-change-success">
                           Change: {formatCurrency(recordState.changeGiven)}
                         </Text>
                       ) : null}
+=======
+<<<<<<< Updated upstream
+>>>>>>> cashier-payment-category-updated
                       {lastPaymentId ? (
+=======
+                      {lastPaymentIds.length > 0 ? (
+>>>>>>> Stashed changes
                         <ButtonGroup>
-                          <Button asChild size="sm" variant="outline">
-                            <Link
-                              href={`/dashboard/events/${eventId}/payments/${lastPaymentId}/print`}
-                            >
-                              Print receipt
-                            </Link>
-                          </Button>
+                          {lastPaymentIds.map((payment) => (
+                            <Button key={payment.id} asChild size="sm" variant="outline">
+                              <Link
+                                href={`/dashboard/events/${eventId}/payments/${payment.id}/print`}
+                              >
+                                Print {PAYMENT_CATEGORY_LABELS[payment.category].toLowerCase()}{' '}
+                                receipt
+                              </Link>
+                            </Button>
+                          ))}
                           <Button
                             size="sm"
                             variant="ghost"
+<<<<<<< HEAD
                             onClick={() => {
                               setLastPaymentId(null)
                               setAmountTendered(0)
                             }}
+=======
+<<<<<<< Updated upstream
+                            onClick={() => setLastPaymentId(null)}
+=======
+                            onClick={() => setLastPaymentIds([])}
+>>>>>>> Stashed changes
+>>>>>>> cashier-payment-category-updated
                           >
                             Continue
                           </Button>
