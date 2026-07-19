@@ -7,6 +7,7 @@ export const paymentMethodSchema = z.enum(['cash', 'bank_transfer', 'gcash', 'ot
 export const paymentCategorySchema = z.enum([
   'registration',
   'rooster_entry',
+  'entry_fees',
   'cash_bond',
   'adjustment',
   'legacy',
@@ -66,6 +67,7 @@ export const PAYMENT_CATEGORY_LABELS: Record<
 > = {
   registration: 'Registration fee',
   rooster_entry: 'Rooster entry fee',
+  entry_fees: 'Registration & entry fees',
   cash_bond: 'Cash bond',
   adjustment: 'Fee adjustment',
   legacy: 'Combined (legacy)',

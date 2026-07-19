@@ -36,6 +36,7 @@ export function computeEntryStageThreeDue(
 export type PaymentCategory =
   | 'registration'
   | 'rooster_entry'
+  | 'entry_fees'
   | 'cash_bond'
   | 'adjustment'
   | 'legacy'
@@ -51,6 +52,15 @@ export function computeCategoryAmountDue(
     case 'rooster_entry':
       if (!settings.roosterEntryFeeEnabled) return 0
       return Number((settings.roosterEntryFeeAmount * Math.max(0, roosterCount)).toFixed(2))
+    case 'entry_fees':
+      return Number(
+        (
+          computeRegistrationAmountDue(settings) +
+          (settings.roosterEntryFeeEnabled
+            ? settings.roosterEntryFeeAmount * Math.max(0, roosterCount)
+            : 0)
+        ).toFixed(2)
+      )
     case 'cash_bond':
       if (!settings.cashBondEnabled) return 0
       return settings.cashBondAmount

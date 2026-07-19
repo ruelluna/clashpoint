@@ -1693,6 +1693,7 @@ export type Database = {
       payment_category:
         | 'registration'
         | 'rooster_entry'
+        | 'entry_fees'
         | 'cash_bond'
         | 'adjustment'
         | 'legacy'
