@@ -105,6 +105,14 @@ export async function requireAnyPermission(permissions: string[]): Promise<Profi
   return profile
 }
 
+export async function requireNonStaffAnyPermission(
+  permissions: string[]
+): Promise<Profile> {
+  const profile = await requireAnyPermission(permissions)
+  if (profile.role === 'staff') redirect('/access-denied')
+  return profile
+}
+
 export async function requirePermission(
   permission: string
 ): Promise<Profile> {

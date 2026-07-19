@@ -31,6 +31,10 @@ import { CashierCloseSessionForm } from '@/features/payments/components/cashier-
 import { CashierHandoverForm } from '@/features/payments/components/cashier-handover-form'
 import { CashierOpenSessionForm } from '@/features/payments/components/cashier-open-session-form'
 import { CashierTerminalClock } from '@/features/payments/components/cashier-terminal-clock'
+import {
+  CashierTenderFields,
+  isCashierTenderValid,
+} from '@/features/payments/components/cashier-tender-fields'
 import type { PaymentCategory } from '@/features/payments/fee-calc'
 import {
   getCashierDuesAction,
@@ -174,13 +178,6 @@ export function CashierClient({
   >([])
 
   useEffect(() => {
-<<<<<<< Updated upstream
-    if (recordState.paymentId) {
-      setLastPaymentId(recordState.paymentId)
-    }
-  }, [recordState.paymentId])
-  const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('entry_fees')
-=======
     if (!recordState.paymentIds?.length) return
     const categories = (recordState.paymentCategories ?? []) as PaymentCategory[]
     setLastPaymentIds(
@@ -191,7 +188,8 @@ export function CashierClient({
     )
   }, [recordState.paymentIds, recordState.paymentCategories])
   const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('cash_bond')
->>>>>>> Stashed changes
+  const [collectAmount, setCollectAmount] = useState(0)
+  const [amountTendered, setAmountTendered] = useState(0)
   const [paymentMethod, setPaymentMethod] = useState<
     keyof typeof PAYMENT_METHOD_LABELS
   >('cash')
@@ -271,9 +269,6 @@ export function CashierClient({
     )
     if (selected) return selected.outstanding
     return activeMatch.dues.suggestedAmount
-<<<<<<< Updated upstream
-  }, [activeMatch, paymentCategory, paymentCategoryOptions])
-=======
   }, [
     activeMatch,
     collectEntryFees,
@@ -281,7 +276,17 @@ export function CashierClient({
     paymentCategory,
     paymentCategoryOptions,
   ])
->>>>>>> Stashed changes
+
+  const collectInputKey = activeMatch
+    ? `${activeMatch.entryId}-${collectEntryFees ? 'entry-fees' : paymentCategory}-${suggestedAmount}`
+    : 'none'
+
+  useEffect(() => {
+    setCollectAmount(suggestedAmount > 0 ? suggestedAmount : 0)
+    setAmountTendered(0)
+  }, [collectInputKey, suggestedAmount])
+
+  const tenderReady = isCashierTenderValid(collectAmount, amountTendered)
 
   const feeSummary = useMemo(() => {
     const parts: string[] = []
@@ -564,43 +569,36 @@ export function CashierClient({
                     </FormField>
                   ) : null}
 
-                  <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-                    <FormField label="Amount paid" required flex="1">
-                      <Input
-                        name="amountPaid"
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        required
-<<<<<<< Updated upstream
-                        key={`${activeMatch.entryId}-${paymentCategory}-${suggestedAmount}`}
-=======
-                        key={`${activeMatch.entryId}-${collectEntryFees ? 'entry-fees' : paymentCategory}-${suggestedAmount}`}
->>>>>>> Stashed changes
-                        defaultValue={suggestedAmount || undefined}
-                        data-testid="cashier-amount-paid"
-                      />
-                    </FormField>
-                    <FormField label="Payment method" flex="1">
-                      <NativeSelect.Root>
-                        <NativeSelect.Field
-                          name="paymentMethod"
-                          value={paymentMethod}
-                          onChange={(event) =>
-                            setPaymentMethod(
-                              event.currentTarget.value as keyof typeof PAYMENT_METHOD_LABELS
-                            )
-                          }
-                        >
-                          {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
-                            <option key={value} value={value} disabled={value !== 'cash'}>
-                              {label}
-                            </option>
-                          ))}
-                        </NativeSelect.Field>
-                      </NativeSelect.Root>
-                    </FormField>
-                  </Flex>
+                  <CashierTenderFields
+                    collectAmount={collectAmount}
+                    onCollectAmountChange={(value) => {
+                      setCollectAmount(value)
+                      setAmountTendered(0)
+                    }}
+                    amountTendered={amountTendered}
+                    onAmountTenderedChange={setAmountTendered}
+                    collectInputKey={collectInputKey}
+                  />
+
+                  <FormField label="Payment method">
+                    <NativeSelect.Root maxW="xs">
+                      <NativeSelect.Field
+                        name="paymentMethod"
+                        value={paymentMethod}
+                        onChange={(event) =>
+                          setPaymentMethod(
+                            event.currentTarget.value as keyof typeof PAYMENT_METHOD_LABELS
+                          )
+                        }
+                      >
+                        {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                          <option key={value} value={value} disabled={value !== 'cash'}>
+                            {label}
+                          </option>
+                        ))}
+                      </NativeSelect.Field>
+                    </NativeSelect.Root>
+                  </FormField>
 
                   <FormField label="Notes">
                     <Textarea name="notes" rows={2} maxLength={2000} />
@@ -616,11 +614,12 @@ export function CashierClient({
                       <Text fontSize="sm" color="green.600">
                         {recordState.success}
                       </Text>
-<<<<<<< Updated upstream
-                      {lastPaymentId ? (
-=======
+                      {recordState.changeGiven != null && recordState.changeGiven > 0 ? (
+                        <Text fontSize="sm" fontWeight="medium" data-testid="cashier-change-success">
+                          Change: {formatCurrency(recordState.changeGiven)}
+                        </Text>
+                      ) : null}
                       {lastPaymentIds.length > 0 ? (
->>>>>>> Stashed changes
                         <ButtonGroup>
                           {lastPaymentIds.map((payment) => (
                             <Button key={payment.id} asChild size="sm" variant="outline">
@@ -635,11 +634,10 @@ export function CashierClient({
                           <Button
                             size="sm"
                             variant="ghost"
-<<<<<<< Updated upstream
-                            onClick={() => setLastPaymentId(null)}
-=======
-                            onClick={() => setLastPaymentIds([])}
->>>>>>> Stashed changes
+                            onClick={() => {
+                              setLastPaymentIds([])
+                              setAmountTendered(0)
+                            }}
                           >
                             Continue
                           </Button>
@@ -652,6 +650,7 @@ export function CashierClient({
                     type="submit"
                     loading={recordPending}
                     alignSelf="flex-start"
+                    disabled={!tenderReady}
                     data-testid="cashier-record-payment"
                   >
                     Collect payment
@@ -732,6 +731,12 @@ export function CashierClient({
                 </Box>
                 <Box flex="0.8">
                   <Text fontSize="sm">{formatCurrency(payment.amountPaid)}</Text>
+                  {payment.amountTendered != null && payment.changeGiven != null ? (
+                    <Text fontSize="xs" color="fg.muted">
+                      Tender {formatCurrency(payment.amountTendered)} · Change{' '}
+                      {formatCurrency(payment.changeGiven)}
+                    </Text>
+                  ) : null}
                 </Box>
                 <Box flex="0.8">
                   <Text fontSize="sm">{formatCurrency(payment.balance)}</Text>

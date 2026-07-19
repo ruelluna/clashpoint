@@ -8,14 +8,14 @@ import {
   listRevolvingFundLedger,
 } from '@/features/revolving-fund/service'
 import { getUser } from '@/lib/auth/session'
-import { hasAnyPermission, requirePermission } from '@/lib/auth/permissions'
+import { hasPermission, requireNonStaffAnyPermission } from '@/lib/auth/permissions'
 
 type RevolvingFundPageProps = {
   params: Promise<{ id: string }>
 }
 
 export default async function RevolvingFundPage({ params }: RevolvingFundPageProps) {
-  await requirePermission('events.view')
+  await requireNonStaffAnyPermission(['events.manage'])
   const { id } = await params
   const event = await getEvent(id)
 
@@ -25,9 +25,7 @@ export default async function RevolvingFundPage({ params }: RevolvingFundPagePro
   const [entries, balance, canManage] = await Promise.all([
     listRevolvingFundLedger(id),
     getRevolvingFundBalance(id),
-    user
-      ? hasAnyPermission(user.id, ['payments.manage', 'events.manage'])
-      : Promise.resolve(false),
+    user ? hasPermission(user.id, 'events.manage') : Promise.resolve(false),
   ])
 
   return (

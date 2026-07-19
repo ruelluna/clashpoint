@@ -124,6 +124,10 @@ test.describe('Cashier Terminal @auth', () => {
 
       const amount = await amountInput.inputValue()
       expect(Number(amount)).toBeGreaterThan(0)
+
+      await page.getByTestId('cashier-tender-exact').click()
+      await expect(page.getByTestId('cashier-change-due')).toContainText('Change due:')
+
       await page.getByTestId('cashier-record-payment').click()
       await expect(page.getByText('Payment recorded')).toBeVisible({ timeout: 15_000 })
       await expect(

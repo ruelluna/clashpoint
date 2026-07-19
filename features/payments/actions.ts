@@ -20,12 +20,9 @@ export type PaymentActionState = {
   error?: string
   success?: string
   paymentId?: string
-<<<<<<< Updated upstream
-=======
   paymentIds?: string[]
   paymentCategories?: string[]
   changeGiven?: number
->>>>>>> Stashed changes
 }
 
 export type CashierLookupActionResult = CashierLookupResult
@@ -65,6 +62,7 @@ export async function recordPaymentAction(
     eventId: formData.get('eventId'),
     entryId: formData.get('entryId'),
     amountPaid: formData.get('amountPaid'),
+    amountTendered: formData.get('amountTendered'),
     paymentMethod: formData.get('paymentMethod'),
     paymentCategory: formData.get('paymentCategory')?.toString() || undefined,
     collectEntryFees: formData.get('collectEntryFees')?.toString() || undefined,
@@ -89,11 +87,9 @@ export async function recordPaymentAction(
   return {
     success: 'Payment recorded',
     paymentId: result.paymentId,
-<<<<<<< Updated upstream
-=======
     paymentIds: result.paymentIds,
     paymentCategories: result.paymentCategories,
->>>>>>> Stashed changes
+    changeGiven: parsed.data.changeGiven,
   }
 }
 

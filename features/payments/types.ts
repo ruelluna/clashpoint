@@ -11,6 +11,8 @@ export type PaymentLedgerItem = {
   ownerName: string
   amountDue: number
   amountPaid: number
+  amountTendered: number | null
+  changeGiven: number | null
   balance: number
   paymentMethod: string | null
   receiptNumber: string | null
