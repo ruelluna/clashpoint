@@ -222,7 +222,7 @@ export function computeOutstandingDues(
 export function classifyCashierQuery(
   raw: string,
   eventId: string
-): { kind: 'owner_barcode' | 'cock_barcode' | 'search'; value: string } {
+): { kind: 'owner_barcode' | 'cock_barcode' | 'match_bet' | 'search'; value: string } {
   const value = raw.trim().toUpperCase()
   const eventPrefix = eventId.replace(/-/g, '').slice(0, 8).toUpperCase()
 
@@ -232,7 +232,10 @@ export function classifyCashierQuery(
   if (value.startsWith(`COCK-${eventPrefix}-`)) {
     return { kind: 'cock_barcode', value }
   }
-  if (value.startsWith('OWN-') || value.startsWith('COCK-')) {
+  if (value.startsWith(`BET-${eventPrefix}-`)) {
+    return { kind: 'match_bet', value }
+  }
+  if (value.startsWith('OWN-') || value.startsWith('COCK-') || value.startsWith('BET-')) {
     return { kind: 'search', value: raw.trim() }
   }
 
