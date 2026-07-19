@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { createMatchSchema, updateMatchBetSchema } from '@/features/matches/schema'
+import {
+  createMatchSchema,
+  formatMatchBetBarcode,
+  parseMatchBetBarcode,
+  updateMatchBetSchema,
+} from '@/features/matches/schema'
 
 const eventId = '00000000-0000-4000-8000-000000000001'
 const meronEntryId = '00000000-0000-4000-8000-000000000002'
@@ -10,7 +15,7 @@ const walaRoosterId = '00000000-0000-4000-8000-000000000005'
 const matchId = '00000000-0000-4000-8000-000000000006'
 
 describe('createMatchSchema', () => {
-  it('accepts valid match with optional bets', () => {
+  it('accepts valid match with positive bets', () => {
     const result = createMatchSchema.safeParse({
       eventId,
       meronEntryId,
@@ -24,6 +29,28 @@ describe('createMatchSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('requires positive bet amounts on both sides', () => {
+    const missing = createMatchSchema.safeParse({
+      eventId,
+      meronEntryId,
+      meronRoosterId,
+      walaEntryId,
+      walaRoosterId,
+    })
+    expect(missing.success).toBe(false)
+
+    const zero = createMatchSchema.safeParse({
+      eventId,
+      meronEntryId,
+      meronRoosterId,
+      walaEntryId,
+      walaRoosterId,
+      meronBet: 0,
+      walaBet: 100,
+    })
+    expect(zero.success).toBe(false)
+  })
+
   it('rejects matching the same rooster on both sides', () => {
     const result = createMatchSchema.safeParse({
       eventId,
@@ -31,6 +58,8 @@ describe('createMatchSchema', () => {
       meronRoosterId,
       walaEntryId,
       walaRoosterId: meronRoosterId,
+      meronBet: 100,
+      walaBet: 100,
     })
 
     expect(result.success).toBe(false)
@@ -44,9 +73,21 @@ describe('createMatchSchema', () => {
       walaEntryId,
       walaRoosterId,
       meronBet: -100,
+      walaBet: 100,
     })
 
     expect(result.success).toBe(false)
+  })
+})
+
+describe('match bet barcode helpers', () => {
+  it('formats and parses BET barcodes for an event', () => {
+    const barcode = formatMatchBetBarcode(eventId, 42, 'meron')
+    expect(barcode).toBe('BET-00000000-0042-M')
+    expect(parseMatchBetBarcode(barcode, eventId)).toEqual({
+      fightNumber: 42,
+      side: 'meron',
+    })
   })
 })
 

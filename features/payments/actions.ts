@@ -4,11 +4,13 @@ import { revalidatePath } from 'next/cache'
 
 import { requireOpenCashierSession } from '@/features/cashier-sessions/service'
 import {
+  recordMatchBetPaymentSchema,
   recordPaymentSchema,
   refundPaymentSchema,
 } from '@/features/payments/schema'
 import {
   getCashierTargetByEntryId,
+  recordMatchBetPayment,
   recordPayment,
   refundPayment,
   resolveCashierTarget,
@@ -46,6 +48,8 @@ function revalidateCashierPaths(eventId: string) {
   revalidatePath(`/dashboard/events/${eventId}/revolving-fund`)
   revalidatePath(`/dashboard/events/${eventId}/owners`)
   revalidatePath(`/dashboard/events/${eventId}/roosters`)
+  revalidatePath(`/dashboard/events/${eventId}/matching`)
+  revalidatePath('/dashboard/fights')
   revalidatePath('/dashboard/transactions')
   revalidatePath('/dashboard/audit')
 }
@@ -83,6 +87,46 @@ export async function recordPaymentAction(
 
   return {
     success: 'Payment recorded',
+    paymentId: result.paymentId,
+    changeGiven: parsed.data.changeGiven,
+  }
+}
+
+export async function recordMatchBetPaymentAction(
+  _prev: PaymentActionState,
+  formData: FormData
+): Promise<PaymentActionState> {
+  const profile = await requireOperationalPermission('payments.manage')
+
+  const parsed = recordMatchBetPaymentSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchBetId: formData.get('matchBetId'),
+    amountPaid: formData.get('amountPaid'),
+    amountTendered: formData.get('amountTendered'),
+    paymentMethod: formData.get('paymentMethod'),
+    notes: formData.get('notes')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const sessionResult = await requireOpenCashierSession(profile.id, parsed.data.eventId)
+  if (sessionResult.error || !sessionResult.session) {
+    return { error: sessionResult.error ?? 'Open a cashier session first' }
+  }
+
+  const result = await recordMatchBetPayment(
+    profile.id,
+    parsed.data,
+    sessionResult.session.id
+  )
+  if (result.error) return { error: result.error }
+
+  revalidateCashierPaths(parsed.data.eventId)
+
+  return {
+    success: 'Palitada payment recorded',
     paymentId: result.paymentId,
     changeGiven: parsed.data.changeGiven,
   }

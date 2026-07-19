@@ -124,8 +124,16 @@ describe('classifyCashierQuery', () => {
     })
   })
 
+  it('classifies BET barcode for this event', () => {
+    expect(classifyCashierQuery('bet-00000000-0042-m', eventId)).toEqual({
+      kind: 'match_bet',
+      value: 'BET-00000000-0042-M',
+    })
+  })
+
   it('treats wrong-event barcode prefixes as search text', () => {
     expect(classifyCashierQuery('OWN-ABCDEF12-0001', eventId).kind).toBe('search')
+    expect(classifyCashierQuery('BET-ABCDEF12-0001-M', eventId).kind).toBe('search')
   })
 
   it('classifies free text as search', () => {

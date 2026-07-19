@@ -6,10 +6,12 @@ import {
   Button,
   Flex,
   Input,
+  Link,
   NativeSelect,
   Stack,
   Text,
 } from '@chakra-ui/react'
+import { useRouter } from 'next/navigation'
 import { useActionState, useEffect, useMemo, useState } from 'react'
 
 import {
@@ -23,14 +25,16 @@ import {
 import { evaluateMatchCompatibilityAction } from '@/features/eligibility/actions'
 import type { MatchCompatibilityEvaluation } from '@/features/compatibility/types'
 import {
+  cancelMatchAction,
   createMatchAction,
-  lockMatchListAction,
   updateFightQueueStatusAction,
   updateMatchBetAction,
   type MatchActionState,
 } from '@/features/matches/actions'
+import { MatchingRoosterScanRow } from '@/features/matches/components/matching-rooster-scan-row'
 import {
   FIGHT_QUEUE_STATUS_LABELS,
+  MATCH_BET_PAYMENT_STATUS_LABELS,
   MATCH_STATUS_LABELS,
 } from '@/features/matches/schema'
 import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
@@ -41,7 +45,7 @@ import type { CompatibilityStatus } from '@/lib/derby/enums'
 type MatchingBoardClientProps = {
   eventId: string
   eventName: string
-  matches: MatchListItem[]
+  awaitingPaymentMatches: MatchListItem[]
   queueMatches: MatchListItem[]
   eligibleRoosters: EligibleRooster[]
   canManage: boolean
@@ -66,6 +70,19 @@ function statusColor(
       return 'green'
     case 'cancelled':
       return 'red'
+    default:
+      return 'gray'
+  }
+}
+
+function betPaymentColor(
+  status: MatchListItem['meron']['bet_payment_status']
+): 'gray' | 'green' | 'orange' {
+  switch (status) {
+    case 'paid':
+      return 'green'
+    case 'refunded':
+      return 'orange'
     default:
       return 'gray'
   }
@@ -127,6 +144,21 @@ function compatibilityColor(
   }
 }
 
+function SidePaymentBadges({ side }: { side: MatchListItem['meron'] }) {
+  return (
+    <Flex gap={2} wrap="wrap" mt={1}>
+      <Badge size="sm" colorPalette={betPaymentColor(side.bet_payment_status)}>
+        Palitada {MATCH_BET_PAYMENT_STATUS_LABELS[side.bet_payment_status]}
+      </Badge>
+      {side.bet_barcode ? (
+        <Text fontSize="xs" color="fg.muted">
+          {side.bet_barcode}
+        </Text>
+      ) : null}
+    </Flex>
+  )
+}
+
 function BetEditForm({
   eventId,
   match,
@@ -139,6 +171,11 @@ function BetEditForm({
   amount: number
 }) {
   const [state, action, pending] = useActionState(updateMatchBetAction, initialState)
+  const betsUnpaid =
+    match.meron.bet_payment_status === 'unpaid' &&
+    match.wala.bet_payment_status === 'unpaid'
+
+  if (!betsUnpaid) return null
 
   return (
     <form action={action} className="mt-1">
@@ -149,7 +186,7 @@ function BetEditForm({
         <Input
           name="amount"
           type="number"
-          min={0}
+          min={0.01}
           step="0.01"
           size="xs"
           width="24"
@@ -164,9 +201,32 @@ function BetEditForm({
           {state.error}
         </Text>
       ) : null}
-      {state.success ? (
-        <Text fontSize="xs" color="green.600" mt={1}>
-          {state.success}
+    </form>
+  )
+}
+
+function CancelMatchForm({
+  eventId,
+  matchId,
+  canManage,
+}: {
+  eventId: string
+  matchId: string
+  canManage: boolean
+}) {
+  const [state, action, pending] = useActionState(cancelMatchAction, initialState)
+  if (!canManage) return null
+
+  return (
+    <form action={action}>
+      <input type="hidden" name="eventId" value={eventId} />
+      <input type="hidden" name="matchId" value={matchId} />
+      <Button type="submit" size="xs" variant="outline" colorPalette="red" loading={pending}>
+        Cancel match
+      </Button>
+      {state.error ? (
+        <Text fontSize="xs" color="red.500" mt={1}>
+          {state.error}
         </Text>
       ) : null}
     </form>
@@ -242,25 +302,59 @@ function FightQueueRow({
   )
 }
 
+function RoosterCard({
+  label,
+  rooster,
+  onClear,
+}: {
+  label: string
+  rooster: EligibleRooster | undefined
+  onClear: () => void
+}) {
+  if (!rooster) {
+    return (
+      <Text fontSize="sm" color="fg.muted">
+        No {label.toLowerCase()} selected
+      </Text>
+    )
+  }
+
+  return (
+    <Box p={3} rounded="md" borderWidth="1px" borderColor="border" bg="bg.subtle">
+      <Flex justify="space-between" align="start" gap={2}>
+        <Stack gap={1}>
+          <Text fontSize="xs" color="fg.muted" textTransform="uppercase">
+            {label}
+          </Text>
+          <Text fontWeight="medium">{rooster.entry_name}</Text>
+          <Text fontSize="sm" color="fg.muted">
+            {roosterLabel(rooster)} · {formatWeight(rooster.official_weight)}
+          </Text>
+        </Stack>
+        <Button size="xs" variant="ghost" onClick={onClear}>
+          Clear
+        </Button>
+      </Flex>
+    </Box>
+  )
+}
+
 export function MatchingBoardClient({
   eventId,
   eventName,
-  matches,
+  awaitingPaymentMatches,
   queueMatches,
   eligibleRoosters,
   canManage,
 }: MatchingBoardClientProps) {
+  const router = useRouter()
   const [createState, createAction, createPending] = useActionState(
     createMatchAction,
     initialState
   )
-  const [lockState, lockAction, lockPending] = useActionState(
-    lockMatchListAction,
-    initialState
-  )
 
-  const [meronRoosterId, setMeronRoosterId] = useState('')
-  const [walaRoosterId, setWalaRoosterId] = useState('')
+  const [meronRooster, setMeronRooster] = useState<EligibleRooster | null>(null)
+  const [walaRooster, setWalaRooster] = useState<EligibleRooster | null>(null)
   const [compatibility, setCompatibility] = useState<MatchCompatibilityEvaluation | null>(
     null
   )
@@ -272,11 +366,16 @@ export function MatchingBoardClient({
     [eligibleRoosters]
   )
 
-  const meronRooster = roosterMap.get(meronRoosterId)
-  const walaRooster = roosterMap.get(walaRoosterId)
+  useEffect(() => {
+    if (createState.matchId) {
+      router.push(`/dashboard/events/${eventId}/matching/${createState.matchId}/print`)
+    }
+  }, [createState.matchId, eventId, router])
 
   useEffect(() => {
-    if (!meronRoosterId || !walaRoosterId) {
+    const meronId = meronRooster?.rooster_id
+    const walaId = walaRooster?.rooster_id
+    if (!meronId || !walaId) {
       setCompatibility(null)
       setCompatibilityError(null)
       return
@@ -286,7 +385,7 @@ export function MatchingBoardClient({
     setCompatibilityLoading(true)
     setCompatibilityError(null)
 
-    evaluateMatchCompatibilityAction(eventId, meronRoosterId, walaRoosterId)
+    evaluateMatchCompatibilityAction(eventId, meronId, walaId)
       .then((result) => {
         if (cancelled) return
         if (result.error) {
@@ -303,25 +402,24 @@ export function MatchingBoardClient({
     return () => {
       cancelled = true
     }
-  }, [eventId, meronRoosterId, walaRoosterId])
-
-  const hasLockableMatches = matches.some((match) =>
-    ['draft', 'for_review', 'confirmed'].includes(match.status)
-  )
+  }, [eventId, meronRooster?.rooster_id, walaRooster?.rooster_id])
 
   const ongoing = queueMatches.find((match) => match.queue_status === 'ongoing')
 
-  const feedback =
-    createState.error ??
-    createState.success ??
-    lockState.error ??
-    lockState.success
+  const feedback = createState.error ?? (createState.matchId ? null : createState.success)
+
+  function selectFromDropdown(roosterId: string, side: 'meron' | 'wala') {
+    const rooster = roosterMap.get(roosterId)
+    if (!rooster) return
+    if (side === 'meron') setMeronRooster(rooster)
+    else setWalaRooster(rooster)
+  }
 
   return (
     <PageStack>
       <PageHeader
         title="Matching"
-        description={`Pair weighed roosters, record side bets, and advance the fight queue for ${eventName}.`}
+        description={`Pair roosters at the desk, record palitada, and collect payment before fights enter the queue for ${eventName}.`}
       />
 
       {feedback ? (
@@ -330,35 +428,36 @@ export function MatchingBoardClient({
           px={3}
           py={2}
           fontSize="sm"
-          bg={createState.error || lockState.error ? 'red.subtle' : 'green.subtle'}
-          color={createState.error || lockState.error ? 'red.fg' : 'green.fg'}
+          bg={createState.error ? 'red.subtle' : 'green.subtle'}
+          color={createState.error ? 'red.fg' : 'green.fg'}
         >
           {feedback}
         </Box>
       ) : null}
 
       {canManage ? (
-        <PanelCard title="Create match">
+        <PanelCard title="Matching desk">
           <form action={createAction}>
             <input type="hidden" name="eventId" value={eventId} />
-            <input
-              type="hidden"
-              name="meronEntryId"
-              value={meronRooster?.entry_id ?? ''}
-            />
-            <input
-              type="hidden"
-              name="walaEntryId"
-              value={walaRooster?.entry_id ?? ''}
-            />
-            <Flex direction={{ base: 'column', md: 'row' }} gap={LAYOUT_GAP.form} mb={LAYOUT_GAP.form}>
+            <input type="hidden" name="meronEntryId" value={meronRooster?.entry_id ?? ''} />
+            <input type="hidden" name="walaEntryId" value={walaRooster?.entry_id ?? ''} />
+            <input type="hidden" name="meronRoosterId" value={meronRooster?.rooster_id ?? ''} />
+            <input type="hidden" name="walaRoosterId" value={walaRooster?.rooster_id ?? ''} />
+
+            <Flex direction={{ base: 'column', lg: 'row' }} gap={LAYOUT_GAP.form}>
               <Stack flex="1" gap={LAYOUT_GAP.form}>
-                <FormField label="Meron" required>
+                <MatchingRoosterScanRow
+                  eventId={eventId}
+                  label="Meron"
+                  onResolved={setMeronRooster}
+                />
+                <FormField label="Or select meron">
                   <NativeSelect.Root size="sm">
                     <NativeSelect.Field
-                      name="meronRoosterId"
-                      value={meronRoosterId}
-                      onChange={(event) => setMeronRoosterId(event.currentTarget.value)}
+                      value={meronRooster?.rooster_id ?? ''}
+                      onChange={(event) =>
+                        selectFromDropdown(event.currentTarget.value, 'meron')
+                      }
                     >
                       <option value="">Select rooster</option>
                       {eligibleRoosters.map((rooster) => (
@@ -369,17 +468,36 @@ export function MatchingBoardClient({
                     </NativeSelect.Field>
                   </NativeSelect.Root>
                 </FormField>
-                <FormField label="Meron bet">
-                  <Input name="meronBet" type="number" min={0} step="0.01" defaultValue="0" />
+                <RoosterCard
+                  label="Meron"
+                  rooster={meronRooster ?? undefined}
+                  onClear={() => setMeronRooster(null)}
+                />
+                <FormField label="Meron palitada (₱)" required>
+                  <Input
+                    name="meronBet"
+                    type="number"
+                    min={0.01}
+                    step="0.01"
+                    placeholder="Amount"
+                    required
+                  />
                 </FormField>
               </Stack>
+
               <Stack flex="1" gap={LAYOUT_GAP.form}>
-                <FormField label="Wala" required>
+                <MatchingRoosterScanRow
+                  eventId={eventId}
+                  label="Wala"
+                  onResolved={setWalaRooster}
+                />
+                <FormField label="Or select wala">
                   <NativeSelect.Root size="sm">
                     <NativeSelect.Field
-                      name="walaRoosterId"
-                      value={walaRoosterId}
-                      onChange={(event) => setWalaRoosterId(event.currentTarget.value)}
+                      value={walaRooster?.rooster_id ?? ''}
+                      onChange={(event) =>
+                        selectFromDropdown(event.currentTarget.value, 'wala')
+                      }
                     >
                       <option value="">Select rooster</option>
                       {eligibleRoosters.map((rooster) => (
@@ -390,12 +508,25 @@ export function MatchingBoardClient({
                     </NativeSelect.Field>
                   </NativeSelect.Root>
                 </FormField>
-                <FormField label="Wala bet">
-                  <Input name="walaBet" type="number" min={0} step="0.01" defaultValue="0" />
+                <RoosterCard
+                  label="Wala"
+                  rooster={walaRooster ?? undefined}
+                  onClear={() => setWalaRooster(null)}
+                />
+                <FormField label="Wala palitada (₱)" required>
+                  <Input
+                    name="walaBet"
+                    type="number"
+                    min={0.01}
+                    step="0.01"
+                    placeholder="Amount"
+                    required
+                  />
                 </FormField>
               </Stack>
             </Flex>
-            {meronRoosterId && walaRoosterId ? (
+
+            {meronRooster && walaRooster ? (
               <Box
                 mt={LAYOUT_GAP.form}
                 p={3}
@@ -422,11 +553,6 @@ export function MatchingBoardClient({
                         {COMPATIBILITY_STATUS_LABELS[compatibility.status]}
                       </Badge>
                     </Flex>
-                    {compatibility.weightDifferenceGrams != null ? (
-                      <Text fontSize="sm" color="fg.muted">
-                        Weight difference: {compatibility.weightDifferenceGrams} g
-                      </Text>
-                    ) : null}
                     {compatibility.reasons.length > 0 ? (
                       <Stack gap={1}>
                         {compatibility.reasons.map((reason) => (
@@ -444,118 +570,100 @@ export function MatchingBoardClient({
                 ) : null}
               </Box>
             ) : null}
+
             <Button
               type="submit"
-              size="sm"
+              size="md"
               loading={createPending}
-              disabled={!meronRoosterId || !walaRoosterId}
+              disabled={!meronRooster || !walaRooster}
               mt={LAYOUT_GAP.form}
             >
-              Add match
+              Create match & print slips
             </Button>
           </form>
-          {hasLockableMatches ? (
-            <form action={lockAction}>
-              <input type="hidden" name="eventId" value={eventId} />
-              <ButtonGroup mt={LAYOUT_GAP.buttons}>
-                <Button type="submit" size="sm" variant="outline" loading={lockPending}>
-                  Lock match list
-                </Button>
-              </ButtonGroup>
-            </form>
-          ) : null}
+
           {eligibleRoosters.length === 0 ? (
             <Text mt={3} fontSize="sm" color="fg.muted">
-              No eligible roosters. Add roosters with weight on Rooster Entries first.
+              No eligible roosters. Complete weighing and inspection first.
             </Text>
           ) : null}
         </PanelCard>
       ) : null}
 
-      <PanelCard flush>
-        <Flex
-          px={4}
-          py={3}
-          borderBottomWidth="1px"
-          borderColor="border"
-          fontSize="sm"
-          fontWeight="medium"
-          color="fg.muted"
-          display={{ base: 'none', md: 'flex' }}
-        >
-          <Text flex="0 0 4rem">Fight</Text>
-          <Text flex="1">Meron</Text>
-          <Text flex="1">Wala</Text>
-          <Text flex="0 0 6rem">Status</Text>
-        </Flex>
-        {matches.length === 0 ? (
-          <Box px={4} py={8} textAlign="center">
-            <Text color="fg.muted">No matches yet.</Text>
-          </Box>
+      <PanelCard title="Awaiting payment">
+        <Text fontSize="sm" color="fg.muted" mb={3}>
+          Matches enter the fight queue automatically after both sides pay palitada and any
+          enabled entry fees.
+        </Text>
+        {awaitingPaymentMatches.length === 0 ? (
+          <Text color="fg.muted" fontSize="sm">
+            No matches awaiting payment.
+          </Text>
         ) : (
-          matches.map((match) => {
-            const canEditBets = ['draft', 'for_review', 'confirmed'].includes(match.status)
-
-            return (
-              <Flex
+          awaitingPaymentMatches.map((match) => (
+              <Box
                 key={match.id}
-                direction={{ base: 'column', md: 'row' }}
-                gap={{ base: 2, md: 0 }}
-                px={4}
                 py={3}
                 borderBottomWidth="1px"
                 borderColor="border"
                 _last={{ borderBottomWidth: 0 }}
-                fontSize="sm"
               >
-                <Text flex="0 0 4rem" fontWeight="semibold">
-                  #{match.fight_number}
-                </Text>
-                <Box flex="1">
-                  <Text fontWeight="medium">{match.meron.entry_name}</Text>
-                  <Text color="fg.muted">
-                    Cock #{match.meron.cock_number} · {match.meron.band_number} ·{' '}
-                    {formatWeight(match.meron.weight)}
+                <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
+                  <Text fontWeight="semibold" flex="0 0 4rem">
+                    #{match.fight_number}
                   </Text>
-                  <Text color="fg.muted">Bet {formatCurrency(match.meron.bet_amount)}</Text>
-                  {canManage && canEditBets ? (
-                    <BetEditForm
-                      eventId={eventId}
-                      match={match}
-                      side="meron"
-                      amount={match.meron.bet_amount}
-                    />
-                  ) : null}
-                </Box>
-                <Box flex="1">
-                  <Text fontWeight="medium">{match.wala.entry_name}</Text>
-                  <Text color="fg.muted">
-                    Cock #{match.wala.cock_number} · {match.wala.band_number} ·{' '}
-                    {formatWeight(match.wala.weight)}
-                  </Text>
-                  <Text color="fg.muted">Bet {formatCurrency(match.wala.bet_amount)}</Text>
-                  {canManage && canEditBets ? (
-                    <BetEditForm
-                      eventId={eventId}
-                      match={match}
-                      side="wala"
-                      amount={match.wala.bet_amount}
-                    />
-                  ) : null}
-                </Box>
-                <Flex flex="0 0 6rem" align="center" gap={2}>
-                  <Badge colorPalette={statusColor(match.status)} size="sm">
-                    {MATCH_STATUS_LABELS[match.status]}
-                  </Badge>
-                  {match.queue_status ? (
-                    <Badge variant="subtle" size="sm">
-                      {FIGHT_QUEUE_STATUS_LABELS[match.queue_status]}
+                  <Box flex="1">
+                    <Text fontWeight="medium">{match.meron.entry_name}</Text>
+                    <Text fontSize="sm" color="fg.muted">
+                      Cock #{match.meron.cock_number} · Bet {formatCurrency(match.meron.bet_amount)}
+                    </Text>
+                    <SidePaymentBadges side={match.meron} />
+                    {canManage ? (
+                      <BetEditForm
+                        eventId={eventId}
+                        match={match}
+                        side="meron"
+                        amount={match.meron.bet_amount}
+                      />
+                    ) : null}
+                  </Box>
+                  <Box flex="1">
+                    <Text fontWeight="medium">{match.wala.entry_name}</Text>
+                    <Text fontSize="sm" color="fg.muted">
+                      Cock #{match.wala.cock_number} · Bet {formatCurrency(match.wala.bet_amount)}
+                    </Text>
+                    <SidePaymentBadges side={match.wala} />
+                    {canManage ? (
+                      <BetEditForm
+                        eventId={eventId}
+                        match={match}
+                        side="wala"
+                        amount={match.wala.bet_amount}
+                      />
+                    ) : null}
+                  </Box>
+                  <Stack gap={2} align={{ base: 'flex-start', md: 'flex-end' }}>
+                    <Badge colorPalette={statusColor(match.status)} size="sm">
+                      {MATCH_STATUS_LABELS[match.status]}
                     </Badge>
-                  ) : null}
+                    {canManage && match.meron.bet_barcode ? (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/dashboard/events/${eventId}/matching/${match.id}/print`}>
+                          Print slips
+                        </Link>
+                      </Button>
+                    ) : null}
+                    {canManage ? (
+                      <CancelMatchForm
+                        eventId={eventId}
+                        matchId={match.id}
+                        canManage={canManage}
+                      />
+                    ) : null}
+                  </Stack>
                 </Flex>
-              </Flex>
-            )
-          })
+              </Box>
+            ))
         )}
       </PanelCard>
 
@@ -577,7 +685,7 @@ export function MatchingBoardClient({
           {queueMatches.length === 0 ? (
             <Box px={4} py={8} textAlign="center">
               <Text color="fg.muted">
-                No fights in the queue. Lock the match list after creating matches.
+                No fights in the queue yet. Matches appear here after both sides pay.
               </Text>
             </Box>
           ) : (
