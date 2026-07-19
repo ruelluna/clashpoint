@@ -30,26 +30,37 @@ const existingPromoter = {
   commission_type: 'none' as const,
   commission_value: null,
   notes: null,
+  user_id: null as string | null,
 }
 
+const linkedUserId = '00000000-0000-4000-8000-000000000010'
+
 function mockPromoterUpdate(existing = existingPromoter) {
-  const updateEq = vi.fn().mockResolvedValue({ error: null })
-  const update = vi.fn().mockReturnValue({ eq: updateEq })
+  const promotersUpdateEq = vi.fn().mockResolvedValue({ error: null })
+  const promotersUpdate = vi.fn().mockReturnValue({ eq: promotersUpdateEq })
+  const profilesUpdateEq = vi.fn().mockResolvedValue({ error: null })
+  const profilesUpdate = vi.fn().mockReturnValue({ eq: profilesUpdateEq })
 
   createClient.mockResolvedValue({
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          is: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: existing }),
+    from: vi.fn((table: string) => {
+      if (table === 'profiles') {
+        return { update: profilesUpdate }
+      }
+
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            is: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: existing }),
+            }),
           }),
         }),
-      }),
-      update,
-    })),
+        update: promotersUpdate,
+      }
+    }),
   })
 
-  return { update, updateEq }
+  return { promotersUpdate, promotersUpdateEq, profilesUpdate, profilesUpdateEq }
 }
 
 describe('updatePromoter status audit logging', () => {
@@ -130,5 +141,75 @@ describe('updatePromoter status audit logging', () => {
       newValues: { status: 'inactive' },
       reason: 'Season ended',
     })
+  })
+})
+
+describe('updatePromoter linked profile sync', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    writeAuditLog.mockResolvedValue({})
+  })
+
+  it('deactivates linked profile when status becomes suspended', async () => {
+    const { profilesUpdate, profilesUpdateEq } = mockPromoterUpdate({
+      ...existingPromoter,
+      user_id: linkedUserId,
+    })
+
+    const result = await updatePromoter(actorId, {
+      promoterId,
+      name: existingPromoter.name,
+      commissionType: 'none',
+      status: 'suspended',
+      statusChangeReason: 'Policy violation',
+    })
+
+    expect(result.error).toBeUndefined()
+    expect(profilesUpdate).toHaveBeenCalledWith({
+      is_active: false,
+      deactivated_at: expect.any(String),
+    })
+    expect(profilesUpdateEq).toHaveBeenCalledWith('id', linkedUserId)
+  })
+
+  it('reactivates linked profile when status becomes active', async () => {
+    const { profilesUpdate, profilesUpdateEq } = mockPromoterUpdate({
+      ...existingPromoter,
+      status: 'inactive',
+      user_id: linkedUserId,
+    })
+
+    const result = await updatePromoter(actorId, {
+      promoterId,
+      name: existingPromoter.name,
+      commissionType: 'none',
+      status: 'active',
+      statusChangeReason: 'Season resumed',
+    })
+
+    expect(result.error).toBeUndefined()
+    expect(profilesUpdate).toHaveBeenCalledWith({
+      is_active: true,
+      deactivated_at: null,
+    })
+    expect(profilesUpdateEq).toHaveBeenCalledWith('id', linkedUserId)
+  })
+
+  it('does not update profile when promoter has no linked login', async () => {
+    const { profilesUpdate } = mockPromoterUpdate({
+      ...existingPromoter,
+      user_id: null,
+    })
+
+    const result = await updatePromoter(actorId, {
+      promoterId,
+      name: existingPromoter.name,
+      commissionType: 'none',
+      status: 'suspended',
+      statusChangeReason: 'Policy violation',
+    })
+
+    expect(result.error).toBeUndefined()
+    expect(profilesUpdate).not.toHaveBeenCalled()
   })
 })

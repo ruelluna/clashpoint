@@ -12,6 +12,10 @@ export {
   requirePermission,
   requirePortalAccess,
 } from '@/lib/auth/permissions'
+export {
+  getPromoterAccessDeniedReason,
+  resolvePromoterSignInAccess,
+} from '@/lib/auth/promoter-access'
 export { requireAdmin } from '@/lib/auth/require-role'
 export { getUser, requireUser } from '@/lib/auth/session'
 export type { AppRole, Profile } from '@/lib/auth/types'

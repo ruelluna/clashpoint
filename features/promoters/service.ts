@@ -161,7 +161,7 @@ export async function updatePromoter(
   const { data: existing } = await supabase
     .from('promoters')
     .select(
-      'name, contact_person, phone, email, address, status, commission_type, commission_value, notes'
+      'name, contact_person, phone, email, address, status, commission_type, commission_value, notes, user_id'
     )
     .eq('id', input.promoterId)
     .is('deleted_at', null)
@@ -236,6 +236,23 @@ export async function updatePromoter(
       newValues: { status: input.status },
       reason: input.statusChangeReason,
     })
+
+    if (existing.user_id) {
+      const profileUpdate =
+        input.status === 'active'
+          ? { is_active: true, deactivated_at: null }
+          : {
+              is_active: false,
+              deactivated_at: new Date().toISOString(),
+            }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(profileUpdate)
+        .eq('id', existing.user_id)
+
+      if (profileError) return { error: profileError.message }
+    }
   }
 
   return {}
