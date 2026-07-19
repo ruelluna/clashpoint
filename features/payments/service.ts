@@ -22,6 +22,7 @@ import {
   type RecordPaymentInput,
   type RefundPaymentInput,
 } from '@/features/payments/schema'
+import { allocateSplitPaymentTender } from '@/features/payments/tender'
 import type { PaymentStatus } from '@/features/entries/types'
 import type {
   CashierLookupResult,
@@ -473,6 +474,11 @@ async function recordSplitEntryFeesPayment(
   let references = await listPaymentReferencesForEvent(input.eventId)
   const paymentIds: string[] = []
   const paidAt = new Date().toISOString()
+  const tenderByRow = allocateSplitPaymentTender(
+    portions.map((portion) => portion.amount),
+    input.amountTendered,
+    input.changeGiven
+  )
 
   for (const [index, portion] of portions.entries()) {
     const line = duesResult.dues.lines.find((item) => item.category === portion.category)
@@ -495,6 +501,9 @@ async function recordSplitEntryFeesPayment(
     const paymentReference = getNextPaymentReference(input.eventId, references)
     references = [...references, paymentReference]
 
+    const { amountTendered: rowTendered, changeGiven: rowChange } =
+      tenderByRow[index] ?? { amountTendered: null, changeGiven: null }
+
     const { data, error } = await supabase
       .from('payments')
       .insert({
@@ -503,8 +512,8 @@ async function recordSplitEntryFeesPayment(
         event_id: input.eventId,
         amount_due: amountDue,
         amount_paid: portion.amount,
-        amount_tendered: index === 0 ? (input.amountTendered ?? null) : null,
-        change_given: index === 0 ? (input.changeGiven ?? null) : null,
+        amount_tendered: rowTendered,
+        change_given: rowChange,
         balance,
         payment_method: input.paymentMethod,
         receipt_number: input.receiptNumber ?? null,
@@ -535,8 +544,8 @@ async function recordSplitEntryFeesPayment(
         entry_number: entry.entry_number,
         entry_name: entry.entry_name,
         amount_paid: portion.amount,
-        amount_tendered: index === 0 ? (input.amountTendered ?? null) : null,
-        change_given: index === 0 ? (input.changeGiven ?? null) : null,
+        amount_tendered: rowTendered,
+        change_given: rowChange,
         balance,
         payment_status: paymentStatus,
         payment_category: portion.category,
