@@ -21,7 +21,7 @@ export const EVENT_TAB_DEFINITIONS = [
   },
   {
     slug: 'payments',
-    label: 'Cashier',
+    label: 'Cashier Terminal',
     permissions: ['payments.manage'],
   },
   {

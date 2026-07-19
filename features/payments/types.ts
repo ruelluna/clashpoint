@@ -19,10 +19,13 @@ export type PaymentLedgerItem = {
   paidAt: string | null
   notes: string | null
   createdAt: string
+  cashierSessionId: string | null
+  cashierName: string | null
 }
 
 export type PaymentReceiptItem = PaymentLedgerItem & {
   eventName: string
+  sessionOpenedAt: string | null
 }
 
 export type CashierTargetMatch = {

@@ -5,6 +5,7 @@ import { Stack, Text } from '@chakra-ui/react'
 import { PrintSlipLayout } from '@/features/printing/components/print-slip-layout'
 import { PAYMENT_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
 import type { PaymentReceiptItem } from '@/features/payments/types'
+import { formatEventDateTime } from '@/lib/format/datetime'
 
 type PaymentReceiptSlipProps = {
   payment: PaymentReceiptItem
@@ -17,14 +18,6 @@ function formatCurrency(amount: number) {
   }).format(amount)
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
-}
-
 export function PaymentReceiptSlip({ payment }: PaymentReceiptSlipProps) {
   const methodLabel =
     payment.paymentMethod &&
@@ -33,6 +26,8 @@ export function PaymentReceiptSlip({ payment }: PaymentReceiptSlipProps) {
           payment.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS
         ]
       : payment.paymentMethod ?? '—'
+
+  const paidAtLabel = payment.paidAt ?? payment.createdAt
 
   return (
     <PrintSlipLayout title="Payment receipt" eventName={payment.eventName}>
@@ -43,6 +38,22 @@ export function PaymentReceiptSlip({ payment }: PaymentReceiptSlipProps) {
           </Text>
           {payment.paymentReference}
         </Text>
+        {payment.cashierName ? (
+          <Text fontSize="sm">
+            <Text as="span" color="fg.muted">
+              Cashier:{' '}
+            </Text>
+            {payment.cashierName}
+          </Text>
+        ) : null}
+        {payment.sessionOpenedAt ? (
+          <Text fontSize="sm">
+            <Text as="span" color="fg.muted">
+              Session opened:{' '}
+            </Text>
+            {formatEventDateTime(payment.sessionOpenedAt)}
+          </Text>
+        ) : null}
         <Text fontSize="sm">
           <Text as="span" color="fg.muted">
             Entry:{' '}
@@ -91,7 +102,7 @@ export function PaymentReceiptSlip({ payment }: PaymentReceiptSlipProps) {
           </Text>
         ) : null}
         <Text fontSize="xs" color="fg.muted">
-          {formatDate(payment.paidAt ?? payment.createdAt)}
+          {formatEventDateTime(paidAtLabel)} (Philippines)
         </Text>
       </Stack>
     </PrintSlipLayout>

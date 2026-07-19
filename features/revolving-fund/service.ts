@@ -19,6 +19,7 @@ type LedgerRow = {
   balance_after: number
   description: string | null
   source_payment_id: string | null
+  cashier_session_id: string | null
   created_by: string | null
   created_at: string
 }
@@ -32,6 +33,7 @@ function mapLedgerRow(row: LedgerRow): RevolvingFundLedgerEntry {
     balanceAfter: Number(row.balance_after),
     description: row.description,
     sourcePaymentId: row.source_payment_id,
+    cashierSessionId: row.cashier_session_id,
     createdBy: row.created_by,
     createdAt: row.created_at,
   }
@@ -60,6 +62,7 @@ export type PostRevolvingFundLedgerEntryInput = {
   description: string
   actorId: string
   sourcePaymentId?: string | null
+  cashierSessionId?: string | null
 }
 
 export async function postRevolvingFundLedgerEntry(
@@ -94,6 +97,7 @@ export async function postRevolvingFundLedgerEntry(
     balance_after: balanceAfter,
     description: input.description.trim(),
     source_payment_id: input.sourcePaymentId ?? null,
+    cashier_session_id: input.cashierSessionId ?? null,
     created_by: input.actorId,
   })
 

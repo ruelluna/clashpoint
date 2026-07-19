@@ -46,11 +46,40 @@ type PaymentLedgerRow = {
   paid_at: string | null
   notes: string | null
   created_at: string
+  cashier_session_id: string | null
   entries: {
     entry_number: string
     entry_name: string
     owner_name: string
   } | null
+  cashier_sessions: {
+    opened_at: string
+    profiles: { display_name: string | null } | null
+  } | null
+}
+
+function mapPaymentLedgerRow(row: PaymentLedgerRow) {
+  return {
+    id: row.id,
+    paymentReference: row.payment_reference,
+    entryId: row.entry_id,
+    entryNumber: row.entries?.entry_number ?? '—',
+    entryName: row.entries?.entry_name ?? '—',
+    ownerName: row.entries?.owner_name ?? '—',
+    amountDue: Number(row.amount_due),
+    amountPaid: Number(row.amount_paid),
+    balance: Number(row.balance),
+    paymentMethod: row.payment_method,
+    receiptNumber: row.receipt_number,
+    paymentStatus: row.payment_status,
+    paymentCategory: row.payment_category,
+    paidAt: row.paid_at,
+    notes: row.notes,
+    createdAt: row.created_at,
+    cashierSessionId: row.cashier_session_id,
+    cashierName: row.cashier_sessions?.profiles?.display_name ?? null,
+    sessionOpenedAt: row.cashier_sessions?.opened_at ?? null,
+  }
 }
 
 export type { PaymentLedgerItem } from '@/features/payments/types'
@@ -74,7 +103,12 @@ export async function listPaymentsByEvent(eventId: string): Promise<PaymentLedge
       paid_at,
       notes,
       created_at,
-      entries ( entry_number, entry_name, owner_name )
+      cashier_session_id,
+      entries ( entry_number, entry_name, owner_name ),
+      cashier_sessions (
+        opened_at,
+        profiles!cashier_sessions_staff_user_id_fkey ( display_name )
+      )
     `
     )
     .eq('event_id', eventId)
@@ -82,24 +116,29 @@ export async function listPaymentsByEvent(eventId: string): Promise<PaymentLedge
 
   if (error) throw error
 
-  return ((data ?? []) as unknown as PaymentLedgerRow[]).map((row) => ({
-    id: row.id,
-    paymentReference: row.payment_reference,
-    entryId: row.entry_id,
-    entryNumber: row.entries?.entry_number ?? '—',
-    entryName: row.entries?.entry_name ?? '—',
-    ownerName: row.entries?.owner_name ?? '—',
-    amountDue: Number(row.amount_due),
-    amountPaid: Number(row.amount_paid),
-    balance: Number(row.balance),
-    paymentMethod: row.payment_method,
-    receiptNumber: row.receipt_number,
-    paymentStatus: row.payment_status,
-    paymentCategory: row.payment_category,
-    paidAt: row.paid_at,
-    notes: row.notes,
-    createdAt: row.created_at,
-  }))
+  return ((data ?? []) as unknown as PaymentLedgerRow[]).map((row) => {
+    const mapped = mapPaymentLedgerRow(row)
+    return {
+      id: mapped.id,
+      paymentReference: mapped.paymentReference,
+      entryId: mapped.entryId,
+      entryNumber: mapped.entryNumber,
+      entryName: mapped.entryName,
+      ownerName: mapped.ownerName,
+      amountDue: mapped.amountDue,
+      amountPaid: mapped.amountPaid,
+      balance: mapped.balance,
+      paymentMethod: mapped.paymentMethod,
+      receiptNumber: mapped.receiptNumber,
+      paymentStatus: mapped.paymentStatus,
+      paymentCategory: mapped.paymentCategory,
+      paidAt: mapped.paidAt,
+      notes: mapped.notes,
+      createdAt: mapped.createdAt,
+      cashierSessionId: mapped.cashierSessionId,
+      cashierName: mapped.cashierName,
+    }
+  })
 }
 
 async function listPaymentReferencesForEvent(eventId: string): Promise<string[]> {
@@ -251,7 +290,8 @@ async function getEntryCategoryPaid(
 
 export async function recordPayment(
   actorId: string,
-  input: RecordPaymentInput
+  input: RecordPaymentInput,
+  cashierSessionId: string
 ): Promise<{ error?: string; paymentId?: string }> {
   const supabase = await createClient()
 
@@ -312,6 +352,7 @@ export async function recordPayment(
       payment_status: paymentStatus,
       payment_category: category,
       received_by: actorId,
+      cashier_session_id: cashierSessionId,
       paid_at: new Date().toISOString(),
       notes: input.notes ?? null,
     })
@@ -345,6 +386,7 @@ export async function recordPayment(
       amount_paid: input.amountPaid,
       balance,
       payment_status: paymentStatus,
+      cashier_session_id: cashierSessionId,
     },
   })
 
@@ -364,7 +406,7 @@ export async function recordPayment(
 export async function getPaymentForEvent(
   eventId: string,
   paymentId: string
-): Promise<PaymentLedgerItem | null> {
+): Promise<(PaymentLedgerItem & { sessionOpenedAt: string | null }) | null> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('payments')
@@ -383,7 +425,12 @@ export async function getPaymentForEvent(
       paid_at,
       notes,
       created_at,
-      entries ( entry_number, entry_name, owner_name )
+      cashier_session_id,
+      entries ( entry_number, entry_name, owner_name ),
+      cashier_sessions (
+        opened_at,
+        profiles!cashier_sessions_staff_user_id_fkey ( display_name )
+      )
     `
     )
     .eq('event_id', eventId)
@@ -393,24 +440,27 @@ export async function getPaymentForEvent(
   if (error) throw error
   if (!data) return null
 
-  const row = data as unknown as PaymentLedgerRow
+  const mapped = mapPaymentLedgerRow(data as unknown as PaymentLedgerRow)
   return {
-    id: row.id,
-    paymentReference: row.payment_reference,
-    entryId: row.entry_id,
-    entryNumber: row.entries?.entry_number ?? '—',
-    entryName: row.entries?.entry_name ?? '—',
-    ownerName: row.entries?.owner_name ?? '—',
-    amountDue: Number(row.amount_due),
-    amountPaid: Number(row.amount_paid),
-    balance: Number(row.balance),
-    paymentMethod: row.payment_method,
-    receiptNumber: row.receipt_number,
-    paymentStatus: row.payment_status,
-    paymentCategory: row.payment_category,
-    paidAt: row.paid_at,
-    notes: row.notes,
-    createdAt: row.created_at,
+    id: mapped.id,
+    paymentReference: mapped.paymentReference,
+    entryId: mapped.entryId,
+    entryNumber: mapped.entryNumber,
+    entryName: mapped.entryName,
+    ownerName: mapped.ownerName,
+    amountDue: mapped.amountDue,
+    amountPaid: mapped.amountPaid,
+    balance: mapped.balance,
+    paymentMethod: mapped.paymentMethod,
+    receiptNumber: mapped.receiptNumber,
+    paymentStatus: mapped.paymentStatus,
+    paymentCategory: mapped.paymentCategory,
+    paidAt: mapped.paidAt,
+    notes: mapped.notes,
+    createdAt: mapped.createdAt,
+    cashierSessionId: mapped.cashierSessionId,
+    cashierName: mapped.cashierName,
+    sessionOpenedAt: mapped.sessionOpenedAt,
   }
 }
 

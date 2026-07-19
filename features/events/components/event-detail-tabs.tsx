@@ -17,7 +17,7 @@ const DEFAULT_TABS: EventTabItem[] = [
   { slug: 'owners', label: 'Owners' },
   { slug: 'roosters', label: 'Roosters' },
   { slug: 'inspection', label: 'Inspection' },
-  { slug: 'payments', label: 'Cashier' },
+  { slug: 'payments', label: 'Cashier Terminal' },
   { slug: 'matching', label: 'Matching' },
   { slug: 'results', label: 'Results' },
   { slug: 'standings', label: 'Standings' },

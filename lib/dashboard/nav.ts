@@ -4,6 +4,7 @@ export type DashboardNavItemConfig = {
   disabled?: boolean
   badge?: string
   requiredPermissions?: string[]
+  systemOwnerOnly?: boolean
 }
 
 export type ActiveEventNavConfig = {
@@ -30,6 +31,11 @@ export const dashboardNavItemConfigs: DashboardNavItemConfig[] = [
     label: 'Events',
     href: '/dashboard/events',
     requiredPermissions: ['events.view', 'events.manage'],
+  },
+  {
+    label: 'Transactions',
+    href: '/dashboard/transactions',
+    systemOwnerOnly: true,
   },
   {
     label: 'Fights',
@@ -65,6 +71,10 @@ export function filterNavItemsByPermissions(
   const hasAll = grantedPermissions.includes('*')
 
   return items.filter((item) => {
+    if (item.systemOwnerOnly && !hasAll) {
+      return false
+    }
+
     if (!item.requiredPermissions || item.requiredPermissions.length === 0) {
       return true
     }
