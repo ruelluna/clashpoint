@@ -91,7 +91,7 @@ export function buildCreateRoosterSchema(bandingRequired: boolean) {
       breed: requiredText(100, 'Breed is required'),
       colorMarking: roosterColorMarkingSchema,
       handlerName: optionalText(200),
-      notes: requiredText(2000, 'Notes are required'),
+      notes: optionalText(2000),
     })
     .extend(entryRoosterRegistryFieldsSchema)
 }

@@ -165,7 +165,7 @@ describe('createRoosterSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects missing breed, color, or notes', () => {
+  it('rejects missing breed or color', () => {
     const result = createRoosterSchema.safeParse({
       eventId,
       entryId,
@@ -176,6 +176,23 @@ describe('createRoosterSchema', () => {
     })
 
     expect(result.success).toBe(false)
+  })
+
+  it('allows optional notes', () => {
+    const result = createRoosterSchema.safeParse({
+      eventId,
+      entryId,
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 2150,
+      breed: 'Talisayon',
+      colorMarking: 'Red',
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.notes).toBeUndefined()
+    }
   })
 
   it('rejects missing band number', () => {

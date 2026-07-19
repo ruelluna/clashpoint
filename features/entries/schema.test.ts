@@ -91,13 +91,27 @@ describe('roosterEntryItemSchema', () => {
     }
   })
 
-  it('requires breed, color, and notes', () => {
+  it('requires breed and color', () => {
     const result = roosterEntryItemSchema.safeParse({
       entryName: 'Thunder',
       bandNumber: 'B-101',
       weight: 2150,
     })
     expect(result.success).toBe(false)
+  })
+
+  it('allows optional notes', () => {
+    const result = roosterEntryItemSchema.safeParse({
+      entryName: 'Thunder',
+      bandNumber: 'B-101',
+      weight: 2150,
+      breed: 'Talisayon',
+      colorMarking: 'Black',
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.notes).toBeUndefined()
+    }
   })
 
   it('allows optional band when banding is not required', () => {

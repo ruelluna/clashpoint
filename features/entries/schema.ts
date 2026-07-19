@@ -130,7 +130,7 @@ export function buildRoosterEntryItemSchema(bandingRequired: boolean) {
     handlerName: optionalText(200),
     breed: requiredText(100, 'Breed is required'),
     colorMarking: roosterColorMarkingSchema,
-    notes: requiredText(2000, 'Notes are required'),
+    notes: optionalText(2000),
   })
 }
 
