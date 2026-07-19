@@ -4,6 +4,7 @@ import { PromoterFormClient } from '@/features/promoters/components/promoter-for
 import {
   getPromoter,
   getPromoterEventHistory,
+  listPromoterStatusHistory,
 } from '@/features/promoters/queries'
 import { requirePermission } from '@/lib/auth/permissions'
 
@@ -17,9 +18,10 @@ export default async function PromoterDetailPage({
   await requirePermission('promoters.manage')
 
   const { id } = await params
-  const [promoter, eventHistory] = await Promise.all([
+  const [promoter, eventHistory, statusHistory] = await Promise.all([
     getPromoter(id),
     getPromoterEventHistory(id),
+    listPromoterStatusHistory(id),
   ])
 
   if (!promoter) notFound()
@@ -29,6 +31,7 @@ export default async function PromoterDetailPage({
       mode="edit"
       promoter={promoter}
       eventHistory={eventHistory}
+      statusHistory={statusHistory}
     />
   )
 }

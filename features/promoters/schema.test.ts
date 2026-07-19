@@ -132,3 +132,50 @@ describe('updatePromoterSchema commission validation', () => {
     }
   })
 })
+
+describe('updatePromoterSchema status change reason', () => {
+  const baseUpdate = {
+    promoterId: '00000000-0000-4000-8000-000000000001',
+    name: 'Acme Promotions',
+    commissionType: 'none' as const,
+    status: 'suspended' as const,
+  }
+
+  it('accepts optional statusChangeReason when provided', () => {
+    const result = updatePromoterSchema.safeParse({
+      ...baseUpdate,
+      statusChangeReason: 'Policy violation',
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.statusChangeReason).toBe('Policy violation')
+    }
+  })
+
+  it('rejects statusChangeReason shorter than 3 characters', () => {
+    const result = updatePromoterSchema.safeParse({
+      ...baseUpdate,
+      statusChangeReason: 'No',
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        'Reason must be at least 3 characters'
+      )
+    }
+  })
+
+  it('treats empty statusChangeReason as undefined', () => {
+    const result = updatePromoterSchema.safeParse({
+      ...baseUpdate,
+      statusChangeReason: '',
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.statusChangeReason).toBeUndefined()
+    }
+  })
+})

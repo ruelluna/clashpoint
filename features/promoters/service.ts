@@ -2,7 +2,6 @@ import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
 import type {
-  ChangePromoterStatusInput,
   CreatePromoterInput,
   LinkPromoterUserInput,
   QuickCreatePromoterInput,
@@ -190,61 +189,54 @@ export async function updatePromoter(
 
   if (error) return { error: error.message }
 
-  await writeAuditLog({
-    actorId,
-    action: 'promoter.updated',
-    entityType: 'promoter',
-    entityId: input.promoterId,
-    oldValues: existing,
-    newValues: {
-      name: input.name,
-      contact_person: input.contactPerson ?? null,
-      phone: input.phone ?? null,
-      email: input.email ?? null,
-      address: input.address ?? null,
-      status: input.status,
-      commission_type: input.commissionType,
-      commission_value: commissionValueForDb(
-        input.commissionType,
-        input.commissionValue
-      ),
-      notes: input.notes ?? null,
-    },
-  })
+  const statusChanged = existing.status !== input.status
+  const updatedValues = {
+    name: input.name,
+    contact_person: input.contactPerson ?? null,
+    phone: input.phone ?? null,
+    email: input.email ?? null,
+    address: input.address ?? null,
+    status: input.status,
+    commission_type: input.commissionType,
+    commission_value: commissionValueForDb(
+      input.commissionType,
+      input.commissionValue
+    ),
+    notes: input.notes ?? null,
+  }
 
-  return {}
-}
+  const profileChanged =
+    existing.name !== updatedValues.name ||
+    existing.contact_person !== updatedValues.contact_person ||
+    existing.phone !== updatedValues.phone ||
+    existing.email !== updatedValues.email ||
+    existing.address !== updatedValues.address ||
+    existing.commission_type !== updatedValues.commission_type ||
+    existing.commission_value !== updatedValues.commission_value ||
+    existing.notes !== updatedValues.notes
 
-export async function changeStatus(
-  actorId: string,
-  input: ChangePromoterStatusInput
-): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: existing } = await supabase
-    .from('promoters')
-    .select('status')
-    .eq('id', input.promoterId)
-    .is('deleted_at', null)
-    .single()
+  if (profileChanged) {
+    await writeAuditLog({
+      actorId,
+      action: 'promoter.updated',
+      entityType: 'promoter',
+      entityId: input.promoterId,
+      oldValues: existing,
+      newValues: updatedValues,
+    })
+  }
 
-  if (!existing) return { error: 'Promoter not found' }
-
-  const { error } = await supabase
-    .from('promoters')
-    .update({ status: input.status })
-    .eq('id', input.promoterId)
-
-  if (error) return { error: error.message }
-
-  await writeAuditLog({
-    actorId,
-    action: 'promoter.status_changed',
-    entityType: 'promoter',
-    entityId: input.promoterId,
-    oldValues: { status: existing.status },
-    newValues: { status: input.status },
-    reason: input.reason,
-  })
+  if (statusChanged) {
+    await writeAuditLog({
+      actorId,
+      action: 'promoter.status_changed',
+      entityType: 'promoter',
+      entityId: input.promoterId,
+      oldValues: { status: existing.status },
+      newValues: { status: input.status },
+      reason: input.statusChangeReason,
+    })
+  }
 
   return {}
 }

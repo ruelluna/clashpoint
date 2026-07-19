@@ -4,14 +4,12 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import {
-  changePromoterStatusSchema,
   createPromoterSchema,
   linkPromoterUserSchema,
   quickCreatePromoterSchema,
   updatePromoterSchema,
 } from '@/features/promoters/schema'
 import {
-  changeStatus,
   createPromoter,
   linkUser,
   quickCreatePromoter,
@@ -99,6 +97,8 @@ export async function updatePromoterAction(
     promoterId: formData.get('promoterId'),
     ...parsePromoterFields(formData),
     status: formData.get('status'),
+    statusChangeReason:
+      formData.get('statusChangeReason')?.toString().trim() || undefined,
   })
 
   if (!parsed.success) {
@@ -112,31 +112,6 @@ export async function updatePromoterAction(
   revalidatePath(`/dashboard/promoters/${parsed.data.promoterId}`)
   revalidatePath('/dashboard/audit')
   return { success: 'Promoter updated' }
-}
-
-export async function changePromoterStatusAction(
-  _prev: PromoterActionState,
-  formData: FormData
-): Promise<PromoterActionState> {
-  const profile = await requirePermission('promoters.manage')
-
-  const parsed = changePromoterStatusSchema.safeParse({
-    promoterId: formData.get('promoterId'),
-    status: formData.get('status'),
-    reason: formData.get('reason')?.toString().trim() || undefined,
-  })
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
-  }
-
-  const result = await changeStatus(profile.id, parsed.data)
-  if (result.error) return { error: result.error }
-
-  revalidatePath('/dashboard/promoters')
-  revalidatePath(`/dashboard/promoters/${parsed.data.promoterId}`)
-  revalidatePath('/dashboard/audit')
-  return { success: 'Status updated' }
 }
 
 export async function linkPromoterUserAction(
