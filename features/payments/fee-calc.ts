@@ -40,6 +40,7 @@ export type PaymentCategory =
   | 'cash_bond'
   | 'adjustment'
   | 'legacy'
+  | 'match_bet'
 
 export function computeCategoryAmountDue(
   category: PaymentCategory,
@@ -66,6 +67,7 @@ export function computeCategoryAmountDue(
       return settings.cashBondAmount
     case 'adjustment':
     case 'legacy':
+    case 'match_bet':
     default:
       return computeTotalEntryAmountDue(settings, roosterCount)
   }

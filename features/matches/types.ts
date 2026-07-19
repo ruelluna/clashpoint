@@ -28,15 +28,24 @@ export type MatchRow = {
   updated_at: string
 }
 
+export type MatchBetPaymentStatus =
+  | 'unpaid'
+  | 'paid'
+  | 'refunded'
+  | 'waived'
+
 export type MatchSideDetails = {
   entry_id: string
   entry_number: string
   entry_name: string
+  owner_name: string
   rooster_id: string
   cock_number: number
   band_number: string
   weight: number | null
   bet_amount: number
+  bet_barcode: string | null
+  bet_payment_status: MatchBetPaymentStatus
 }
 
 export type MatchListItem = {
@@ -57,6 +66,7 @@ export type EligibleRooster = {
   entry_name: string
   cock_number: number
   band_number: string
+  cock_entry_barcode: string | null
   official_weight: number | null
   category: string | null
 }

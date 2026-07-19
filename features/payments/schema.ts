@@ -12,6 +12,7 @@ export const paymentCategorySchema = z.enum([
   'cash_bond',
   'adjustment',
   'legacy',
+  'match_bet',
 ])
 
 export const recordPaymentSchema = z
@@ -100,7 +101,81 @@ export const refundPaymentSchema = z.object({
   reason: z.string().min(3, 'Reason must be at least 3 characters').max(500),
 })
 
+export const recordMatchBetPaymentSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    matchBetId: z.string().uuid(),
+    amountPaid: z.coerce.number().positive('Amount to collect must be greater than zero'),
+    amountTendered: z.coerce.number().nonnegative().optional(),
+    paymentMethod: paymentMethodSchema,
+    receiptNumber: z
+      .string()
+      .max(100)
+      .optional()
+      .or(z.literal(''))
+      .transform((value) => value || undefined),
+    notes: z
+      .string()
+      .max(2000)
+      .optional()
+      .or(z.literal(''))
+      .transform((value) => value || undefined),
+  })
+  .refine((data) => data.paymentMethod === 'cash', {
+    message: 'Only cash payments are accepted',
+    path: ['paymentMethod'],
+  })
+  .superRefine((data, ctx) => {
+    if (data.paymentMethod !== 'cash') return
+
+    if (data.amountTendered == null || Number.isNaN(data.amountTendered)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Cash tendered is required for cash payments',
+        path: ['amountTendered'],
+      })
+      return
+    }
+
+    const changeResult = computeCashChange(data.amountPaid, data.amountTendered)
+    if (!changeResult.ok) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: changeResult.error,
+        path: ['amountTendered'],
+      })
+    }
+  })
+  .transform((data) => {
+    const base = {
+      eventId: data.eventId,
+      matchBetId: data.matchBetId,
+      amountPaid: data.amountPaid,
+      paymentMethod: data.paymentMethod,
+      notes: data.notes,
+      receiptNumber: undefined as string | undefined,
+      amountTendered: undefined as number | undefined,
+      changeGiven: undefined as number | undefined,
+    }
+
+    if (data.paymentMethod !== 'cash' || data.amountTendered == null) {
+      return base
+    }
+
+    const changeResult = computeCashChange(data.amountPaid, data.amountTendered)
+    if (!changeResult.ok) {
+      return base
+    }
+
+    return {
+      ...base,
+      amountTendered: roundMoney(data.amountTendered),
+      changeGiven: changeResult.changeGiven,
+    }
+  })
+
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>
+export type RecordMatchBetPaymentInput = z.infer<typeof recordMatchBetPaymentSchema>
 export type RefundPaymentInput = z.infer<typeof refundPaymentSchema>
 
 export const PAYMENT_METHOD_LABELS: Record<
@@ -123,6 +198,7 @@ export const PAYMENT_CATEGORY_LABELS: Record<
   cash_bond: 'Cash bond',
   adjustment: 'Fee adjustment',
   legacy: 'Combined (legacy)',
+  match_bet: 'Palitada / match bet',
 }
 
 export function calculateBalance(

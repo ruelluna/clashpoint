@@ -872,6 +872,9 @@ export type Database = {
           receipt_number: string | null
           payment_status: Database['public']['Enums']['payment_status']
           payment_category: Database['public']['Enums']['payment_category']
+          match_bet_id: string | null
+          match_id: string | null
+          fight_side: Database['public']['Enums']['fight_side'] | null
           receipt_path: string | null
           received_by: string | null
           cashier_session_id: string | null
@@ -894,6 +897,9 @@ export type Database = {
           receipt_number?: string | null
           payment_status?: Database['public']['Enums']['payment_status']
           payment_category?: Database['public']['Enums']['payment_category']
+          match_bet_id?: string | null
+          match_id?: string | null
+          fight_side?: Database['public']['Enums']['fight_side'] | null
           receipt_path?: string | null
           received_by?: string | null
           cashier_session_id?: string | null
@@ -916,6 +922,9 @@ export type Database = {
           receipt_number?: string | null
           payment_status?: Database['public']['Enums']['payment_status']
           payment_category?: Database['public']['Enums']['payment_category']
+          match_bet_id?: string | null
+          match_id?: string | null
+          fight_side?: Database['public']['Enums']['fight_side'] | null
           receipt_path?: string | null
           received_by?: string | null
           cashier_session_id?: string | null
@@ -1232,6 +1241,10 @@ export type Database = {
           event_id: string
           side: Database['public']['Enums']['fight_side']
           amount: number
+          barcode: string
+          payment_status: Database['public']['Enums']['match_bet_payment_status']
+          payment_id: string | null
+          printed_at: string | null
           recorded_by: string | null
           notes: string | null
           created_at: string
@@ -1243,6 +1256,10 @@ export type Database = {
           event_id: string
           side: Database['public']['Enums']['fight_side']
           amount?: number
+          barcode: string
+          payment_status?: Database['public']['Enums']['match_bet_payment_status']
+          payment_id?: string | null
+          printed_at?: string | null
           recorded_by?: string | null
           notes?: string | null
           created_at?: string
@@ -1254,6 +1271,10 @@ export type Database = {
           event_id?: string
           side?: Database['public']['Enums']['fight_side']
           amount?: number
+          barcode?: string
+          payment_status?: Database['public']['Enums']['match_bet_payment_status']
+          payment_id?: string | null
+          printed_at?: string | null
           recorded_by?: string | null
           notes?: string | null
           created_at?: string
@@ -1272,6 +1293,13 @@ export type Database = {
             columns: ['event_id']
             isOneToOne: false
             referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'match_bets_payment_id_fkey'
+            columns: ['payment_id']
+            isOneToOne: false
+            referencedRelation: 'payments'
             referencedColumns: ['id']
           },
         ]
@@ -1696,6 +1724,7 @@ export type Database = {
         | 'passed'
         | 'failed'
         | 'for_review'
+      match_bet_payment_status: 'unpaid' | 'paid' | 'refunded' | 'waived'
       payment_category:
         | 'registration'
         | 'rooster_entry'
@@ -1703,6 +1732,7 @@ export type Database = {
         | 'cash_bond'
         | 'adjustment'
         | 'legacy'
+        | 'match_bet'
       revolving_fund_entry_type: 'opening' | 'adjustment' | 'collection' | 'refund'
       registration_payment_status:
         | 'not_required'

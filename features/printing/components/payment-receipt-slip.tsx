@@ -72,6 +72,32 @@ export function PaymentReceiptSlip({ payment }: PaymentReceiptSlipProps) {
           </Text>
           {PAYMENT_CATEGORY_LABELS[payment.paymentCategory]}
         </Text>
+        {payment.paymentCategory === 'match_bet' && payment.fightNumber != null ? (
+          <>
+            <Text fontSize="sm">
+              <Text as="span" color="fg.muted">
+                Fight #:{' '}
+              </Text>
+              {payment.fightNumber}
+            </Text>
+            {payment.fightSide ? (
+              <Text fontSize="sm">
+                <Text as="span" color="fg.muted">
+                  Side:{' '}
+                </Text>
+                {payment.fightSide === 'meron' ? 'Meron' : 'Wala'}
+              </Text>
+            ) : null}
+            {payment.betBarcode ? (
+              <Text fontSize="sm">
+                <Text as="span" color="fg.muted">
+                  Bet slip:{' '}
+                </Text>
+                {payment.betBarcode}
+              </Text>
+            ) : null}
+          </>
+        ) : null}
         <Text fontSize="sm">
           <Text as="span" color="fg.muted">
             Amount due:{' '}

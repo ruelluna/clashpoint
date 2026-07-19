@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  canEditMatchBets,
   canLockMatchList,
   collectUsedRoosterIds,
+  isMatchQueueReady,
   isRoosterEligibleForMatching,
   isValidFightQueueTransition,
   validateCockUsedOnce,
@@ -149,5 +151,25 @@ describe('collectUsedRoosterIds', () => {
     expect(used.has('wala-1')).toBe(true)
     expect(used.has('meron-2')).toBe(false)
     expect(used.has('wala-2')).toBe(false)
+  })
+})
+
+describe('isMatchQueueReady', () => {
+  const paidSide = { betPaymentStatus: 'paid' as const, entryOutstanding: 0 }
+  const unpaidBet = { betPaymentStatus: 'unpaid' as const, entryOutstanding: 0 }
+  const unpaidFees = { betPaymentStatus: 'paid' as const, entryOutstanding: 100 }
+
+  it('requires both sides paid with no entry fees outstanding', () => {
+    expect(isMatchQueueReady(paidSide, paidSide)).toBe(true)
+    expect(isMatchQueueReady(paidSide, unpaidBet)).toBe(false)
+    expect(isMatchQueueReady(unpaidFees, paidSide)).toBe(false)
+  })
+})
+
+describe('canEditMatchBets', () => {
+  it('blocks edits after any bet is paid or match is queued', () => {
+    expect(canEditMatchBets('draft', ['unpaid', 'unpaid'])).toBe(true)
+    expect(canEditMatchBets('draft', ['paid', 'unpaid'])).toBe(false)
+    expect(canEditMatchBets('locked', ['unpaid', 'unpaid'])).toBe(false)
   })
 })
