@@ -80,6 +80,8 @@ Remind the user: nested doc repos need their own commits with maintainer git ide
 
 Every plan implementation, bug fix resolution, or feature rollout must create or update a breakdown in `.cursor/breakdowns/`. This folder is the **single source of truth** for what the user needs from each implementation (changelog, deploy steps, test commands, commit suggestions, Linear block).
 
+**Always generate git stage + commit commands.** Every breakdown MUST include `## Stage files` and `## Commit commands` with copy-pasteable commands for the files from this conversation only. Mirror the same two command blocks in the final implementation reply (so the user can copy without opening the breakdown). Never omit these sections. Never use `git add .` / `git add -A`. Do not run stage or commit unless the user explicitly asks.
+
 **Breakdowns are internal.** Do not link to `.cursor/breakdowns/` from published Docusaurus docs. Supabase migrations, Vercel deploy, env vars, and manual test steps belong in breakdowns (and Linear deploy comments for engineers), not in admin/user guides.
 
 ### File location & naming
@@ -160,7 +162,7 @@ EOF
 
 ## 5. Implementation summary (required)
 
-End every plan implementation reply with a **changelog** the user can scan or paste elsewhere (mirror the breakdown changelog; link to the breakdown file when helpful):
+End every plan implementation reply with a **changelog** the user can scan or paste elsewhere (mirror the breakdown changelog; link to the breakdown file when helpful). **Also paste** the breakdown's `## Stage files` `git add` block and `## Commit commands` `git commit` heredoc into the reply (same paths/messages) so the user can stage/commit this work without hunting the breakdown:
 
 ```markdown
 ## <Short title — same theme as commit summary>
@@ -214,6 +216,7 @@ Before finishing, confirm in the reply:
 - [ ] Breakdown file created or updated in `.cursor/breakdowns/`
 - [ ] Breakdown includes `## Stage files` with an explicit `git add` for this work only
 - [ ] Breakdown includes `## Commit commands` with heredoc `git commit` matching suggested messages
+- [ ] Final reply includes the same Stage files + Commit commands blocks (copy-paste ready)
 - [ ] Admin doc updated (or N/A with reason)
 - [ ] Admin docs: no CLI, shell blocks, or `.cursor/` references (per `documentation.mdc`)
 - [ ] User doc updated (or N/A with reason)
