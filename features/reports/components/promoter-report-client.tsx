@@ -7,6 +7,8 @@ import { useState, useTransition } from 'react'
 import { ButtonGroup, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import { downloadReportCsvAction } from '@/features/reports/actions'
 import type { PromoterReportRow } from '@/features/reports/types'
+import { promoterStatusColorPalette } from '@/features/promoters/display-utils'
+import type { PromoterStatus } from '@/features/promoters/types'
 
 type PromoterReportClientProps = {
   rows: PromoterReportRow[]
@@ -122,7 +124,9 @@ export function PromoterReportClient({ rows }: PromoterReportClientProps) {
                       ) : null}
                     </Box>
                     <Box as="td" px={4} py={3}>
-                      <Badge>{row.status}</Badge>
+                      <Badge colorPalette={promoterStatusColorPalette(row.status as PromoterStatus)}>
+                        {row.status}
+                      </Badge>
                     </Box>
                     <Box as="td" px={4} py={3}>
                       <Text>{row.contact_person ?? '—'}</Text>

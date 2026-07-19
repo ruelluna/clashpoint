@@ -33,6 +33,10 @@ import {
   FIGHT_QUEUE_STATUS_LABELS,
   MATCH_STATUS_LABELS,
 } from '@/features/matches/schema'
+import {
+  fightQueueStatusColorPalette,
+  matchStatusColorPalette,
+} from '@/features/matches/display-utils'
 import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
 import { FIGHT_QUEUE_TRANSITIONS } from '@/features/matches/utils'
 import { COMPATIBILITY_STATUS_LABELS } from '@/lib/derby/enums'
@@ -48,45 +52,6 @@ type MatchingBoardClientProps = {
 }
 
 const initialState: MatchActionState = {}
-
-function statusColor(
-  status: MatchListItem['status']
-): 'gray' | 'blue' | 'green' | 'orange' | 'purple' | 'red' {
-  switch (status) {
-    case 'draft':
-      return 'gray'
-    case 'for_review':
-      return 'orange'
-    case 'confirmed':
-      return 'blue'
-    case 'locked':
-      return 'purple'
-    case 'ready':
-    case 'ongoing':
-      return 'green'
-    case 'cancelled':
-      return 'red'
-    default:
-      return 'gray'
-  }
-}
-
-function queueColor(
-  status: MatchListItem['queue_status']
-): 'gray' | 'blue' | 'orange' | 'green' | 'purple' {
-  switch (status) {
-    case 'scheduled':
-      return 'gray'
-    case 'called':
-      return 'blue'
-    case 'ready':
-      return 'orange'
-    case 'ongoing':
-      return 'green'
-    default:
-      return 'purple'
-  }
-}
 
 function formatWeight(weight: number | null) {
   if (weight == null) return '—'
@@ -197,7 +162,7 @@ function FightQueueRow({
             #{match.fight_number}
           </Text>
           {match.queue_status ? (
-            <Badge colorPalette={queueColor(match.queue_status)} size="sm">
+            <Badge colorPalette={fightQueueStatusColorPalette(match.queue_status)} size="sm">
               {FIGHT_QUEUE_STATUS_LABELS[match.queue_status]}
             </Badge>
           ) : null}
@@ -544,11 +509,11 @@ export function MatchingBoardClient({
                   ) : null}
                 </Box>
                 <Flex flex="0 0 6rem" align="center" gap={2}>
-                  <Badge colorPalette={statusColor(match.status)} size="sm">
+                  <Badge colorPalette={matchStatusColorPalette(match.status)} size="sm">
                     {MATCH_STATUS_LABELS[match.status]}
                   </Badge>
                   {match.queue_status ? (
-                    <Badge variant="subtle" size="sm">
+                    <Badge colorPalette={fightQueueStatusColorPalette(match.queue_status)} size="sm">
                       {FIGHT_QUEUE_STATUS_LABELS[match.queue_status]}
                     </Badge>
                   ) : null}

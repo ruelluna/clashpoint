@@ -2,6 +2,7 @@ import { Badge, Box, Button, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { eventStatusColorPalette } from '@/features/events/display-utils'
 import {
   DERBY_TYPE_LABELS,
   EVENT_STATUS_LABELS,
@@ -74,7 +75,9 @@ export default async function PublicEventPage({ params }: PublicEventPageProps) 
             <Text fontSize="sm" color="fg.muted">
               Status
             </Text>
-            <Badge variant="subtle">{EVENT_STATUS_LABELS[event.status]}</Badge>
+            <Badge colorPalette={eventStatusColorPalette(event.status)}>
+              {EVENT_STATUS_LABELS[event.status]}
+            </Badge>
           </Box>
           <Box>
             <Text fontSize="sm" color="fg.muted">

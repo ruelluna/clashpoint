@@ -36,6 +36,7 @@ import {
   type ActionState,
 } from '@/features/events/actions'
 import { EventActiveControls } from '@/features/events/components/event-active-controls'
+import { eventStatusColorPalette } from '@/features/events/display-utils'
 import {
   COCKS_PER_ENTRY_BY_DERBY_TYPE,
   getNextStatuses,
@@ -309,7 +310,9 @@ export function EventFormClient({
         actions={
           event ? (
             <Flex gap={2} wrap="wrap" align="center">
-              <Badge>{EVENT_STATUS_LABELS[event.status]}</Badge>
+              <Badge colorPalette={eventStatusColorPalette(event.status)}>
+                {EVENT_STATUS_LABELS[event.status]}
+              </Badge>
               {event.is_active ? (
                 <Badge colorPalette="blue">Active</Badge>
               ) : null}

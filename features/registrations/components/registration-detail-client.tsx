@@ -53,6 +53,10 @@ import type {
   RoosterApprovalStatus,
 } from '@/lib/derby/enums'
 import { gramsToKg } from '@/lib/derby/enums'
+import {
+  eligibilityStatusColorPalette,
+  registrationWorkflowStatusColorPalette,
+} from '@/lib/derby/status-colors'
 
 type RegistrationPermissions = {
   canSubmit: boolean
@@ -185,7 +189,11 @@ export function RegistrationDetailClient({
           <Stack gap={3} fontSize="sm">
             <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Workflow</Text>
-              <Badge variant="subtle">
+              <Badge
+                colorPalette={registrationWorkflowStatusColorPalette(
+                  registration.registration_status as RegistrationWorkflowStatus
+                )}
+              >
                 {
                   REGISTRATION_STATUS_LABELS[
                     registration.registration_status as RegistrationWorkflowStatus
@@ -201,7 +209,11 @@ export function RegistrationDetailClient({
             </Flex>
             <Flex justify="space-between" gap={4} direction={{ base: 'column', sm: 'row' }} align={{ sm: 'center' }}>
               <Text color="fg.muted">Eligibility</Text>
-              <Badge variant="subtle">
+              <Badge
+                colorPalette={eligibilityStatusColorPalette(
+                  registration.eligibility_status as EligibilityStatus
+                )}
+              >
                 {ELIGIBILITY_STATUS_LABELS[registration.eligibility_status as EligibilityStatus]}
               </Badge>
             </Flex>

@@ -2,6 +2,7 @@ import { Badge, Box, Stack, Text } from '@chakra-ui/react'
 import { notFound } from 'next/navigation'
 
 import { getEntryFormEligibilityContext } from '@/features/eligibility/registration-bridge'
+import { eventStatusColorPalette } from '@/features/events/display-utils'
 import {
   DERBY_TYPE_LABELS,
   EVENT_STATUS_LABELS,
@@ -108,7 +109,9 @@ export default async function PublicRegisterPage({ params }: PublicRegisterPageP
             <Text fontSize="sm" color="fg.muted">
               Status
             </Text>
-            <Badge variant="subtle">{EVENT_STATUS_LABELS[event.status]}</Badge>
+            <Badge colorPalette={eventStatusColorPalette(event.status)}>
+              {EVENT_STATUS_LABELS[event.status]}
+            </Badge>
           </Box>
           {event.registration_rules ? (
             <Box>

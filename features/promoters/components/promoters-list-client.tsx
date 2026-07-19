@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
 import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { promoterStatusColorPalette } from '@/features/promoters/display-utils'
 import {
   COMMISSION_TYPE_LABELS,
   PROMOTER_STATUS_LABELS,
@@ -26,12 +27,6 @@ function formatCommission(promoter: PromoterListItem): string {
     return `${promoter.commission_value}%`
   }
   return promoter.commission_value.toLocaleString()
-}
-
-function statusColor(status: PromoterStatus): 'green' | 'gray' | 'orange' {
-  if (status === 'active') return 'green'
-  if (status === 'suspended') return 'orange'
-  return 'gray'
 }
 
 export function PromotersListClient({
@@ -117,7 +112,7 @@ export function PromotersListClient({
                   </Text>
                 </Box>
                 <Box flex="1">
-                  <Badge colorPalette={statusColor(promoter.status)}>
+                  <Badge colorPalette={promoterStatusColorPalette(promoter.status)}>
                     {PROMOTER_STATUS_LABELS[promoter.status]}
                   </Badge>
                 </Box>

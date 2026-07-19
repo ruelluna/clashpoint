@@ -2,6 +2,8 @@ import { Badge, Box, Flex, Stack, Text } from '@chakra-ui/react'
 
 import { LAYOUT_GAP, PanelCard } from '@/components/dashboard'
 import type { EligibilityPolicySummary } from '@/features/eligibility/policy-summary'
+import type { PolicyStatus } from '@/lib/derby/enums'
+import { policyStatusColorPalette } from '@/lib/derby/status-colors'
 
 type EligibilityPolicySummaryPanelProps = {
   summary: EligibilityPolicySummary
@@ -29,13 +31,15 @@ export function EligibilityPolicySummaryPanel({
             {summary.enforcementEnabled ? 'Enforcement on' : 'Enforcement off'}
           </Badge>
           {summary.policyStatus ? (
-            <Badge variant="subtle">Policy: {formatPolicyStatus(summary.policyStatus)}</Badge>
+            <Badge colorPalette={policyStatusColorPalette(summary.policyStatus as PolicyStatus)}>
+              Policy: {formatPolicyStatus(summary.policyStatus)}
+            </Badge>
           ) : null}
           {requireRoosterEntryApproval ? (
-            <Badge variant="subtle">Rooster entry approval required</Badge>
+            <Badge colorPalette="orange">Rooster entry approval required</Badge>
           ) : null}
           {classificationMatchingEnabled ? (
-            <Badge variant="subtle">Classification matching enabled</Badge>
+            <Badge colorPalette="blue">Classification matching enabled</Badge>
           ) : null}
         </Flex>
 

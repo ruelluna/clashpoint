@@ -19,6 +19,7 @@ import { getEntryFormEligibilityContext } from '@/features/eligibility/registrat
 import { EventActiveControls } from '@/features/events/components/event-active-controls'
 import { getActiveEvent, getEventWithPrize } from '@/features/events/queries'
 import { getEventPrizePoolCollected } from '@/features/events/prize-pool'
+import { eventStatusColorPalette } from '@/features/events/display-utils'
 import {
   DERBY_TYPE_LABELS,
   EVENT_STATUS_LABELS,
@@ -112,11 +113,13 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
                 {event.venue} · {formatDate(event.event_date)} · {eventTypeLabel}
               </Text>
               <Flex gap={2} wrap="wrap">
-                <Badge>{EVENT_STATUS_LABELS[event.status]}</Badge>
+                <Badge colorPalette={eventStatusColorPalette(event.status)}>
+                  {EVENT_STATUS_LABELS[event.status]}
+                </Badge>
                 {event.is_active ? (
                   <Badge colorPalette="blue">Active</Badge>
                 ) : null}
-                {event.is_public ? <Badge variant="subtle">Public</Badge> : null}
+                {event.is_public ? <Badge colorPalette="teal">Public</Badge> : null}
               </Flex>
             </Stack>
             {canManage ? (
