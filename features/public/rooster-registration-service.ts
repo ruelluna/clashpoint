@@ -15,7 +15,9 @@ import { getPublicRegistrationEntryContext } from '@/features/public/owner-regis
 import {
   clearPublicRegistrationSession,
   getPublicRegistrationSession,
+  setPublicRegistrationReceiptSession,
 } from '@/features/public/session-cookie'
+import type { PublicRegistrationBarcodeResult } from '@/features/public/types'
 import { getPublicReferenceOptions } from '@/features/reference-values/catalog'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -56,7 +58,7 @@ function requiredRosterCount(
 
 export async function createPublicRoostersForEntry(
   input: CreatePublicRoostersInput
-): Promise<{ error?: string; entryNumber?: string; bandNumbers?: string[] }> {
+): Promise<{ error?: string } & Partial<PublicRegistrationBarcodeResult>> {
   const session = await getPublicRegistrationSession()
   if (!session || session.eventId !== input.eventId) {
     return { error: 'Your registration session has expired. Start again from game farm registration.' }
@@ -126,22 +128,75 @@ export async function createPublicRoostersForEntry(
   const supabase = createAdminClient()
   const { data: entry, error: entryError } = await supabase
     .from('entries')
-    .select('entry_number')
+    .select(
+      'id, entry_number, owner_barcode, owner_name, contact_full_name, contact_designation'
+    )
     .eq('id', context.entryId)
     .maybeSingle()
 
   if (entryError) return { error: entryError.message }
+  if (!entry?.owner_barcode) {
+    return { error: 'Owner barcode was not assigned. Contact event staff.' }
+  }
 
-  const { data: registrations } = await supabase
+  const { data: registrations, error: registrationsError } = await supabase
     .from('rooster_event_registrations')
-    .select('band_number')
+    .select('id, band_number, cock_entry_barcode, registry_rooster_id')
     .eq('entry_id', context.entryId)
     .order('cock_number', { ascending: true })
 
+  if (registrationsError) return { error: registrationsError.message }
+
+  const registryIds = (registrations ?? [])
+    .map((row) => row.registry_rooster_id as string | null)
+    .filter((id): id is string => Boolean(id))
+
+  const registryNameById = new Map<string, string>()
+  if (registryIds.length > 0) {
+    const { data: registryRows } = await supabase
+      .from('roosters')
+      .select('id, name')
+      .in('id', registryIds)
+    for (const row of registryRows ?? []) {
+      registryNameById.set(row.id as string, (row.name as string) ?? '')
+    }
+  }
+
+  const roosters = (registrations ?? []).map((row, index) => {
+    const bandNumber = (row.band_number as string) ?? ''
+    const cockEntryBarcode = (row.cock_entry_barcode as string | null) ?? ''
+    const registryId = row.registry_rooster_id as string | null
+    const registryName = registryId ? registryNameById.get(registryId) : undefined
+    const submittedName = input.roosters[index]?.entryName?.trim()
+    return {
+      registrationId: row.id as string,
+      entryName: registryName?.trim() || submittedName || bandNumber || 'Rooster',
+      bandNumber,
+      cockEntryBarcode,
+    }
+  })
+
+  if (roosters.some((rooster) => !rooster.cockEntryBarcode)) {
+    return { error: 'Cock entry barcode was not assigned. Contact event staff.' }
+  }
+
+  await setPublicRegistrationReceiptSession({
+    eventId: session.eventId,
+    entryId: context.entryId,
+    competitorId: session.competitorId,
+  })
   await clearPublicRegistrationSession()
 
+  const bandNumbers = roosters.map((rooster) => rooster.bandNumber).filter(Boolean)
+
   return {
-    entryNumber: (entry?.entry_number as string | undefined) ?? context.entryNumber,
-    bandNumbers: (registrations ?? []).map((row) => row.band_number as string),
+    entryId: context.entryId,
+    entryNumber: (entry.entry_number as string | undefined) ?? context.entryNumber ?? '',
+    ownerBarcode: entry.owner_barcode as string,
+    ownerName: (entry.owner_name as string) ?? '',
+    contactFullName: (entry.contact_full_name as string | null) ?? null,
+    contactDesignation: (entry.contact_designation as string | null) ?? null,
+    bandNumbers,
+    roosters,
   }
 }

@@ -19,6 +19,7 @@ import {
   verifyOwnerVerificationSchema,
 } from '@/features/public/schema'
 import { getPublicRegistrationEvent } from '@/features/public/queries'
+import type { PublicRegistrationRoosterBarcode } from '@/features/public/types'
 
 export type PublicRegistrationActionState = {
   error?: string
@@ -29,6 +30,11 @@ export type PublicRegistrationActionState = {
   testCode?: string
   step?: 'roosters' | 'complete'
   bandNumbers?: string[]
+  ownerBarcode?: string
+  ownerName?: string
+  contactFullName?: string | null
+  contactDesignation?: string | null
+  roosters?: PublicRegistrationRoosterBarcode[]
 }
 
 export async function searchPublicGameFarmsAction(
@@ -169,7 +175,13 @@ export async function registerPublicRoostersAction(
   return {
     success: `${result.entryNumber ? `Entry #${result.entryNumber}` : 'Your entry'} has been submitted.${approvalNote}`,
     entryNumber: result.entryNumber,
+    entryId: result.entryId,
     bandNumbers: result.bandNumbers,
+    ownerBarcode: result.ownerBarcode,
+    ownerName: result.ownerName,
+    contactFullName: result.contactFullName,
+    contactDesignation: result.contactDesignation,
+    roosters: result.roosters,
     step: 'complete',
   }
 }

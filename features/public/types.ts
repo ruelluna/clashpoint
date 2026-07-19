@@ -88,3 +88,21 @@ export type PublicWinnersSummary = {
   }>
   payouts: PublicWinner[]
 }
+
+export type PublicRegistrationRoosterBarcode = {
+  registrationId: string
+  entryName: string
+  bandNumber: string
+  cockEntryBarcode: string
+}
+
+export type PublicRegistrationBarcodeResult = {
+  entryNumber: string
+  entryId: string
+  ownerBarcode: string
+  ownerName: string
+  contactFullName?: string | null
+  contactDesignation?: string | null
+  bandNumbers: string[]
+  roosters: PublicRegistrationRoosterBarcode[]
+}

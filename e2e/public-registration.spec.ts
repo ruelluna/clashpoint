@@ -100,6 +100,10 @@ test.describe('Public staged registration anonymous', () => {
     await page.getByRole('button', { name: 'Submit rooster registration' }).click()
 
     await expect(page.getByText('Registration submitted')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText(/^OWN-/)).toBeVisible()
+    await expect(page.getByText(/^COCK-/)).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Print / view labels' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Print slip' }).first()).toBeVisible()
 
     await visitorContext.close()
   })
@@ -133,6 +137,9 @@ test.describe('Public staged registration @auth', () => {
     await page.getByRole('button', { name: 'Submit rooster registration' }).click()
 
     await expect(page.getByText('Registration submitted')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText(/^OWN-/)).toBeVisible()
+    await expect(page.getByText(/^COCK-/)).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Print / view labels' })).toBeVisible()
   })
 
   test('classic: register tab visible and staged flow works', async ({ page }) => {
@@ -161,6 +168,8 @@ test.describe('Public staged registration @auth', () => {
     await page.getByRole('button', { name: 'Submit rooster registration' }).click()
 
     await expect(page.getByText('Registration submitted')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText(/^OWN-/)).toBeVisible()
+    await expect(page.getByText(/^COCK-/)).toBeVisible()
   })
 
   test('blocks duplicate game farm on second rooster attempt', async ({ page }) => {

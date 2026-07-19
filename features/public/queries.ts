@@ -5,10 +5,12 @@ import type {
   PublicEvent,
   PublicEventListItem,
   PublicMatch,
+  PublicRegistrationBarcodeResult,
   PublicRegistrationEvent,
   PublicStanding,
   PublicWinnersSummary,
 } from '@/features/public/types'
+import { getPublicRegistrationReceiptSession } from '@/features/public/session-cookie'
 import type { MatchStatus } from '@/features/matches/types'
 import { isRegistrationOpen } from '@/features/events/utils'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -308,6 +310,102 @@ export async function getPublicRegistrationEvent(
       status: row.status,
       registration_deadline: row.registration_deadline,
     }),
+  }
+}
+
+export async function getPublicRegistrationLabels(
+  eventId: string
+): Promise<
+  | { ok: false; error: string }
+  | {
+      ok: true
+      eventName: string
+      entryFee: number
+      labels: PublicRegistrationBarcodeResult
+    }
+> {
+  const receipt = await getPublicRegistrationReceiptSession()
+  if (!receipt || receipt.eventId !== eventId) {
+    return {
+      ok: false,
+      error:
+        'Your registration labels link has expired. Print slips when you finish registration, or ask event staff to reprint.',
+    }
+  }
+
+  const event = await getPublicRegistrationEvent(eventId)
+  if (!event) return { ok: false, error: 'Event not found' }
+
+  const supabase = createAdminClient()
+  const { data: entry, error: entryError } = await supabase
+    .from('entries')
+    .select(
+      'id, entry_number, owner_barcode, owner_name, contact_full_name, contact_designation'
+    )
+    .eq('id', receipt.entryId)
+    .eq('event_id', eventId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (entryError) return { ok: false, error: entryError.message }
+  if (!entry?.owner_barcode) {
+    return { ok: false, error: 'Owner barcode not found for this registration.' }
+  }
+
+  const { data: registrations, error: registrationsError } = await supabase
+    .from('rooster_event_registrations')
+    .select('id, band_number, cock_entry_barcode, registry_rooster_id')
+    .eq('entry_id', receipt.entryId)
+    .eq('event_id', eventId)
+    .order('cock_number', { ascending: true })
+
+  if (registrationsError) return { ok: false, error: registrationsError.message }
+
+  const registryIds = (registrations ?? [])
+    .map((row) => row.registry_rooster_id as string | null)
+    .filter((id): id is string => Boolean(id))
+
+  const registryNameById = new Map<string, string>()
+  if (registryIds.length > 0) {
+    const { data: registryRows } = await supabase
+      .from('roosters')
+      .select('id, name')
+      .in('id', registryIds)
+    for (const row of registryRows ?? []) {
+      registryNameById.set(row.id as string, (row.name as string) ?? '')
+    }
+  }
+
+  const roosters = (registrations ?? [])
+    .map((row) => {
+      const bandNumber = (row.band_number as string) ?? ''
+      const cockEntryBarcode = (row.cock_entry_barcode as string | null) ?? ''
+      const registryId = row.registry_rooster_id as string | null
+      const registryName = registryId ? registryNameById.get(registryId) : undefined
+      if (!cockEntryBarcode) return null
+      return {
+        registrationId: row.id as string,
+        entryName: registryName?.trim() || bandNumber || 'Rooster',
+        bandNumber,
+        cockEntryBarcode,
+      }
+    })
+    .filter((row): row is NonNullable<typeof row> => row != null)
+
+  return {
+    ok: true,
+    eventName: event.name,
+    entryFee: event.entry_fee,
+    labels: {
+      entryId: entry.id as string,
+      entryNumber: entry.entry_number as string,
+      ownerBarcode: entry.owner_barcode as string,
+      ownerName: (entry.owner_name as string) ?? '',
+      contactFullName: (entry.contact_full_name as string | null) ?? null,
+      contactDesignation: (entry.contact_designation as string | null) ?? null,
+      bandNumbers: roosters.map((rooster) => rooster.bandNumber).filter(Boolean),
+      roosters,
+    },
   }
 }
 

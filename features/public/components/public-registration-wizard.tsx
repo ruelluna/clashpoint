@@ -6,6 +6,10 @@ import { useCallback, useState } from 'react'
 
 import type { EntryFormEligibilityContext } from '@/features/eligibility/entry-form-context'
 import type { PublicRegistrationActionState } from '@/features/public/actions'
+import {
+  feeSettingsFromEntryFee,
+  PublicRegistrationBarcodes,
+} from '@/features/public/components/public-registration-barcodes'
 import { PublicGameFarmStep } from '@/features/public/components/public-game-farm-step'
 import { PublicRoosterStep } from '@/features/public/components/public-rooster-step'
 import type {
@@ -33,6 +37,7 @@ type PublicRegistrationWizardProps = {
   eventName: string
   eventType: 'classic' | 'derby'
   cocksPerEntry: number
+  entryFee: number
   minWeightGrams: number | null
   maxWeightGrams: number | null
   catalog: RoosterEntryCatalog
@@ -56,6 +61,7 @@ export function PublicRegistrationWizard({
   eventName,
   eventType,
   cocksPerEntry,
+  entryFee,
   minWeightGrams,
   maxWeightGrams,
   catalog,
@@ -82,6 +88,10 @@ export function PublicRegistrationWizard({
   }, [entryNumber])
 
   if (step === 'complete' && completeState?.success) {
+    const hasBarcodes =
+      Boolean(completeState.ownerBarcode) &&
+      Boolean(completeState.roosters && completeState.roosters.length > 0)
+
     return (
       <Stack gap={4} borderWidth="1px" borderColor="border" rounded="lg" p={6} maxW="2xl">
         <Text fontSize="lg" fontWeight="semibold">
@@ -99,12 +109,26 @@ export function PublicRegistrationWizard({
           </Text>
         ) : null}
         <Text fontSize="sm" color="fg.muted">
-          Keep your band numbers and contact details handy. Organizers may reach out to
-          confirm your entry.
+          Keep your band numbers, barcode slips, and contact details handy. Organizers may
+          reach out to confirm your entry.
         </Text>
-        <Button asChild variant="outline" alignSelf="flex-start">
-          <Link href={`/events/${eventId}`}>Back to event</Link>
-        </Button>
+        {hasBarcodes && completeState.ownerBarcode && completeState.roosters ? (
+          <PublicRegistrationBarcodes
+            eventId={eventId}
+            eventName={eventName}
+            entryNumber={completeState.entryNumber ?? entryNumber}
+            ownerName={completeState.ownerName ?? ''}
+            ownerBarcode={completeState.ownerBarcode}
+            contactFullName={completeState.contactFullName}
+            contactDesignation={completeState.contactDesignation}
+            roosters={completeState.roosters}
+            feeSettings={feeSettingsFromEntryFee(entryFee)}
+          />
+        ) : (
+          <Button asChild variant="outline" alignSelf="flex-start">
+            <Link href={`/events/${eventId}`}>Back to event</Link>
+          </Button>
+        )}
       </Stack>
     )
   }

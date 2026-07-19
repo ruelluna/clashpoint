@@ -183,6 +183,7 @@ export default async function PublicRegisterPage({ params }: PublicRegisterPageP
             eventName={event.name}
             eventType={event.event_type}
             cocksPerEntry={event.cocks_per_entry}
+            entryFee={event.entry_fee}
             minWeightGrams={event.min_weight_grams}
             maxWeightGrams={event.max_weight_grams}
             catalog={catalog}
