@@ -24,6 +24,7 @@ import {
   parseEligibilityFieldKeys,
 } from '@/lib/derby/eligibility-fields'
 import type { UnknownValueHandling } from '@/lib/derby/enums'
+import { resolveEffectiveWeightLimitsGrams } from '@/features/entries/weight-utils'
 import { gramsToKg } from '@/lib/derby/enums'
 import { createExtendedClient } from '@/lib/supabase/extended'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -93,14 +94,16 @@ export async function getEntryFormEligibilityContext(
       : ((event.allowed_age_classes as string[]) ?? [])
   )
 
-  const minGrams =
-    isEligibilityFieldEnabled(enabledFields, 'weight') && policy?.minimum_weight_grams != null
-      ? policy.minimum_weight_grams
-      : (event.min_weight_grams as number | null) ?? null
-  const maxGrams =
-    isEligibilityFieldEnabled(enabledFields, 'weight') && policy?.maximum_weight_grams != null
-      ? policy.maximum_weight_grams
-      : (event.max_weight_grams as number | null) ?? null
+  const { minWeightGrams: minGrams, maxWeightGrams: maxGrams } =
+    resolveEffectiveWeightLimitsGrams(
+      {
+        min_weight_grams: (event.min_weight_grams as number | null) ?? null,
+        max_weight_grams: (event.max_weight_grams as number | null) ?? null,
+        min_weight: null,
+        max_weight: null,
+      },
+      policy
+    )
 
   return {
     eligibilityEnforcementEnabled: Boolean(event.eligibility_enforcement_enabled),

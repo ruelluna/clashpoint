@@ -18,6 +18,9 @@ vi.mock('@/features/entries/queries', () => ({
 vi.mock('@/features/events/queries', () => ({
   getEvent: vi.fn(),
 }))
+vi.mock('@/features/eligibility/queries', () => ({
+  getDerbyEligibilityPolicy: vi.fn(),
+}))
 vi.mock('@/features/roosters/service', () => ({
   createRooster: vi.fn(),
 }))
@@ -31,6 +34,7 @@ vi.mock('@/features/reference-values/service', () => ({
 vi.mock('@/lib/supabase/server', () => ({ createClient }))
 vi.mock('@/lib/supabase/extended', () => ({ createExtendedClient }))
 
+import { getDerbyEligibilityPolicy } from '@/features/eligibility/queries'
 import { getEvent } from '@/features/events/queries'
 import { createRooster } from '@/features/roosters/service'
 import { createRoosterForEntry, recordAndVerifyWeightFromGrams } from '@/features/weighing/service'
@@ -254,6 +258,7 @@ const weighingId = '00000000-0000-4000-8000-000000000005'
 describe('recordAndVerifyWeightFromGrams', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getDerbyEligibilityPolicy).mockResolvedValue(null)
   })
 
   it('records and verifies weight in grams with passed status', async () => {
@@ -376,6 +381,62 @@ describe('recordAndVerifyWeightFromGrams', () => {
       eventId,
       roosterRecordId: registrationId,
       officialWeightGrams: 1900,
+    })
+
+    expect(result.error).toBeUndefined()
+    expect(result.weightStatus).toBe('failed')
+  })
+
+  it('uses derby eligibility policy limits when event columns are null', async () => {
+    vi.mocked(getEvent).mockResolvedValue({
+      id: eventId,
+      min_weight_grams: null,
+      max_weight_grams: null,
+      min_weight: null,
+      max_weight: null,
+    } as Awaited<ReturnType<typeof getEvent>>)
+    vi.mocked(getDerbyEligibilityPolicy).mockResolvedValue({
+      enabled_eligibility_fields: ['weight'],
+      minimum_weight_grams: 1000,
+      maximum_weight_grams: 1500,
+    } as Awaited<ReturnType<typeof getDerbyEligibilityPolicy>>)
+
+    const insertWeighing = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { id: weighingId }, error: null }),
+      }),
+    })
+
+    const from = vi.fn((table: string) => {
+      const builder = chain(() => ({ data: null, error: null }))
+      if (table === 'rooster_event_registrations') {
+        builder.maybeSingle = vi.fn().mockResolvedValue({
+          data: {
+            id: registrationId,
+            entry_id: entryId,
+            event_id: eventId,
+            band_number: 'B-001',
+            status: 'pending_inspection',
+          },
+          error: null,
+        })
+        builder.update = vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        })
+      }
+      if (table === 'weighings') {
+        builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+        builder.insert = insertWeighing
+      }
+      return builder
+    })
+
+    createClient.mockResolvedValue({ from })
+
+    const result = await recordAndVerifyWeightFromGrams('actor-1', {
+      eventId,
+      roosterRecordId: registrationId,
+      officialWeightGrams: 2000,
     })
 
     expect(result.error).toBeUndefined()
