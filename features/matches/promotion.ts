@@ -31,19 +31,17 @@ export async function tryPromoteMatchToQueue(
 
   const { data: bets, error: betsError } = await supabase
     .from('match_bets')
-    .select('side, payment_status')
+    .select('side, payment_status, amount, collected_amount')
     .eq('match_id', matchId)
 
   if (betsError) return { promoted: false, error: betsError.message }
 
+  const meronBet = bets?.find((bet) => bet.side === 'meron')
+  const walaBet = bets?.find((bet) => bet.side === 'wala')
   const meronBetStatus =
-    (bets?.find((bet) => bet.side === 'meron')?.payment_status as
-      | MatchBetPaymentStatus
-      | undefined) ?? 'unpaid'
+    (meronBet?.payment_status as MatchBetPaymentStatus | undefined) ?? 'unpaid'
   const walaBetStatus =
-    (bets?.find((bet) => bet.side === 'wala')?.payment_status as
-      | MatchBetPaymentStatus
-      | undefined) ?? 'unpaid'
+    (walaBet?.payment_status as MatchBetPaymentStatus | undefined) ?? 'unpaid'
 
   const [meronDues, walaDues] = await Promise.all([
     getEntryOutstandingDues(match.event_id, match.meron_entry_id),
@@ -57,10 +55,14 @@ export async function tryPromoteMatchToQueue(
     {
       betPaymentStatus: meronBetStatus,
       entryOutstanding: meronDues.dues?.totalOutstanding ?? 0,
+      agreedAmount: Number(meronBet?.amount ?? 0),
+      collectedAmount: Number(meronBet?.collected_amount ?? 0),
     },
     {
       betPaymentStatus: walaBetStatus,
       entryOutstanding: walaDues.dues?.totalOutstanding ?? 0,
+      agreedAmount: Number(walaBet?.amount ?? 0),
+      collectedAmount: Number(walaBet?.collected_amount ?? 0),
     }
   )
 
@@ -114,9 +116,9 @@ export async function promoteMatchesForEntry(
   }
 }
 
-const BLOCKED_PALITADA_REFUND_QUEUE_STATUSES = new Set(['called', 'ready', 'ongoing'])
+const BLOCKED_PLEDGE_REFUND_QUEUE_STATUSES = new Set(['called', 'ready', 'ongoing'])
 
-export async function revertPalitadaPaymentSideEffects(
+export async function revertPledgePaymentSideEffects(
   matchBetId: string,
   matchId: string,
   actorId: string
@@ -132,13 +134,13 @@ export async function revertPalitadaPaymentSideEffects(
   if (matchError) return { error: matchError.message }
   if (!match) return { error: 'Match not found' }
   if (match.status === 'cancelled' || match.status === 'completed') {
-    return { error: 'Cannot refund palitada for a cancelled or completed match' }
+    return { error: 'Cannot refund pledge for a cancelled or completed match' }
   }
 
   const queueStatus = match.queue_status as string | null
-  if (queueStatus && BLOCKED_PALITADA_REFUND_QUEUE_STATUSES.has(queueStatus)) {
+  if (queueStatus && BLOCKED_PLEDGE_REFUND_QUEUE_STATUSES.has(queueStatus)) {
     return {
-      error: `Cannot refund palitada after fight #${match.fight_number} has been ${queueStatus}`,
+      error: `Cannot refund pledge after fight #${match.fight_number} has been ${queueStatus}`,
     }
   }
 
@@ -147,6 +149,7 @@ export async function revertPalitadaPaymentSideEffects(
     .update({
       payment_status: 'unpaid',
       payment_id: null,
+      collected_amount: 0,
       updated_at: new Date().toISOString(),
     })
     .eq('id', matchBetId)
@@ -158,19 +161,17 @@ export async function revertPalitadaPaymentSideEffects(
   if (queueStatus === 'scheduled' && match.status === 'locked') {
     const { data: bets, error: betsError } = await supabase
       .from('match_bets')
-      .select('side, payment_status')
+      .select('side, payment_status, amount, collected_amount')
       .eq('match_id', matchId)
 
     if (betsError) return { error: betsError.message }
 
+    const meronBet = bets?.find((bet) => bet.side === 'meron')
+    const walaBet = bets?.find((bet) => bet.side === 'wala')
     const meronBetStatus =
-      (bets?.find((bet) => bet.side === 'meron')?.payment_status as
-        | MatchBetPaymentStatus
-        | undefined) ?? 'unpaid'
+      (meronBet?.payment_status as MatchBetPaymentStatus | undefined) ?? 'unpaid'
     const walaBetStatus =
-      (bets?.find((bet) => bet.side === 'wala')?.payment_status as
-        | MatchBetPaymentStatus
-        | undefined) ?? 'unpaid'
+      (walaBet?.payment_status as MatchBetPaymentStatus | undefined) ?? 'unpaid'
 
     const [meronDues, walaDues] = await Promise.all([
       getEntryOutstandingDues(match.event_id, match.meron_entry_id),
@@ -184,10 +185,14 @@ export async function revertPalitadaPaymentSideEffects(
       {
         betPaymentStatus: meronBetStatus,
         entryOutstanding: meronDues.dues?.totalOutstanding ?? 0,
+        agreedAmount: Number(meronBet?.amount ?? 0),
+        collectedAmount: Number(meronBet?.collected_amount ?? 0),
       },
       {
         betPaymentStatus: walaBetStatus,
         entryOutstanding: walaDues.dues?.totalOutstanding ?? 0,
+        agreedAmount: Number(walaBet?.amount ?? 0),
+        collectedAmount: Number(walaBet?.collected_amount ?? 0),
       }
     )
 
@@ -213,7 +218,7 @@ export async function revertPalitadaPaymentSideEffects(
         newValues: {
           fightNumber: match.fight_number,
           eventId: match.event_id,
-          reason: 'palitada_refund',
+          reason: 'pledge_refund',
         },
       })
     }

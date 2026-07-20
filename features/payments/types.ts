@@ -146,6 +146,8 @@ export type MatchBetCashierTarget = {
   side: 'meron' | 'wala'
   betBarcode: string
   betAmount: number
+  collectedAmount: number
+  adjustmentDelta: number
   betPaymentStatus: MatchBetPaymentStatus
   entryId: string
   entryNumber: string
@@ -154,6 +156,7 @@ export type MatchBetCashierTarget = {
   cockNumber: number
   bandNumber: string
   entryDues: EntryOutstandingDues
+  primaryPaymentId: string | null
 }
 
 export type CashierLookupResult = {

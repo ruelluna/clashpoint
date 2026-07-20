@@ -8,6 +8,7 @@ import {
   lockMatchListSchema,
   lookupRoosterForMatchingSchema,
   updateFightQueueStatusSchema,
+  updateMatchBetAmountsSchema,
 } from '@/features/matches/schema'
 import {
   cancelUnpaidMatch,
@@ -15,6 +16,7 @@ import {
   lockMatchList,
   lookupEligibleRoosterByBarcode,
   updateFightQueueStatus,
+  updateMatchBetAmounts,
 } from '@/features/matches/service'
 import { requirePermission } from '@/lib/auth/permissions'
 
@@ -48,7 +50,7 @@ export async function createMatchAction(
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
   revalidatePath('/dashboard/fights')
   return {
-    success: 'Match created — print palitada slips for both sides',
+    success: 'Match created — print pledge slips for both sides',
     matchId: result.matchId,
   }
 }
@@ -138,4 +140,31 @@ export async function updateFightQueueStatusAction(
   revalidatePath('/dashboard/fights')
   revalidatePath('/dashboard/audit')
   return { success: 'Fight queue updated' }
+}
+
+export async function updateMatchBetAmountsAction(
+  _prev: MatchActionState,
+  formData: FormData
+): Promise<MatchActionState> {
+  const profile = await requirePermission('matches.manage')
+
+  const parsed = updateMatchBetAmountsSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchId: formData.get('matchId'),
+    meronBet: formData.get('meronBet')?.toString().trim() || undefined,
+    walaBet: formData.get('walaBet')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await updateMatchBetAmounts(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/payments`)
+  revalidatePath('/dashboard/fights')
+  revalidatePath('/dashboard/audit')
+  return { success: 'Pledge amounts updated — settle adjustments at Cashier Terminal if due' }
 }

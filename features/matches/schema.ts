@@ -36,8 +36,8 @@ export const createMatchSchema = z
     roundNumber: z.coerce.number().int().positive().optional(),
     meronBet: z.coerce
       .number()
-      .positive('Meron palitada must be greater than zero'),
-    walaBet: z.coerce.number().positive('Wala palitada must be greater than zero'),
+      .positive('Meron pledge must be greater than zero'),
+    walaBet: z.coerce.number().positive('Wala pledge must be greater than zero'),
   })
   .superRefine((data, ctx) => {
     if (data.meronRoosterId === data.walaRoosterId) {
@@ -63,6 +63,29 @@ export const updateMatchStatusSchema = z.object({
   status: matchStatusSchema,
 })
 
+export const updateMatchBetAmountsSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    matchId: z.string().uuid(),
+    meronBet: z.coerce
+      .number()
+      .positive('Meron pledge must be greater than zero')
+      .optional(),
+    walaBet: z.coerce
+      .number()
+      .positive('Wala pledge must be greater than zero')
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.meronBet == null && data.walaBet == null) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Enter at least one pledge amount to update',
+        path: ['meronBet'],
+      })
+    }
+  })
+
 export const cancelMatchSchema = z.object({
   eventId: z.string().uuid(),
   matchId: z.string().uuid(),
@@ -77,6 +100,7 @@ export type CreateMatchInput = z.infer<typeof createMatchSchema>
 export type LockMatchListInput = z.infer<typeof lockMatchListSchema>
 export type UpdateFightQueueStatusInput = z.infer<typeof updateFightQueueStatusSchema>
 export type UpdateMatchStatusInput = z.infer<typeof updateMatchStatusSchema>
+export type UpdateMatchBetAmountsInput = z.infer<typeof updateMatchBetAmountsSchema>
 export type CancelMatchInput = z.infer<typeof cancelMatchSchema>
 export type LookupRoosterForMatchingInput = z.infer<
   typeof lookupRoosterForMatchingSchema

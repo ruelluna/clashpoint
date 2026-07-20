@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-const { writeAuditLog, createClient, postRevolvingFundLedgerEntry, revertPalitadaPaymentSideEffects } =
+const { writeAuditLog, createClient, postRevolvingFundLedgerEntry, revertPledgePaymentSideEffects } =
   vi.hoisted(() => ({
     writeAuditLog: vi.fn(),
     createClient: vi.fn(),
     postRevolvingFundLedgerEntry: vi.fn(),
-    revertPalitadaPaymentSideEffects: vi.fn(),
+    revertPledgePaymentSideEffects: vi.fn(),
   }))
 
 vi.mock('@/features/audit/service', () => ({ writeAuditLog }))
@@ -18,7 +18,7 @@ vi.mock('@/features/revolving-fund/service', () => ({
   postRevolvingFundLedgerEntry,
 }))
 vi.mock('@/features/matches/promotion', () => ({
-  revertPalitadaPaymentSideEffects,
+  revertPledgePaymentSideEffects,
 }))
 vi.mock('@/lib/supabase/server', () => ({ createClient }))
 
@@ -144,7 +144,7 @@ describe('refundPayment', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(postRevolvingFundLedgerEntry).mockResolvedValue({})
-    vi.mocked(revertPalitadaPaymentSideEffects).mockResolvedValue({ demoted: true })
+    vi.mocked(revertPledgePaymentSideEffects).mockResolvedValue({ demoted: true })
   })
 
   it('clears tender fields when refunding a payment collected with cash change', async () => {
@@ -172,7 +172,7 @@ describe('refundPayment', () => {
     })
 
     expect(result.error).toBeUndefined()
-    expect(revertPalitadaPaymentSideEffects).toHaveBeenCalledWith(matchBetId, matchId, actorId)
+    expect(revertPledgePaymentSideEffects).toHaveBeenCalledWith(matchBetId, matchId, actorId)
     expect(getCapturedPaymentUpdate()).toEqual({
       payment_status: 'refunded',
       balance: 10000,

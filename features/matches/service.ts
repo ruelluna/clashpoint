@@ -9,6 +9,7 @@ import type {
   LockMatchListInput,
   LookupRoosterForMatchingInput,
   UpdateFightQueueStatusInput,
+  UpdateMatchBetAmountsInput,
 } from '@/features/matches/schema'
 import { formatMatchBetBarcode } from '@/features/matches/schema'
 import { tryPromoteMatchToQueue } from '@/features/matches/promotion'
@@ -20,14 +21,18 @@ import type {
   RoosterEligibilityContext,
 } from '@/features/matches/types'
 import {
+  canEditMatchBetAmounts,
   canLockMatchList,
   collectUsedRoosterIds,
+  getFightQueueAdvanceBlockReason,
   isValidFightQueueTransition,
   matchStatusForQueueStatus,
+  roundMatchMoney,
   validateCockUsedOnce,
   validateNoSelfMatch,
   validateRoosterEligibility,
 } from '@/features/matches/utils'
+import { getEntryOutstandingDues } from '@/features/payments/service'
 import type { Database } from '@/lib/supabase/database.types'
 import type { ConditionallyApprovedMatchHandling } from '@/lib/derby/enums'
 import { normalizeCockEntryBarcodeInput } from '@/features/entries/schema'
@@ -447,7 +452,7 @@ export async function cancelUnpaidMatch(
 
   const hasPaidBet = (bets ?? []).some((bet) => bet.payment_status === 'paid')
   if (hasPaidBet) {
-    return { error: 'Cannot cancel a match after a palitada payment has been recorded' }
+    return { error: 'Cannot cancel a match after a pledge payment has been recorded' }
   }
 
   const { error: updateError } = await supabase
@@ -534,6 +539,98 @@ export async function lockMatchList(
   return { lockedCount: matches?.length ?? 0 }
 }
 
+export async function updateMatchBetAmounts(
+  actorId: string,
+  input: UpdateMatchBetAmountsInput
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: match, error: matchError } = await supabase
+    .from('matches')
+    .select('id, event_id, fight_number, status, queue_status')
+    .eq('id', input.matchId)
+    .eq('event_id', input.eventId)
+    .maybeSingle()
+
+  if (matchError) return { error: matchError.message }
+  if (!match) return { error: 'Match not found' }
+  if (match.status === 'cancelled') return { error: 'Cannot edit pledge on a cancelled match' }
+
+  const queueStatus = match.queue_status as FightQueueStatus | null
+  if (!canEditMatchBetAmounts(match.status as MatchStatus, queueStatus)) {
+    return { error: 'Pledge cannot be changed after this fight has been called' }
+  }
+
+  const { data: bets, error: betsError } = await supabase
+    .from('match_bets')
+    .select('id, side, amount, collected_amount, payment_status')
+    .eq('match_id', input.matchId)
+
+  if (betsError) return { error: betsError.message }
+
+  const updates: Array<{
+    id: string
+    side: 'meron' | 'wala'
+    oldAmount: number
+    newAmount: number
+  }> = []
+
+  for (const bet of bets ?? []) {
+    const side = bet.side as 'meron' | 'wala'
+    const nextAmount =
+      side === 'meron' ? input.meronBet : side === 'wala' ? input.walaBet : undefined
+
+    if (nextAmount == null) continue
+
+    const currentAmount = Number(bet.amount)
+    const normalizedAmount = roundMatchMoney(nextAmount)
+    if (Math.abs(currentAmount - normalizedAmount) < 0.005) continue
+
+    updates.push({
+      id: bet.id as string,
+      side,
+      oldAmount: currentAmount,
+      newAmount: normalizedAmount,
+    })
+  }
+
+  if (updates.length === 0) {
+    return { error: 'No pledge amounts were changed' }
+  }
+
+  for (const update of updates) {
+    const { error: updateError } = await supabase
+      .from('match_bets')
+      .update({
+        amount: update.newAmount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', update.id)
+
+    if (updateError) return { error: updateError.message }
+
+    await writeAuditLog({
+      actorId,
+      action: 'match_bet.amount_updated',
+      entityType: 'match_bet',
+      entityId: update.id,
+      oldValues: {
+        side: update.side,
+        amount: update.oldAmount,
+        fightNumber: match.fight_number,
+      },
+      newValues: {
+        side: update.side,
+        amount: update.newAmount,
+        fightNumber: match.fight_number,
+        eventId: input.eventId,
+      },
+    })
+  }
+
+  return {}
+}
+
 export async function updateFightQueueStatus(
   actorId: string,
   input: UpdateFightQueueStatusInput
@@ -542,7 +639,7 @@ export async function updateFightQueueStatus(
 
   const { data: match, error: fetchError } = await supabase
     .from('matches')
-    .select('id, event_id, fight_number, status, queue_status')
+    .select('id, event_id, fight_number, status, queue_status, meron_entry_id, wala_entry_id')
     .eq('id', input.matchId)
     .maybeSingle()
 
@@ -563,6 +660,47 @@ export async function updateFightQueueStatus(
 
   if (!['locked', 'ready', 'ongoing'].includes(match.status as string) && input.queueStatus !== 'scheduled') {
     return { error: 'Match must be locked before advancing the fight queue' }
+  }
+
+  if (currentQueue === 'scheduled' && input.queueStatus === 'called') {
+    const { data: bets, error: betsError } = await supabase
+      .from('match_bets')
+      .select('side, payment_status, amount, collected_amount')
+      .eq('match_id', input.matchId)
+
+    if (betsError) return { error: betsError.message }
+
+    const meronBet = bets?.find((bet) => bet.side === 'meron')
+    const walaBet = bets?.find((bet) => bet.side === 'wala')
+
+    const [meronDues, walaDues] = await Promise.all([
+      getEntryOutstandingDues(match.event_id, match.meron_entry_id as string),
+      getEntryOutstandingDues(match.event_id, match.wala_entry_id as string),
+    ])
+
+    if (meronDues.error) return { error: meronDues.error }
+    if (walaDues.error) return { error: walaDues.error }
+
+    const advanceBlock = getFightQueueAdvanceBlockReason(
+      currentQueue as FightQueueStatus | null,
+      input.queueStatus,
+      {
+        betPaymentStatus:
+          (meronBet?.payment_status as MatchBetPaymentStatus | undefined) ?? 'unpaid',
+        entryOutstanding: meronDues.dues?.totalOutstanding ?? 0,
+        agreedAmount: Number(meronBet?.amount ?? 0),
+        collectedAmount: Number(meronBet?.collected_amount ?? 0),
+      },
+      {
+        betPaymentStatus:
+          (walaBet?.payment_status as MatchBetPaymentStatus | undefined) ?? 'unpaid',
+        entryOutstanding: walaDues.dues?.totalOutstanding ?? 0,
+        agreedAmount: Number(walaBet?.amount ?? 0),
+        collectedAmount: Number(walaBet?.collected_amount ?? 0),
+      }
+    )
+
+    if (advanceBlock) return { error: advanceBlock }
   }
 
   const nextMatchStatus = matchStatusForQueueStatus(input.queueStatus)

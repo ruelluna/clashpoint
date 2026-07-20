@@ -585,7 +585,7 @@ async function insertSeedMatchBetPayment(
       fight_side: side,
       received_by: actorId,
       paid_at: paidAt,
-      notes: 'Seed palitada payment',
+      notes: 'Seed pledge payment',
     })
     .select('id')
     .single()
@@ -712,7 +712,7 @@ const DEFAULT_MERON_BET = 500
 const DEFAULT_WALA_BET = 750
 
 /**
- * Seeds Fight #1 (draft, awaiting palitada) and Fight #2 (scheduled queue).
+ * Seeds Fight #1 (draft, awaiting pledge) and Fight #2 (scheduled queue).
  * @param {'classic'|'derby'} options.demoKind
  */
 export async function seedSampleMatches({
@@ -1218,7 +1218,7 @@ export function printSeedSummary({
     console.log('')
     console.log('Sample matches:')
     console.log(
-      `  Fight #${matchSummary.draftMatch.fightNumber} (draft, awaiting palitada): ` +
+      `  Fight #${matchSummary.draftMatch.fightNumber} (draft, awaiting pledge): ` +
         `${matchSummary.draftMatch.meronBarcode}, ${matchSummary.draftMatch.walaBarcode}`
     )
   }

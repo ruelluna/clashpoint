@@ -117,27 +117,93 @@ export function collectUsedRoosterIds(
   return used
 }
 
-export type MatchSidePaymentReadiness = {
-  betPaymentStatus: MatchBetPaymentStatus
-  entryOutstanding: number
+export const BLOCKED_BET_EDIT_QUEUE_STATUSES: FightQueueStatus[] = [
+  'called',
+  'ready',
+  'ongoing',
+]
+
+const MONEY_EPSILON = 0.005
+
+export function roundMatchMoney(amount: number): number {
+  return Math.round(amount * 100) / 100
 }
 
-export function isMatchSideQueueReady(side: MatchSidePaymentReadiness): boolean {
-  if (side.betPaymentStatus !== 'paid') return false
+export function isBetEditHardLocked(
+  matchStatus: MatchStatus,
+  queueStatus: FightQueueStatus | null
+): boolean {
+  if (matchStatus === 'completed' || matchStatus === 'cancelled') return true
+  if (queueStatus && BLOCKED_BET_EDIT_QUEUE_STATUSES.includes(queueStatus)) return true
+  return false
+}
+
+export function canEditMatchBetAmounts(
+  matchStatus: MatchStatus,
+  queueStatus: FightQueueStatus | null
+): boolean {
+  return !isBetEditHardLocked(matchStatus, queueStatus)
+}
+
+export function getMatchBetAdjustmentDelta(
+  agreedAmount: number,
+  collectedAmount: number
+): number {
+  return roundMatchMoney(agreedAmount - collectedAmount)
+}
+
+export function isMatchBetSideSettled(
+  agreedAmount: number,
+  collectedAmount: number,
+  paymentStatus: MatchBetPaymentStatus
+): boolean {
+  if (paymentStatus !== 'paid') return false
+  return Math.abs(getMatchBetAdjustmentDelta(agreedAmount, collectedAmount)) < MONEY_EPSILON
+}
+
+export type MatchSideSettlement = {
+  betPaymentStatus: MatchBetPaymentStatus
+  entryOutstanding: number
+  agreedAmount: number
+  collectedAmount: number
+}
+
+export type MatchSidePaymentReadiness = MatchSideSettlement
+
+export function isMatchSideQueueReady(side: MatchSideSettlement): boolean {
+  if (!isMatchBetSideSettled(side.agreedAmount, side.collectedAmount, side.betPaymentStatus)) {
+    return false
+  }
   return side.entryOutstanding <= 0
 }
 
 export function isMatchQueueReady(
-  meron: MatchSidePaymentReadiness,
-  wala: MatchSidePaymentReadiness
+  meron: MatchSideSettlement,
+  wala: MatchSideSettlement
 ): boolean {
   return isMatchSideQueueReady(meron) && isMatchSideQueueReady(wala)
 }
 
+export function getFightQueueAdvanceBlockReason(
+  currentQueue: FightQueueStatus | null,
+  nextQueue: FightQueueStatus,
+  meron: MatchSideSettlement,
+  wala: MatchSideSettlement
+): string | null {
+  if (currentQueue === 'scheduled' && nextQueue === 'called') {
+    if (!isMatchQueueReady(meron, wala)) {
+      return 'Settle pledge adjustments at Cashier Terminal before calling this fight.'
+    }
+  }
+  return null
+}
+
 export function canEditMatchBets(
   matchStatus: MatchStatus,
-  betPaymentStatuses: MatchBetPaymentStatus[]
+  betPaymentStatuses: MatchBetPaymentStatus[],
+  queueStatus: FightQueueStatus | null = null
 ): boolean {
-  if (!['draft', 'for_review', 'confirmed'].includes(matchStatus)) return false
-  return betPaymentStatuses.every((status) => status === 'unpaid')
+  if (!canEditMatchBetAmounts(matchStatus, queueStatus)) return false
+  if (betPaymentStatuses.every((status) => status === 'unpaid')) return true
+  return canEditMatchBetAmounts(matchStatus, queueStatus)
 }

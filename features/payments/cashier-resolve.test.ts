@@ -45,8 +45,10 @@ const unpaidBet = {
   match_id: matchId,
   side: 'meron',
   amount: 500,
+  collected_amount: 0,
   barcode: `BET-${eventId.slice(0, 8).toUpperCase()}-0001-M`,
   payment_status: 'unpaid',
+  payment_id: null,
 }
 
 const eventFees = {
@@ -163,7 +165,7 @@ describe('resolveMatchBetByRoosterRegistrationId', () => {
     vi.clearAllMocks()
   })
 
-  it('returns unpaid palitada target for a rooster in a draft match', async () => {
+  it('returns unpaid pledge target for a rooster in a draft match', async () => {
     setupSupabaseMock({ match: draftMatch, bet: unpaidBet })
 
     const result = await resolveMatchBetByRoosterRegistrationId(eventId, registrationId)
@@ -173,6 +175,8 @@ describe('resolveMatchBetByRoosterRegistrationId', () => {
       matchBetId,
       matchId,
       betAmount: 500,
+      collectedAmount: 0,
+      adjustmentDelta: 500,
       betPaymentStatus: 'unpaid',
       side: 'meron',
       entryId,
@@ -189,7 +193,7 @@ describe('resolveMatchBetByRoosterRegistrationId', () => {
     expect(result.matchBet).toBeUndefined()
   })
 
-  it('returns empty when palitada is already paid', async () => {
+  it('returns empty when pledge is already paid', async () => {
     setupSupabaseMock({ match: draftMatch, bet: null })
 
     const result = await resolveMatchBetByRoosterRegistrationId(eventId, registrationId)
@@ -204,7 +208,7 @@ describe('resolveCashierTarget cock barcode', () => {
     vi.clearAllMocks()
   })
 
-  it('returns matchBet when cock scan resolves unpaid palitada', async () => {
+  it('returns matchBet when cock scan resolves unpaid pledge', async () => {
     setupSupabaseMock({ match: draftMatch, bet: unpaidBet })
 
     const result = await resolveCashierTarget(eventId, cockBarcode)
@@ -213,6 +217,8 @@ describe('resolveCashierTarget cock barcode', () => {
     expect(result.matchBet).toMatchObject({
       matchBetId,
       betAmount: 500,
+      collectedAmount: 0,
+      adjustmentDelta: 500,
       betPaymentStatus: 'unpaid',
     })
     expect(result.matches).toBeUndefined()

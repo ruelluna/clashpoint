@@ -1250,6 +1250,7 @@ export type Database = {
           event_id: string
           side: Database['public']['Enums']['fight_side']
           amount: number
+          collected_amount: number
           barcode: string
           payment_status: Database['public']['Enums']['match_bet_payment_status']
           payment_id: string | null
@@ -1265,6 +1266,7 @@ export type Database = {
           event_id: string
           side: Database['public']['Enums']['fight_side']
           amount?: number
+          collected_amount?: number
           barcode: string
           payment_status?: Database['public']['Enums']['match_bet_payment_status']
           payment_id?: string | null
@@ -1280,6 +1282,7 @@ export type Database = {
           event_id?: string
           side?: Database['public']['Enums']['fight_side']
           amount?: number
+          collected_amount?: number
           barcode?: string
           payment_status?: Database['public']['Enums']['match_bet_payment_status']
           payment_id?: string | null

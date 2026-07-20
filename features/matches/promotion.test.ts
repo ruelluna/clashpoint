@@ -12,7 +12,7 @@ vi.mock('@/features/audit/service', () => ({ writeAuditLog }))
 vi.mock('@/features/payments/service', () => ({ getEntryOutstandingDues }))
 vi.mock('@/lib/supabase/server', () => ({ createClient }))
 
-import { revertPalitadaPaymentSideEffects } from '@/features/matches/promotion'
+import { revertPledgePaymentSideEffects } from '@/features/matches/promotion'
 
 const matchBetId = '00000000-0000-4000-8000-000000000010'
 const matchId = '00000000-0000-4000-8000-000000000011'
@@ -82,7 +82,7 @@ function setupPromotionMock(options: {
   }
 }
 
-describe('revertPalitadaPaymentSideEffects', () => {
+describe('revertPledgePaymentSideEffects', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getEntryOutstandingDues).mockResolvedValue({
@@ -107,13 +107,14 @@ describe('revertPalitadaPaymentSideEffects', () => {
       ],
     })
 
-    const result = await revertPalitadaPaymentSideEffects(matchBetId, matchId, actorId)
+    const result = await revertPledgePaymentSideEffects(matchBetId, matchId, actorId)
 
     expect(result.error).toBeUndefined()
     expect(result.demoted).toBe(true)
     expect(getCapturedBetUpdate()).toEqual({
       payment_status: 'unpaid',
       payment_id: null,
+      collected_amount: 0,
       updated_at: expect.any(String),
     })
     expect(getCapturedMatchUpdate()).toEqual({
@@ -143,7 +144,7 @@ describe('revertPalitadaPaymentSideEffects', () => {
       betsAfterRevert: [],
     })
 
-    const result = await revertPalitadaPaymentSideEffects(matchBetId, matchId, actorId)
+    const result = await revertPledgePaymentSideEffects(matchBetId, matchId, actorId)
 
     expect(result.error).toMatch(/called/)
     expect(writeAuditLog).not.toHaveBeenCalled()

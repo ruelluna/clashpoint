@@ -28,6 +28,7 @@ import {
   cancelMatchAction,
   createMatchAction,
   updateFightQueueStatusAction,
+  updateMatchBetAmountsAction,
   type MatchActionState,
 } from '@/features/matches/actions'
 import { MatchingRoosterScanRow } from '@/features/matches/components/matching-rooster-scan-row'
@@ -41,7 +42,12 @@ import {
   matchStatusColorPalette,
 } from '@/features/matches/display-utils'
 import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
-import { FIGHT_QUEUE_TRANSITIONS } from '@/features/matches/utils'
+import {
+  FIGHT_QUEUE_TRANSITIONS,
+  canEditMatchBetAmounts,
+  getMatchBetAdjustmentDelta,
+  isMatchBetSideSettled,
+} from '@/features/matches/utils'
 import { COMPATIBILITY_STATUS_LABELS } from '@/lib/derby/enums'
 import type { CompatibilityStatus } from '@/lib/derby/enums'
 
@@ -148,11 +154,29 @@ function compatibilityColor(
 }
 
 function SidePaymentBadges({ side }: { side: MatchListItem['meron'] }) {
+  const adjustmentDelta = getMatchBetAdjustmentDelta(
+    side.bet_amount,
+    side.bet_collected_amount
+  )
+  const settled =
+    side.bet_payment_status === 'unpaid' ||
+    isMatchBetSideSettled(side.bet_amount, side.bet_collected_amount, side.bet_payment_status)
+
   return (
     <Flex gap={2} wrap="wrap" mt={1}>
       <Badge size="sm" colorPalette={betPaymentColor(side.bet_payment_status)}>
-        Palitada {MATCH_BET_PAYMENT_STATUS_LABELS[side.bet_payment_status]}
+        Pledge {MATCH_BET_PAYMENT_STATUS_LABELS[side.bet_payment_status]}
       </Badge>
+      {side.bet_payment_status === 'paid' && !settled && adjustmentDelta > 0 ? (
+        <Badge size="sm" colorPalette="orange">
+          Collect {formatCurrency(adjustmentDelta)}
+        </Badge>
+      ) : null}
+      {side.bet_payment_status === 'paid' && !settled && adjustmentDelta < 0 ? (
+        <Badge size="sm" colorPalette="orange">
+          Refund {formatCurrency(Math.abs(adjustmentDelta))}
+        </Badge>
+      ) : null}
       {side.bet_barcode ? (
         <Text fontSize="xs" color="fg.muted">
           {side.bet_barcode}
@@ -160,6 +184,81 @@ function SidePaymentBadges({ side }: { side: MatchListItem['meron'] }) {
       ) : null}
     </Flex>
   )
+}
+
+function AdjustPledgeForm({
+  eventId,
+  match,
+  canManage,
+}: {
+  eventId: string
+  match: MatchListItem
+  canManage: boolean
+}) {
+  const [state, action, pending] = useActionState(updateMatchBetAmountsAction, initialState)
+
+  if (!canManage) return null
+  if (!canEditMatchBetAmounts(match.status, match.queue_status)) return null
+
+  return (
+    <form action={action}>
+      <input type="hidden" name="eventId" value={eventId} />
+      <input type="hidden" name="matchId" value={match.id} />
+      <Stack gap={2} mt={2} maxW="md">
+        <Text fontSize="sm" fontWeight="medium">
+          Adjust pledge
+        </Text>
+        <Flex direction={{ base: 'column', sm: 'row' }} gap={2}>
+          <FormField label="Meron (₱)">
+            <Input
+              name="meronBet"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={String(match.meron.bet_amount)}
+              size="sm"
+            />
+          </FormField>
+          <FormField label="Wala (₱)">
+            <Input
+              name="walaBet"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={String(match.wala.bet_amount)}
+              size="sm"
+            />
+          </FormField>
+        </Flex>
+        <Button type="submit" size="sm" variant="outline" loading={pending}>
+          Save pledge changes
+        </Button>
+        {state.error ? (
+          <Text fontSize="xs" color="red.500">
+            {state.error}
+          </Text>
+        ) : null}
+        {state.success ? (
+          <Text fontSize="xs" color="green.600">
+            {state.success}
+          </Text>
+        ) : null}
+      </Stack>
+    </form>
+  )
+}
+
+function matchSideSettled(side: MatchListItem['meron']): boolean {
+  if (side.bet_payment_status === 'unpaid') return false
+  return isMatchBetSideSettled(
+    side.bet_amount,
+    side.bet_collected_amount,
+    side.bet_payment_status
+  )
+}
+
+function matchPledgesSettled(match: MatchListItem): boolean {
+  return matchSideSettled(match.meron) && matchSideSettled(match.wala)
 }
 
 function CancelMatchForm({
@@ -205,6 +304,10 @@ function FightQueueRow({
   )
 
   const nextStatus = nextQueueStatus(match.queue_status)
+  const callBlocked =
+    match.queue_status === 'scheduled' &&
+    nextStatus === 'called' &&
+    !matchPledgesSettled(match)
 
   return (
     <Box px={4} py={3} borderBottomWidth="1px" borderColor="border" _last={{ borderBottomWidth: 0 }}>
@@ -228,6 +331,7 @@ function FightQueueRow({
             <Text fontSize="sm" color="fg.muted">
               Bet {formatCurrency(match.meron.bet_amount)}
             </Text>
+            <SidePaymentBadges side={match.meron} />
           </Box>
           <Box flex="1">
             <Text fontSize="xs" color="fg.muted" textTransform="uppercase">
@@ -237,18 +341,27 @@ function FightQueueRow({
             <Text fontSize="sm" color="fg.muted">
               Bet {formatCurrency(match.wala.bet_amount)}
             </Text>
+            <SidePaymentBadges side={match.wala} />
           </Box>
         </Flex>
         {canManage && nextStatus ? (
-          <form action={action}>
-            <input type="hidden" name="matchId" value={match.id} />
-            <input type="hidden" name="eventId" value={eventId} />
-            <input type="hidden" name="queueStatus" value={nextStatus} />
-            <Button type="submit" size="sm" loading={pending}>
-              Mark {FIGHT_QUEUE_STATUS_LABELS[nextStatus].toLowerCase()}
-            </Button>
-          </form>
+          <Stack gap={2} align={{ base: 'flex-start', lg: 'flex-end' }}>
+            <form action={action}>
+              <input type="hidden" name="matchId" value={match.id} />
+              <input type="hidden" name="eventId" value={eventId} />
+              <input type="hidden" name="queueStatus" value={nextStatus} />
+              <Button type="submit" size="sm" loading={pending} disabled={callBlocked}>
+                Mark {FIGHT_QUEUE_STATUS_LABELS[nextStatus].toLowerCase()}
+              </Button>
+            </form>
+            {callBlocked ? (
+              <Text fontSize="xs" color="orange.fg" maxW="xs">
+                Settle pledge adjustments at Cashier Terminal before calling this fight.
+              </Text>
+            ) : null}
+          </Stack>
         ) : null}
+        <AdjustPledgeForm eventId={eventId} match={match} canManage={canManage} />
       </Flex>
       {state.error ? (
         <Text mt={2} fontSize="sm" color="red.fg">
@@ -376,7 +489,7 @@ export function MatchingBoardClient({
     <PageStack>
       <PageHeader
         title="Matching"
-        description={`Pair roosters and record palitada amounts for ${eventName}. Handlers pay at Cashier Terminal — matching staff do not collect payments.`}
+        description={`Pair roosters and record pledge amounts for ${eventName}. Handlers pay at Cashier Terminal — matching staff do not collect payments.`}
       />
 
       {feedback ? (
@@ -430,7 +543,7 @@ export function MatchingBoardClient({
                   rooster={meronRooster ?? undefined}
                   onClear={() => setMeronRooster(null)}
                 />
-                <FormField label="Meron palitada (₱)" required>
+                <FormField label="Meron pledge (₱)" required>
                   <Input
                     name="meronBet"
                     type="number"
@@ -470,7 +583,7 @@ export function MatchingBoardClient({
                   rooster={walaRooster ?? undefined}
                   onClear={() => setWalaRooster(null)}
                 />
-                <FormField label="Wala palitada (₱)" required>
+                <FormField label="Wala pledge (₱)" required>
                   <Input
                     name="walaBet"
                     type="number"
@@ -554,10 +667,10 @@ export function MatchingBoardClient({
             <Text as="span" fontWeight="medium">
               Cashier Terminal
             </Text>{' '}
-            with their rooster COCK- barcode or printed BET- palitada slip.
+            with their rooster COCK- barcode or printed BET- pledge slip.
           </Text>
           <Text fontSize="sm" color="fg.muted">
-            Matches enter the fight queue automatically after both sides pay palitada and any
+            Matches enter the fight queue automatically after both sides pay pledges and any
             enabled entry fees are cleared.
           </Text>
           <Button asChild size="sm" variant="outline" alignSelf="flex-start">
@@ -613,6 +726,7 @@ export function MatchingBoardClient({
                         canManage={canManage}
                       />
                     ) : null}
+                    <AdjustPledgeForm eventId={eventId} match={match} canManage={canManage} />
                   </Stack>
                 </Flex>
               </Box>

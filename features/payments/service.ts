@@ -31,7 +31,9 @@ import { getPaymentRefundEligibility } from '@/features/payments/refund-eligibil
 import {
   calculateBalance,
   getNextPaymentReference,
+  type RecordMatchBetPartialRefundInput,
   type RecordMatchBetPaymentInput,
+  type RecordMatchBetTopUpInput,
   type RecordPaymentInput,
   type RefundPaymentInput,
   type RefundSelectedPaymentsInput,
@@ -43,6 +45,12 @@ import {
 } from '@/features/payments/tender'
 import type { PaymentStatus } from '@/features/entries/types'
 import type { MatchBetPaymentStatus } from '@/features/matches/types'
+import {
+  BLOCKED_BET_EDIT_QUEUE_STATUSES,
+  getMatchBetAdjustmentDelta,
+  isMatchBetSideSettled,
+  roundMatchMoney,
+} from '@/features/matches/utils'
 import type {
   CashierLookupResult,
   CashierSelectableEntry,
@@ -707,7 +715,7 @@ export async function recordMatchBetPayment(
   if (betError) return { error: betError.message }
   if (!bet) return { error: 'Match bet not found' }
   if (bet.payment_status === 'paid') {
-    return { error: 'Palitada for this side is already paid' }
+    return { error: 'Pledge for this side is already paid' }
   }
   if ((bet.matches as { status?: string } | null)?.status === 'cancelled') {
     return { error: 'This match has been cancelled' }
@@ -715,7 +723,7 @@ export async function recordMatchBetPayment(
 
   const amountDue = Number(bet.amount)
   if (input.amountPaid !== amountDue) {
-    return { error: `Palitada due is ${amountDue.toFixed(2)} — collect the full bet amount` }
+    return { error: `Pledge due is ${amountDue.toFixed(2)} — collect the full bet amount` }
   }
 
   const matchRow = bet.matches as {
@@ -765,7 +773,7 @@ export async function recordMatchBetPayment(
     .single()
 
   if (paymentError || !payment) {
-    return { error: paymentError?.message ?? 'Failed to record palitada payment' }
+    return { error: paymentError?.message ?? 'Failed to record pledge payment' }
   }
 
   const { error: betUpdateError } = await supabase
@@ -773,6 +781,7 @@ export async function recordMatchBetPayment(
     .update({
       payment_status: 'paid',
       payment_id: payment.id,
+      collected_amount: input.amountPaid,
       updated_at: new Date().toISOString(),
     })
     .eq('id', bet.id)
@@ -799,7 +808,7 @@ export async function recordMatchBetPayment(
     eventId: input.eventId,
     amount: input.amountPaid,
     entryType: 'collection',
-    description: `Palitada ${paymentReference} — Fight #${matchRow.fight_number} ${bet.side}`,
+    description: `Pledge ${paymentReference} — Fight #${matchRow.fight_number} ${bet.side}`,
     actorId,
     sourcePaymentId: payment.id,
     cashierSessionId,
@@ -810,6 +819,340 @@ export async function recordMatchBetPayment(
   await tryPromoteMatchToQueue(bet.match_id as string, actorId)
 
   return { paymentId: payment.id }
+}
+
+type MatchBetCashierRow = {
+  id: string
+  match_id: string
+  event_id: string
+  side: string
+  amount: number | string
+  collected_amount: number | string
+  barcode: string
+  payment_status: string
+  payment_id: string | null
+  matches: {
+    fight_number: number
+    status: string
+    queue_status: string | null
+    meron_entry_id: string
+    wala_entry_id: string
+    meron_rooster_id: string
+    wala_rooster_id: string
+  }
+}
+
+function assertMatchBetAdjustmentAllowed(
+  matchRow: MatchBetCashierRow['matches']
+): string | null {
+  if (matchRow.status === 'cancelled' || matchRow.status === 'completed') {
+    return 'This match is no longer open for pledge adjustments'
+  }
+
+  const queueStatus = matchRow.queue_status
+  if (queueStatus && BLOCKED_BET_EDIT_QUEUE_STATUSES.includes(queueStatus as never)) {
+    return `Cannot adjust pledge after fight #${matchRow.fight_number} has been ${queueStatus}`
+  }
+
+  return null
+}
+
+export async function recordMatchBetTopUp(
+  actorId: string,
+  input: RecordMatchBetTopUpInput,
+  cashierSessionId: string
+): Promise<{ error?: string; paymentId?: string }> {
+  const supabase = await createClient()
+
+  const { data: bet, error: betError } = await supabase
+    .from('match_bets')
+    .select(
+      `
+        id,
+        match_id,
+        event_id,
+        side,
+        amount,
+        collected_amount,
+        barcode,
+        payment_status,
+        payment_id,
+        matches (
+          fight_number,
+          status,
+          queue_status,
+          meron_entry_id,
+          wala_entry_id
+        )
+      `
+    )
+    .eq('id', input.matchBetId)
+    .eq('event_id', input.eventId)
+    .maybeSingle()
+
+  if (betError) return { error: betError.message }
+  if (!bet) return { error: 'Match bet not found' }
+
+  const matchRow = bet.matches as MatchBetCashierRow['matches']
+  const adjustmentBlock = assertMatchBetAdjustmentAllowed(matchRow)
+  if (adjustmentBlock) return { error: adjustmentBlock }
+
+  if (bet.payment_status !== 'paid') {
+    return { error: 'Collect the initial pledge before recording a top-up' }
+  }
+
+  const agreedAmount = Number(bet.amount)
+  const collectedAmount = Number(bet.collected_amount)
+  const delta = getMatchBetAdjustmentDelta(agreedAmount, collectedAmount)
+
+  if (delta <= 0) {
+    return { error: 'No additional pledge is due for this side' }
+  }
+
+  if (input.amount !== delta) {
+    return {
+      error: `Additional pledge due is ${delta.toFixed(2)} — collect the full adjustment amount`,
+    }
+  }
+
+  const entryId =
+    bet.side === 'meron' ? matchRow.meron_entry_id : matchRow.wala_entry_id
+
+  const { data: entry, error: entryError } = await supabase
+    .from('entries')
+    .select('id, entry_number, entry_name')
+    .eq('id', entryId)
+    .maybeSingle()
+
+  if (entryError) return { error: entryError.message }
+  if (!entry) return { error: 'Entry not found for this match side' }
+
+  const references = await listPaymentReferencesForEvent(input.eventId)
+  const paymentReference = getNextPaymentReference(input.eventId, references)
+
+  const { data: payment, error: paymentError } = await supabase
+    .from('payments')
+    .insert({
+      payment_reference: paymentReference,
+      entry_id: entryId,
+      event_id: input.eventId,
+      amount_due: input.amount,
+      amount_paid: input.amount,
+      amount_tendered: input.amountTendered ?? null,
+      change_given: input.changeGiven ?? null,
+      balance: 0,
+      payment_method: input.paymentMethod,
+      payment_status: 'paid',
+      payment_category: 'match_bet',
+      match_bet_id: bet.id,
+      match_id: bet.match_id,
+      fight_side: bet.side,
+      received_by: actorId,
+      cashier_session_id: cashierSessionId,
+      paid_at: new Date().toISOString(),
+      notes: input.notes ?? null,
+    })
+    .select('id')
+    .single()
+
+  if (paymentError || !payment) {
+    return { error: paymentError?.message ?? 'Failed to record pledge top-up' }
+  }
+
+  const nextCollected = roundMatchMoney(collectedAmount + input.amount)
+  const { error: betUpdateError } = await supabase
+    .from('match_bets')
+    .update({
+      collected_amount: nextCollected,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bet.id)
+
+  if (betUpdateError) return { error: betUpdateError.message }
+
+  await writeAuditLog({
+    actorId,
+    action: 'payment.match_bet.top_up',
+    entityType: 'payment',
+    entityId: payment.id,
+    newValues: {
+      payment_reference: paymentReference,
+      match_id: bet.match_id,
+      fight_number: matchRow.fight_number,
+      side: bet.side,
+      bet_barcode: bet.barcode,
+      amount_paid: input.amount,
+      collected_amount: nextCollected,
+      cashier_session_id: cashierSessionId,
+    },
+  })
+
+  const fundResult = await postRevolvingFundLedgerEntry({
+    eventId: input.eventId,
+    amount: input.amount,
+    entryType: 'collection',
+    description: `Pledge top-up ${paymentReference} — Fight #${matchRow.fight_number} ${bet.side}`,
+    actorId,
+    sourcePaymentId: payment.id,
+    cashierSessionId,
+  })
+  if (fundResult.error) return { error: fundResult.error }
+
+  const { tryPromoteMatchToQueue } = await import('@/features/matches/promotion')
+  await tryPromoteMatchToQueue(bet.match_id as string, actorId)
+
+  return { paymentId: payment.id }
+}
+
+export async function recordMatchBetPartialRefund(
+  actorId: string,
+  input: RecordMatchBetPartialRefundInput,
+  cashierSessionId: string
+): Promise<{ error?: string; paymentId?: string }> {
+  const supabase = await createClient()
+
+  const { data: bet, error: betError } = await supabase
+    .from('match_bets')
+    .select(
+      `
+        id,
+        match_id,
+        event_id,
+        side,
+        amount,
+        collected_amount,
+        barcode,
+        payment_status,
+        payment_id,
+        matches (
+          fight_number,
+          status,
+          queue_status,
+          meron_entry_id,
+          wala_entry_id
+        )
+      `
+    )
+    .eq('id', input.matchBetId)
+    .eq('event_id', input.eventId)
+    .maybeSingle()
+
+  if (betError) return { error: betError.message }
+  if (!bet) return { error: 'Match bet not found' }
+
+  const matchRow = bet.matches as MatchBetCashierRow['matches']
+  const adjustmentBlock = assertMatchBetAdjustmentAllowed(matchRow)
+  if (adjustmentBlock) return { error: adjustmentBlock }
+
+  if (bet.payment_status !== 'paid') {
+    return { error: 'Nothing has been collected for this side yet' }
+  }
+
+  const agreedAmount = Number(bet.amount)
+  const collectedAmount = Number(bet.collected_amount)
+  const delta = getMatchBetAdjustmentDelta(agreedAmount, collectedAmount)
+
+  if (delta >= 0) {
+    return { error: 'No pledge refund is due for this side' }
+  }
+
+  const refundDue = roundMatchMoney(Math.abs(delta))
+  if (input.amount !== refundDue) {
+    return {
+      error: `Pledge refund due is ${refundDue.toFixed(2)} — refund the full adjustment amount`,
+    }
+  }
+
+  const { data: payments, error: paymentsError } = await supabase
+    .from('payments')
+    .select('id, amount_paid, refunded_amount, payment_status, payment_reference')
+    .eq('match_bet_id', bet.id)
+    .eq('payment_status', 'paid')
+    .gt('amount_paid', 0)
+    .order('paid_at', { ascending: false })
+
+  if (paymentsError) return { error: paymentsError.message }
+  if (!payments?.length) {
+    return { error: 'No pledge payment rows found to refund' }
+  }
+
+  let remaining = refundDue
+  for (const paymentRow of payments) {
+    if (remaining <= 0) break
+
+    const available = roundMatchMoney(Number(paymentRow.amount_paid))
+    if (available <= 0) continue
+
+    const refundPortion = roundMatchMoney(Math.min(available, remaining))
+    const nextPaid = roundMatchMoney(available - refundPortion)
+    const nextRefunded = roundMatchMoney(
+      Number(paymentRow.refunded_amount ?? 0) + refundPortion
+    )
+
+    const { error: paymentUpdateError } = await supabase
+      .from('payments')
+      .update({
+        amount_paid: nextPaid,
+        refunded_amount: nextRefunded,
+        payment_status: nextPaid <= 0 ? 'refunded' : 'paid',
+        balance: nextPaid <= 0 ? Number(bet.amount) : 0,
+        ...clearedTenderFieldsForRefund(),
+      })
+      .eq('id', paymentRow.id)
+
+    if (paymentUpdateError) return { error: paymentUpdateError.message }
+
+    await writeAuditLog({
+      actorId,
+      action: 'payment.match_bet.partial_refund',
+      entityType: 'payment',
+      entityId: paymentRow.id as string,
+      newValues: {
+        refund_amount: refundPortion,
+        reason: input.reason,
+        match_id: bet.match_id,
+        fight_number: matchRow.fight_number,
+        side: bet.side,
+      },
+    })
+
+    const fundResult = await postRevolvingFundLedgerEntry({
+      eventId: input.eventId,
+      amount: -refundPortion,
+      entryType: 'refund',
+      description: `Pledge adjustment refund ${paymentRow.payment_reference} — ${input.reason}`,
+      actorId,
+      sourcePaymentId: paymentRow.id as string,
+      cashierSessionId,
+    })
+    if (fundResult.error) return { error: fundResult.error }
+
+    remaining = roundMatchMoney(remaining - refundPortion)
+  }
+
+  if (remaining > 0) {
+    return { error: 'Could not refund the full pledge adjustment amount' }
+  }
+
+  const nextCollected = roundMatchMoney(collectedAmount - refundDue)
+  const { error: betUpdateError } = await supabase
+    .from('match_bets')
+    .update({
+      collected_amount: nextCollected,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bet.id)
+
+  if (betUpdateError) return { error: betUpdateError.message }
+
+  if (
+    isMatchBetSideSettled(agreedAmount, nextCollected, bet.payment_status as MatchBetPaymentStatus)
+  ) {
+    const { tryPromoteMatchToQueue } = await import('@/features/matches/promotion')
+    await tryPromoteMatchToQueue(bet.match_id as string, actorId)
+  }
+
+  return { paymentId: bet.payment_id ?? undefined }
 }
 
 export async function getPaymentForEvent(
@@ -1090,11 +1433,11 @@ export async function refundPayment(
     const matchBetId = payment.match_bet_id as string | null
     const matchId = payment.match_id as string | null
     if (!matchBetId || !matchId) {
-      return { error: 'Palitada payment is missing match bet linkage' }
+      return { error: 'Pledge payment is missing match bet linkage' }
     }
 
-    const { revertPalitadaPaymentSideEffects } = await import('@/features/matches/promotion')
-    const sideEffectResult = await revertPalitadaPaymentSideEffects(
+    const { revertPledgePaymentSideEffects } = await import('@/features/matches/promotion')
+    const sideEffectResult = await revertPledgePaymentSideEffects(
       matchBetId,
       matchId,
       actorId
@@ -1747,11 +2090,14 @@ export async function resolveMatchBetCashierTarget(
         event_id,
         side,
         amount,
+        collected_amount,
         barcode,
         payment_status,
+        payment_id,
         matches (
           fight_number,
           status,
+          queue_status,
           meron_entry_id,
           wala_entry_id,
           meron_rooster_id,
@@ -1764,7 +2110,7 @@ export async function resolveMatchBetCashierTarget(
     .maybeSingle()
 
   if (betError) return { error: betError.message }
-  if (!bet) return { error: `No palitada slip found for barcode ${barcode}` }
+  if (!bet) return { error: `No pledge slip found for barcode ${barcode}` }
 
   return buildMatchBetCashierTarget(eventId, bet as MatchBetWithMatchJoin)
 }
@@ -1774,11 +2120,14 @@ type MatchBetWithMatchJoin = {
   match_id: string
   side: string
   amount: number | string
+  collected_amount: number | string
   barcode: string
   payment_status: string
+  payment_id: string | null
   matches: {
     fight_number: number
     status: string
+    queue_status: string | null
     meron_entry_id: string
     wala_entry_id: string
     meron_rooster_id: string
@@ -1820,6 +2169,10 @@ async function buildMatchBetCashierTarget(
     return { error: duesResult.error ?? 'Failed to compute entry dues' }
   }
 
+  const betAmount = Number(bet.amount)
+  const collectedAmount = Number(bet.collected_amount ?? 0)
+  const adjustmentDelta = getMatchBetAdjustmentDelta(betAmount, collectedAmount)
+
   return {
     matchBet: {
       matchBetId: bet.id,
@@ -1828,8 +2181,11 @@ async function buildMatchBetCashierTarget(
       fightNumber: Number(matchRow.fight_number),
       side: bet.side as 'meron' | 'wala',
       betBarcode: bet.barcode,
-      betAmount: Number(bet.amount),
+      betAmount,
+      collectedAmount,
+      adjustmentDelta,
       betPaymentStatus: bet.payment_status as MatchBetPaymentStatus,
+      primaryPaymentId: bet.payment_id,
       entryId,
       entryNumber: entryResult.entry.entry_number,
       entryName: entryResult.entry.entry_name,
@@ -1870,7 +2226,7 @@ export async function resolveMatchBetByRoosterRegistrationId(
 
   const { data: bet, error: betError } = await supabase
     .from('match_bets')
-    .select('id, match_id, side, amount, barcode, payment_status')
+    .select('id, match_id, side, amount, collected_amount, barcode, payment_status, payment_id')
     .eq('match_id', match.id)
     .eq('side', side)
     .eq('payment_status', 'unpaid')
@@ -1884,6 +2240,7 @@ export async function resolveMatchBetByRoosterRegistrationId(
     matches: {
       fight_number: match.fight_number,
       status: match.status,
+      queue_status: null,
       meron_entry_id: match.meron_entry_id,
       wala_entry_id: match.wala_entry_id,
       meron_rooster_id: match.meron_rooster_id,
@@ -1944,13 +2301,13 @@ export async function resolveCashierTarget(
       return { error: `No rooster found for barcode ${classified.value}` }
     }
 
-    const unpaidPalitada = await resolveMatchBetByRoosterRegistrationId(
+    const unpaidPledge = await resolveMatchBetByRoosterRegistrationId(
       eventId,
       registration.id
     )
-    if (unpaidPalitada.error) return { error: unpaidPalitada.error }
-    if (unpaidPalitada.matchBet) {
-      return { matchBet: unpaidPalitada.matchBet }
+    if (unpaidPledge.error) return { error: unpaidPledge.error }
+    if (unpaidPledge.matchBet) {
+      return { matchBet: unpaidPledge.matchBet }
     }
 
     const entryResult = await loadEntryCashierRow(eventId, registration.entry_id)

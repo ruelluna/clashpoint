@@ -35,7 +35,7 @@ function MatchBetSlipContent(props: MatchBetBarcodeSlipProps) {
     <>
       <Stack gap={1} className="print-slip-only">
         <Text fontSize="2xl" fontWeight="bold" textAlign="center">
-          PALITADA
+          PLEDGE
         </Text>
         <Text fontSize="sm" textAlign="center" fontWeight="semibold">
           Fight #{props.fightNumber} · {FIGHT_SIDE_LABELS[props.side]}
@@ -67,7 +67,7 @@ function MatchBetSlipContent(props: MatchBetBarcodeSlipProps) {
 export function MatchBetBarcodeSlip(props: MatchBetBarcodeSlipProps) {
   return (
     <PrintSlipLayout
-      title={`Palitada — ${FIGHT_SIDE_LABELS[props.side]}`}
+      title={`Pledge — ${FIGHT_SIDE_LABELS[props.side]}`}
       eventName={props.eventName}
     >
       <MatchBetSlipContent {...props} />

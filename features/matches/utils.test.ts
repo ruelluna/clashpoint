@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  canEditMatchBetAmounts,
   canEditMatchBets,
   canLockMatchList,
   collectUsedRoosterIds,
+  getFightQueueAdvanceBlockReason,
+  getMatchBetAdjustmentDelta,
+  isMatchBetSideSettled,
   isMatchQueueReady,
   isRoosterEligibleForMatching,
   isValidFightQueueTransition,
@@ -155,21 +159,69 @@ describe('collectUsedRoosterIds', () => {
 })
 
 describe('isMatchQueueReady', () => {
-  const paidSide = { betPaymentStatus: 'paid' as const, entryOutstanding: 0 }
-  const unpaidBet = { betPaymentStatus: 'unpaid' as const, entryOutstanding: 0 }
-  const unpaidFees = { betPaymentStatus: 'paid' as const, entryOutstanding: 100 }
+  const paidSide = {
+    betPaymentStatus: 'paid' as const,
+    entryOutstanding: 0,
+    agreedAmount: 500,
+    collectedAmount: 500,
+  }
+  const unpaidBet = {
+    betPaymentStatus: 'unpaid' as const,
+    entryOutstanding: 0,
+    agreedAmount: 500,
+    collectedAmount: 0,
+  }
+  const unpaidFees = {
+    betPaymentStatus: 'paid' as const,
+    entryOutstanding: 100,
+    agreedAmount: 500,
+    collectedAmount: 500,
+  }
+  const pendingAdjustment = {
+    betPaymentStatus: 'paid' as const,
+    entryOutstanding: 0,
+    agreedAmount: 750,
+    collectedAmount: 500,
+  }
 
-  it('requires both sides paid with no entry fees outstanding', () => {
+  it('requires both sides paid, settled, with no entry fees outstanding', () => {
     expect(isMatchQueueReady(paidSide, paidSide)).toBe(true)
     expect(isMatchQueueReady(paidSide, unpaidBet)).toBe(false)
     expect(isMatchQueueReady(unpaidFees, paidSide)).toBe(false)
+    expect(isMatchQueueReady(pendingAdjustment, paidSide)).toBe(false)
+  })
+})
+
+describe('pledge settlement helpers', () => {
+  it('computes adjustment delta from agreed minus collected', () => {
+    expect(getMatchBetAdjustmentDelta(750, 500)).toBe(250)
+    expect(getMatchBetAdjustmentDelta(400, 500)).toBe(-100)
+  })
+
+  it('treats paid sides as settled only when collected matches agreed', () => {
+    expect(isMatchBetSideSettled(500, 500, 'paid')).toBe(true)
+    expect(isMatchBetSideSettled(750, 500, 'paid')).toBe(false)
+    expect(isMatchBetSideSettled(500, 0, 'unpaid')).toBe(false)
+  })
+
+  it('blocks call when scheduled match has pending adjustments', () => {
+    expect(
+      getFightQueueAdvanceBlockReason(
+        'scheduled',
+        'called',
+        { betPaymentStatus: 'paid', entryOutstanding: 0, agreedAmount: 750, collectedAmount: 500 },
+        { betPaymentStatus: 'paid', entryOutstanding: 0, agreedAmount: 500, collectedAmount: 500 }
+      )
+    ).toMatch(/Settle pledge adjustments/)
   })
 })
 
 describe('canEditMatchBets', () => {
-  it('blocks edits after any bet is paid or match is queued', () => {
+  it('allows edits before call and blocks after the fight is called', () => {
     expect(canEditMatchBets('draft', ['unpaid', 'unpaid'])).toBe(true)
-    expect(canEditMatchBets('draft', ['paid', 'unpaid'])).toBe(false)
-    expect(canEditMatchBets('locked', ['unpaid', 'unpaid'])).toBe(false)
+    expect(canEditMatchBets('draft', ['paid', 'unpaid'])).toBe(true)
+    expect(canEditMatchBets('locked', ['paid', 'paid'], 'scheduled')).toBe(true)
+    expect(canEditMatchBetAmounts('locked', 'called')).toBe(false)
+    expect(canEditMatchBets('locked', ['paid', 'paid'], 'called')).toBe(false)
   })
 })

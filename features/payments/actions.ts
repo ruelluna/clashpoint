@@ -4,14 +4,18 @@ import { revalidatePath } from 'next/cache'
 
 import { requireOpenCashierSession } from '@/features/cashier-sessions/service'
 import {
+  recordMatchBetPartialRefundSchema,
   recordMatchBetPaymentSchema,
+  recordMatchBetTopUpSchema,
   recordPaymentSchema,
   refundPaymentSchema,
   refundSelectedPaymentsSchema,
 } from '@/features/payments/schema'
 import {
   getCashierTargetByEntryId,
+  recordMatchBetPartialRefund,
   recordMatchBetPayment,
+  recordMatchBetTopUp,
   recordPayment,
   refundPayment,
   refundSelectedPayments,
@@ -139,9 +143,88 @@ export async function recordMatchBetPaymentAction(
   revalidateCashierPaths(parsed.data.eventId)
 
   return {
-    success: 'Palitada payment recorded',
+    success: 'Pledge payment recorded',
     paymentId: result.paymentId,
     changeGiven: parsed.data.changeGiven,
+  }
+}
+
+export async function recordMatchBetTopUpAction(
+  _prev: PaymentActionState,
+  formData: FormData
+): Promise<PaymentActionState> {
+  const profile = await requireOperationalPermission('payments.manage')
+
+  const parsed = recordMatchBetTopUpSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchBetId: formData.get('matchBetId'),
+    amount: formData.get('amount'),
+    amountTendered: formData.get('amountTendered'),
+    paymentMethod: formData.get('paymentMethod'),
+    notes: formData.get('notes')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const sessionResult = await requireOpenCashierSession(profile.id, parsed.data.eventId)
+  if (sessionResult.error || !sessionResult.session) {
+    return { error: sessionResult.error ?? 'Open a cashier session first' }
+  }
+
+  const result = await recordMatchBetTopUp(
+    profile.id,
+    parsed.data,
+    sessionResult.session.id
+  )
+  if (result.error) return { error: result.error }
+
+  revalidateCashierPaths(parsed.data.eventId)
+
+  return {
+    success: 'Additional pledge recorded',
+    paymentId: result.paymentId,
+    changeGiven: parsed.data.changeGiven,
+  }
+}
+
+export async function recordMatchBetPartialRefundAction(
+  _prev: PaymentActionState,
+  formData: FormData
+): Promise<PaymentActionState> {
+  const profile = await requireOperationalPermission('payments.manage')
+
+  const parsed = recordMatchBetPartialRefundSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchBetId: formData.get('matchBetId'),
+    amount: formData.get('amount'),
+    paymentMethod: formData.get('paymentMethod'),
+    reason: formData.get('reason')?.toString().trim(),
+    notes: formData.get('notes')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const sessionResult = await requireOpenCashierSession(profile.id, parsed.data.eventId)
+  if (sessionResult.error || !sessionResult.session) {
+    return { error: sessionResult.error ?? 'Open a cashier session first' }
+  }
+
+  const result = await recordMatchBetPartialRefund(
+    profile.id,
+    parsed.data,
+    sessionResult.session.id
+  )
+  if (result.error) return { error: result.error }
+
+  revalidateCashierPaths(parsed.data.eventId)
+
+  return {
+    success: 'Pledge adjustment refund recorded',
+    paymentId: result.paymentId,
   }
 }
 

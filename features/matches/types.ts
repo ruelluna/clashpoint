@@ -44,6 +44,7 @@ export type MatchSideDetails = {
   band_number: string
   weight: number | null
   bet_amount: number
+  bet_collected_amount: number
   bet_barcode: string | null
   bet_payment_status: MatchBetPaymentStatus
 }

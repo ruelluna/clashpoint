@@ -182,8 +182,71 @@ export const recordMatchBetPaymentSchema = z
     }
   })
 
+const matchBetCashAdjustmentBaseSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    matchBetId: z.string().uuid(),
+    amount: z.coerce.number().positive('Amount must be greater than zero'),
+    paymentMethod: paymentMethodSchema,
+    notes: z
+      .string()
+      .max(2000)
+      .optional()
+      .or(z.literal(''))
+      .transform((value) => value || undefined),
+  })
+  .refine((data) => data.paymentMethod === 'cash', {
+    message: 'Only cash payments are accepted',
+    path: ['paymentMethod'],
+  })
+
+export const recordMatchBetTopUpSchema = matchBetCashAdjustmentBaseSchema
+  .extend({
+    amountTendered: z.coerce.number().nonnegative().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.amountTendered == null || Number.isNaN(data.amountTendered)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Cash tendered is required for cash payments',
+        path: ['amountTendered'],
+      })
+      return
+    }
+
+    const changeResult = computeCashChange(data.amount, data.amountTendered)
+    if (!changeResult.ok) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: changeResult.error,
+        path: ['amountTendered'],
+      })
+    }
+  })
+  .transform((data) => {
+    const changeResult = computeCashChange(data.amount, data.amountTendered ?? 0)
+    return {
+      eventId: data.eventId,
+      matchBetId: data.matchBetId,
+      amount: roundMoney(data.amount),
+      paymentMethod: data.paymentMethod,
+      notes: data.notes,
+      amountTendered:
+        data.amountTendered != null ? roundMoney(data.amountTendered) : undefined,
+      changeGiven: changeResult.ok ? changeResult.changeGiven : undefined,
+    }
+  })
+
+export const recordMatchBetPartialRefundSchema = matchBetCashAdjustmentBaseSchema.extend({
+  reason: z.string().min(3, 'Reason must be at least 3 characters').max(500),
+})
+
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>
 export type RecordMatchBetPaymentInput = z.infer<typeof recordMatchBetPaymentSchema>
+export type RecordMatchBetTopUpInput = z.infer<typeof recordMatchBetTopUpSchema>
+export type RecordMatchBetPartialRefundInput = z.infer<
+  typeof recordMatchBetPartialRefundSchema
+>
 export type RefundPaymentInput = z.infer<typeof refundPaymentSchema>
 export type RefundSelectedPaymentsInput = z.infer<typeof refundSelectedPaymentsSchema>
 
@@ -207,7 +270,7 @@ export const PAYMENT_CATEGORY_LABELS: Record<
   cash_bond: 'Cash bond',
   adjustment: 'Fee adjustment',
   legacy: 'Combined (legacy)',
-  match_bet: 'Palitada / match bet',
+  match_bet: 'Pledge / match bet',
 }
 
 export function calculateBalance(

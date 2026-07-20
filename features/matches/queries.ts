@@ -49,6 +49,7 @@ type BetRow = {
   match_id: string
   side: 'meron' | 'wala'
   amount: number
+  collected_amount: number
   barcode: string
   payment_status: MatchBetPaymentStatus
 }
@@ -79,6 +80,7 @@ type RoosterQueryRow = {
 
 type SideBetDetails = {
   amount: number
+  collected_amount: number
   barcode: string | null
   payment_status: MatchBetPaymentStatus
 }
@@ -88,8 +90,8 @@ function mapMatchRow(
   betsByMatch: Map<string, { meron: SideBetDetails; wala: SideBetDetails }>
 ): MatchListItem {
   const bets = betsByMatch.get(row.id) ?? {
-    meron: { amount: 0, barcode: null, payment_status: 'unpaid' as const },
-    wala: { amount: 0, barcode: null, payment_status: 'unpaid' as const },
+    meron: { amount: 0, collected_amount: 0, barcode: null, payment_status: 'unpaid' as const },
+    wala: { amount: 0, collected_amount: 0, barcode: null, payment_status: 'unpaid' as const },
   }
   return {
     id: row.id,
@@ -108,6 +110,7 @@ function mapMatchRow(
       band_number: row.meron_rooster?.band_number ?? '—',
       weight: row.meron_weight != null ? Number(row.meron_weight) : null,
       bet_amount: bets.meron.amount,
+      bet_collected_amount: bets.meron.collected_amount,
       bet_barcode: bets.meron.barcode,
       bet_payment_status: bets.meron.payment_status,
     },
@@ -121,6 +124,7 @@ function mapMatchRow(
       band_number: row.wala_rooster?.band_number ?? '—',
       weight: row.wala_weight != null ? Number(row.wala_weight) : null,
       bet_amount: bets.wala.amount,
+      bet_collected_amount: bets.wala.collected_amount,
       bet_barcode: bets.wala.barcode,
       bet_payment_status: bets.wala.payment_status,
     },
@@ -136,7 +140,7 @@ async function loadBetsByMatchIds(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('match_bets')
-    .select('match_id, side, amount, barcode, payment_status')
+    .select('match_id, side, amount, collected_amount, barcode, payment_status')
     .in('match_id', matchIds)
 
   if (error) throw error
@@ -144,12 +148,13 @@ async function loadBetsByMatchIds(
   for (const row of (data ?? []) as BetRow[]) {
     const matchId = row.match_id
     const current = map.get(matchId) ?? {
-      meron: { amount: 0, barcode: null, payment_status: 'unpaid' as const },
-      wala: { amount: 0, barcode: null, payment_status: 'unpaid' as const },
+      meron: { amount: 0, collected_amount: 0, barcode: null, payment_status: 'unpaid' as const },
+      wala: { amount: 0, collected_amount: 0, barcode: null, payment_status: 'unpaid' as const },
     }
     if (row.side === 'meron') {
       current.meron = {
         amount: Number(row.amount),
+        collected_amount: Number(row.collected_amount),
         barcode: row.barcode,
         payment_status: row.payment_status,
       }
@@ -157,6 +162,7 @@ async function loadBetsByMatchIds(
     if (row.side === 'wala') {
       current.wala = {
         amount: Number(row.amount),
+        collected_amount: Number(row.collected_amount),
         barcode: row.barcode,
         payment_status: row.payment_status,
       }

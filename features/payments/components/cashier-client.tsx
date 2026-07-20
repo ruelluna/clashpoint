@@ -40,7 +40,9 @@ import type { PaymentCategory } from '@/features/payments/fee-calc'
 import {
   getCashierDuesAction,
   lookupCashierTargetAction,
+  recordMatchBetPartialRefundAction,
   recordMatchBetPaymentAction,
+  recordMatchBetTopUpAction,
   recordPaymentAction,
   type PaymentActionState,
 } from '@/features/payments/actions'
@@ -138,6 +140,14 @@ export function CashierClient({
 
   const [betRecordState, betRecordAction, betRecordPending] = useActionState(
     recordMatchBetPaymentAction,
+    initialState
+  )
+  const [betTopUpState, betTopUpAction, betTopUpPending] = useActionState(
+    recordMatchBetTopUpAction,
+    initialState
+  )
+  const [betRefundState, betRefundAction, betRefundPending] = useActionState(
+    recordMatchBetPartialRefundAction,
     initialState
   )
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null)
@@ -443,7 +453,7 @@ export function CashierClient({
               label="Or select entry"
               helpText={
                 selectableEntries.length === 0
-                  ? 'All entries are fully paid. Use scan/search to look up an owner or collect palitada via BET- barcode.'
+                  ? 'All entries are fully paid. Use scan/search to look up an owner or collect a pledge via BET- barcode.'
                   : 'Only entries with outstanding dues appear here.'
               }
             >
@@ -497,7 +507,7 @@ export function CashierClient({
       </PanelCard>
 
       {activeMatchBet ? (
-        <PanelCard title="Palitada slip">
+        <PanelCard title="Pledge slip">
           <Stack gap={LAYOUT_GAP.form}>
             <Box>
               <Text fontWeight="medium">
@@ -513,7 +523,7 @@ export function CashierClient({
                 {activeMatchBet.betBarcode}
               </Text>
               <Badge mt={2} colorPalette={activeMatchBet.betPaymentStatus === 'paid' ? 'green' : 'gray'}>
-                Palitada {MATCH_BET_PAYMENT_STATUS_LABELS[activeMatchBet.betPaymentStatus]}
+                Pledge {MATCH_BET_PAYMENT_STATUS_LABELS[activeMatchBet.betPaymentStatus]}
               </Badge>
             </Box>
 
@@ -526,8 +536,8 @@ export function CashierClient({
                   <input type="hidden" name="paymentMethod" value="cash" />
 
                   <Flex justify="space-between" fontWeight="semibold">
-                    <Text>Palitada due</Text>
-                    <Text data-testid="cashier-palitada-due">
+                    <Text>Pledge due</Text>
+                    <Text data-testid="cashier-pledge-due">
                       {formatCurrency(activeMatchBet.betAmount)}
                     </Text>
                   </Flex>
@@ -544,7 +554,7 @@ export function CashierClient({
                         const parsed = Number.parseFloat(event.currentTarget.value)
                         setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
                       }}
-                      data-testid="cashier-palitada-tendered"
+                      data-testid="cashier-pledge-tendered"
                     />
                   </FormField>
 
@@ -582,15 +592,141 @@ export function CashierClient({
                     loading={betRecordPending}
                     alignSelf="flex-start"
                     disabled={!isCashierTenderValid(activeMatchBet.betAmount, amountTendered)}
-                    data-testid="cashier-record-palitada"
+                    data-testid="cashier-record-pledge"
                   >
-                    Collect palitada
+                    Collect pledge
+                  </Button>
+                </Stack>
+              </form>
+            ) : activeMatchBet.betPaymentStatus === 'paid' &&
+              activeMatchBet.adjustmentDelta > 0 &&
+              terminalReady ? (
+              <form action={betTopUpAction}>
+                <Stack gap={LAYOUT_GAP.form} maxW="xl">
+                  <input type="hidden" name="eventId" value={eventId} />
+                  <input type="hidden" name="matchBetId" value={activeMatchBet.matchBetId} />
+                  <input
+                    type="hidden"
+                    name="amount"
+                    value={String(activeMatchBet.adjustmentDelta)}
+                  />
+                  <input type="hidden" name="paymentMethod" value="cash" />
+
+                  <Flex justify="space-between">
+                    <Text>Agreed pledge</Text>
+                    <Text>{formatCurrency(activeMatchBet.betAmount)}</Text>
+                  </Flex>
+                  <Flex justify="space-between">
+                    <Text>Collected so far</Text>
+                    <Text>{formatCurrency(activeMatchBet.collectedAmount)}</Text>
+                  </Flex>
+                  <Flex justify="space-between" fontWeight="semibold">
+                    <Text>Additional due</Text>
+                    <Text data-testid="cashier-pledge-adjustment-due">
+                      {formatCurrency(activeMatchBet.adjustmentDelta)}
+                    </Text>
+                  </Flex>
+
+                  <FormField label="Cash tendered" required>
+                    <Input
+                      name="amountTendered"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      value={amountTendered > 0 ? amountTendered : ''}
+                      onChange={(event) => {
+                        const parsed = Number.parseFloat(event.currentTarget.value)
+                        setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
+                      }}
+                    />
+                  </FormField>
+
+                  {betTopUpState.error ? (
+                    <Text fontSize="sm" color="red.500">
+                      {betTopUpState.error}
+                    </Text>
+                  ) : null}
+                  {betTopUpState.success ? (
+                    <Text fontSize="sm" color="green.600">
+                      {betTopUpState.success}
+                    </Text>
+                  ) : null}
+
+                  <Button
+                    type="submit"
+                    loading={betTopUpPending}
+                    alignSelf="flex-start"
+                    disabled={
+                      !isCashierTenderValid(activeMatchBet.adjustmentDelta, amountTendered)
+                    }
+                    data-testid="cashier-record-pledge-top-up"
+                  >
+                    Collect additional pledge
+                  </Button>
+                </Stack>
+              </form>
+            ) : activeMatchBet.betPaymentStatus === 'paid' &&
+              activeMatchBet.adjustmentDelta < 0 &&
+              terminalReady ? (
+              <form action={betRefundAction}>
+                <Stack gap={LAYOUT_GAP.form} maxW="xl">
+                  <input type="hidden" name="eventId" value={eventId} />
+                  <input type="hidden" name="matchBetId" value={activeMatchBet.matchBetId} />
+                  <input
+                    type="hidden"
+                    name="amount"
+                    value={String(Math.abs(activeMatchBet.adjustmentDelta))}
+                  />
+                  <input type="hidden" name="paymentMethod" value="cash" />
+
+                  <Flex justify="space-between">
+                    <Text>Agreed pledge</Text>
+                    <Text>{formatCurrency(activeMatchBet.betAmount)}</Text>
+                  </Flex>
+                  <Flex justify="space-between">
+                    <Text>Collected so far</Text>
+                    <Text>{formatCurrency(activeMatchBet.collectedAmount)}</Text>
+                  </Flex>
+                  <Flex justify="space-between" fontWeight="semibold">
+                    <Text>Refund due</Text>
+                    <Text data-testid="cashier-pledge-adjustment-refund">
+                      {formatCurrency(Math.abs(activeMatchBet.adjustmentDelta))}
+                    </Text>
+                  </Flex>
+
+                  <FormField label="Reason" required>
+                    <Input
+                      name="reason"
+                      required
+                      placeholder="Pledge amount reduced before call"
+                    />
+                  </FormField>
+
+                  {betRefundState.error ? (
+                    <Text fontSize="sm" color="red.500">
+                      {betRefundState.error}
+                    </Text>
+                  ) : null}
+                  {betRefundState.success ? (
+                    <Text fontSize="sm" color="green.600">
+                      {betRefundState.success}
+                    </Text>
+                  ) : null}
+
+                  <Button
+                    type="submit"
+                    loading={betRefundPending}
+                    alignSelf="flex-start"
+                    data-testid="cashier-record-pledge-refund"
+                  >
+                    Refund pledge difference
                   </Button>
                 </Stack>
               </form>
             ) : activeMatchBet.betPaymentStatus === 'paid' ? (
               <Text fontSize="sm" color="fg.muted">
-                Palitada already collected for this slip.
+                Pledge already collected for this slip.
               </Text>
             ) : null}
           </Stack>
