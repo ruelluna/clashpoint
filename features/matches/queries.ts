@@ -225,7 +225,7 @@ export async function listFightQueueByEvent(eventId: string): Promise<MatchListI
     .from('matches')
     .select(MATCH_SELECT)
     .eq('event_id', eventId)
-    .in('status', ['locked', 'ready', 'ongoing'])
+    .in('status', ['queued', 'at_pit', 'fighting'])
     .not('queue_status', 'is', null)
     .order('fight_number', { ascending: true })
 
@@ -391,7 +391,7 @@ export async function listOngoingFightQueueSummaries(): Promise<FightQueueSummar
     .from('matches')
     .select('event_id, fight_number, queue_status')
     .in('event_id', eventIds)
-    .in('status', ['locked', 'ready', 'ongoing'])
+    .in('status', ['queued', 'at_pit', 'fighting'])
 
   if (matchesError) throw matchesError
 
@@ -407,21 +407,25 @@ export async function listOngoingFightQueueSummaries(): Promise<FightQueueSummar
 
   return events.map((event) => {
     const eventMatches = matchesByEvent.get(event.id) ?? []
-    const scheduled_count = eventMatches.filter((m) => m.queue_status === 'scheduled').length
-    const called_count = eventMatches.filter((m) => m.queue_status === 'called').length
-    const ready_count = eventMatches.filter((m) => m.queue_status === 'ready').length
-    const ongoing = eventMatches.find((m) => m.queue_status === 'ongoing')
+    const waiting_count = eventMatches.filter((m) => m.queue_status === 'waiting').length
+    const handlers_called_count = eventMatches.filter(
+      (m) => m.queue_status === 'handlers_called'
+    ).length
+    const birds_at_pit_count = eventMatches.filter(
+      (m) => m.queue_status === 'birds_at_pit'
+    ).length
+    const fighting = eventMatches.find((m) => m.queue_status === 'fighting')
 
     return {
       event_id: event.id,
       event_name: event.name,
       venue: event.venue,
       total_fights: eventMatches.length,
-      scheduled_count,
-      called_count,
-      ready_count,
-      ongoing_count: ongoing ? 1 : 0,
-      current_fight_number: ongoing?.fight_number ?? null,
+      waiting_count,
+      handlers_called_count,
+      birds_at_pit_count,
+      fighting_count: fighting ? 1 : 0,
+      current_fight_number: fighting?.fight_number ?? null,
     }
   })
 }

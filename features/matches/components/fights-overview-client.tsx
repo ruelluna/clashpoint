@@ -4,6 +4,7 @@ import { Badge, Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
 import { LAYOUT_GAP, PageHeader, PageStack, PanelCard } from '@/components/dashboard'
+import { FIGHT_QUEUE_STATUS_LABELS } from '@/features/matches/schema'
 import type { FightQueueSummary } from '@/features/matches/types'
 
 type FightsOverviewClientProps = {
@@ -51,20 +52,20 @@ export function FightsOverviewClient({ summaries }: FightsOverviewClientProps) {
 
                 <Flex gap={4} fontSize="sm" wrap="wrap">
                   <Box>
-                    <Text color="fg.muted">Scheduled</Text>
-                    <Text fontWeight="medium">{summary.scheduled_count}</Text>
+                    <Text color="fg.muted">{FIGHT_QUEUE_STATUS_LABELS.waiting}</Text>
+                    <Text fontWeight="medium">{summary.waiting_count}</Text>
                   </Box>
                   <Box>
-                    <Text color="fg.muted">Called</Text>
-                    <Text fontWeight="medium">{summary.called_count}</Text>
+                    <Text color="fg.muted">{FIGHT_QUEUE_STATUS_LABELS.handlers_called}</Text>
+                    <Text fontWeight="medium">{summary.handlers_called_count}</Text>
                   </Box>
                   <Box>
-                    <Text color="fg.muted">Ready</Text>
-                    <Text fontWeight="medium">{summary.ready_count}</Text>
+                    <Text color="fg.muted">{FIGHT_QUEUE_STATUS_LABELS.birds_at_pit}</Text>
+                    <Text fontWeight="medium">{summary.birds_at_pit_count}</Text>
                   </Box>
                   <Box>
-                    <Text color="fg.muted">Ongoing</Text>
-                    <Text fontWeight="medium">{summary.ongoing_count}</Text>
+                    <Text color="fg.muted">{FIGHT_QUEUE_STATUS_LABELS.fighting}</Text>
+                    <Text fontWeight="medium">{summary.fighting_count}</Text>
                   </Box>
                 </Flex>
 

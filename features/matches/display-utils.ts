@@ -9,10 +9,10 @@ export function matchStatusColorPalette(status: MatchStatus): StatusColorPalette
       return 'orange'
     case 'confirmed':
       return 'blue'
-    case 'locked':
+    case 'queued':
       return 'purple'
-    case 'ready':
-    case 'ongoing':
+    case 'at_pit':
+    case 'fighting':
       return 'green'
     case 'cancelled':
       return 'red'
@@ -25,13 +25,13 @@ export function fightQueueStatusColorPalette(
   status: FightQueueStatus | null | undefined
 ): StatusColorPalette {
   switch (status) {
-    case 'scheduled':
+    case 'waiting':
       return 'gray'
-    case 'called':
+    case 'handlers_called':
       return 'blue'
-    case 'ready':
+    case 'birds_at_pit':
       return 'orange'
-    case 'ongoing':
+    case 'fighting':
       return 'green'
     default:
       return 'purple'

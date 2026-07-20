@@ -45,6 +45,7 @@ import {
 } from '@/features/payments/tender'
 import type { PaymentStatus } from '@/features/entries/types'
 import type { MatchBetPaymentStatus } from '@/features/matches/types'
+import { FIGHT_QUEUE_STATUS_LABELS } from '@/features/matches/schema'
 import {
   BLOCKED_BET_EDIT_QUEUE_STATUSES,
   getMatchBetAdjustmentDelta,
@@ -851,7 +852,10 @@ function assertMatchBetAdjustmentAllowed(
 
   const queueStatus = matchRow.queue_status
   if (queueStatus && BLOCKED_BET_EDIT_QUEUE_STATUSES.includes(queueStatus as never)) {
-    return `Cannot adjust pledge after fight #${matchRow.fight_number} has been ${queueStatus}`
+    const label =
+      FIGHT_QUEUE_STATUS_LABELS[queueStatus as keyof typeof FIGHT_QUEUE_STATUS_LABELS] ??
+      queueStatus
+    return `Cannot adjust pledge after fight #${matchRow.fight_number} is ${label.toLowerCase()}`
   }
 
   return null

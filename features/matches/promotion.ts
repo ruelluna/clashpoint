@@ -3,6 +3,7 @@ import 'server-only'
 import { writeAuditLog } from '@/features/audit/service'
 import { getEntryOutstandingDues } from '@/features/payments/service'
 import type { MatchBetPaymentStatus } from '@/features/matches/types'
+import { FIGHT_QUEUE_STATUS_LABELS } from '@/features/matches/schema'
 import { isMatchQueueReady } from '@/features/matches/utils'
 import { createClient } from '@/lib/supabase/server'
 
@@ -71,8 +72,8 @@ export async function tryPromoteMatchToQueue(
   const { error: updateError } = await supabase
     .from('matches')
     .update({
-      status: 'locked',
-      queue_status: 'scheduled',
+      status: 'queued',
+      queue_status: 'waiting',
       updated_at: new Date().toISOString(),
     })
     .eq('id', matchId)
@@ -116,7 +117,11 @@ export async function promoteMatchesForEntry(
   }
 }
 
-const BLOCKED_PLEDGE_REFUND_QUEUE_STATUSES = new Set(['called', 'ready', 'ongoing'])
+const BLOCKED_PLEDGE_REFUND_QUEUE_STATUSES = new Set([
+  'handlers_called',
+  'birds_at_pit',
+  'fighting',
+])
 
 export async function revertPledgePaymentSideEffects(
   matchBetId: string,
@@ -139,8 +144,11 @@ export async function revertPledgePaymentSideEffects(
 
   const queueStatus = match.queue_status as string | null
   if (queueStatus && BLOCKED_PLEDGE_REFUND_QUEUE_STATUSES.has(queueStatus)) {
+    const label =
+      FIGHT_QUEUE_STATUS_LABELS[queueStatus as keyof typeof FIGHT_QUEUE_STATUS_LABELS] ??
+      queueStatus
     return {
-      error: `Cannot refund pledge after fight #${match.fight_number} has been ${queueStatus}`,
+      error: `Cannot refund pledge after fight #${match.fight_number} is ${label.toLowerCase()}`,
     }
   }
 
@@ -158,7 +166,7 @@ export async function revertPledgePaymentSideEffects(
 
   let demoted = false
 
-  if (queueStatus === 'scheduled' && match.status === 'locked') {
+  if (queueStatus === 'waiting' && match.status === 'queued') {
     const { data: bets, error: betsError } = await supabase
       .from('match_bets')
       .select('side, payment_status, amount, collected_amount')

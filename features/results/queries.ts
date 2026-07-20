@@ -123,7 +123,7 @@ export async function listMatchesPendingResults(
     .from('matches')
     .select('id, event_id, fight_number, meron_entry_id, wala_entry_id, status')
     .eq('event_id', eventId)
-    .in('status', ['ready', 'ongoing', 'completed'])
+    .in('status', ['at_pit', 'fighting', 'completed'])
     .order('fight_number', { ascending: true })
 
   if (error) throw error

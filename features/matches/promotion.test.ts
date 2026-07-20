@@ -90,14 +90,14 @@ describe('revertPledgePaymentSideEffects', () => {
     })
   })
 
-  it('reverts match bet to unpaid and demotes a scheduled match from the queue', async () => {
+  it('reverts match bet to unpaid and demotes a waiting match from the queue', async () => {
     const { getCapturedBetUpdate, getCapturedMatchUpdate } = setupPromotionMock({
       match: {
         id: matchId,
         event_id: '00000000-0000-4000-8000-000000000001',
         fight_number: 3,
-        status: 'locked',
-        queue_status: 'scheduled',
+        status: 'queued',
+        queue_status: 'waiting',
         meron_entry_id: meronEntryId,
         wala_entry_id: walaEntryId,
       },
@@ -130,14 +130,14 @@ describe('revertPledgePaymentSideEffects', () => {
     )
   })
 
-  it('blocks refund when the fight has already been called', async () => {
+  it('blocks refund when handlers have already been called', async () => {
     setupPromotionMock({
       match: {
         id: matchId,
         event_id: '00000000-0000-4000-8000-000000000001',
         fight_number: 3,
-        status: 'locked',
-        queue_status: 'called',
+        status: 'queued',
+        queue_status: 'handlers_called',
         meron_entry_id: meronEntryId,
         wala_entry_id: walaEntryId,
       },
@@ -146,7 +146,7 @@ describe('revertPledgePaymentSideEffects', () => {
 
     const result = await revertPledgePaymentSideEffects(matchBetId, matchId, actorId)
 
-    expect(result.error).toMatch(/called/)
+    expect(result.error).toMatch(/handlers called/i)
     expect(writeAuditLog).not.toHaveBeenCalled()
   })
 })

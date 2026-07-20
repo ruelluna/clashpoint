@@ -517,8 +517,8 @@ export async function lockMatchList(
   const { error: updateError } = await supabase
     .from('matches')
     .update({
-      status: 'locked',
-      queue_status: 'scheduled',
+      status: 'queued',
+      queue_status: 'waiting',
     })
     .eq('event_id', input.eventId)
     .in('status', ['draft', 'for_review', 'confirmed'])
@@ -558,7 +558,7 @@ export async function updateMatchBetAmounts(
 
   const queueStatus = match.queue_status as FightQueueStatus | null
   if (!canEditMatchBetAmounts(match.status as MatchStatus, queueStatus)) {
-    return { error: 'Pledge cannot be changed after this fight has been called' }
+    return { error: 'Pledge cannot be changed after handlers have been called for this fight' }
   }
 
   const { data: bets, error: betsError } = await supabase
@@ -658,11 +658,11 @@ export async function updateFightQueueStatus(
     }
   }
 
-  if (!['locked', 'ready', 'ongoing'].includes(match.status as string) && input.queueStatus !== 'scheduled') {
-    return { error: 'Match must be locked before advancing the fight queue' }
+  if (!['queued', 'at_pit', 'fighting'].includes(match.status as string) && input.queueStatus !== 'waiting') {
+    return { error: 'Match must be queued before advancing the fight queue' }
   }
 
-  if (currentQueue === 'scheduled' && input.queueStatus === 'called') {
+  if (currentQueue === 'waiting' && input.queueStatus === 'handlers_called') {
     const { data: bets, error: betsError } = await supabase
       .from('match_bets')
       .select('side, payment_status, amount, collected_amount')

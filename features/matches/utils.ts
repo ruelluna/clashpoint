@@ -5,9 +5,9 @@ const ACTIVE_MATCH_STATUSES: MatchStatus[] = [
   'draft',
   'for_review',
   'confirmed',
-  'locked',
-  'ready',
-  'ongoing',
+  'queued',
+  'at_pit',
+  'fighting',
 ]
 
 const LOCKABLE_MATCH_STATUSES: MatchStatus[] = ['draft', 'for_review', 'confirmed']
@@ -16,10 +16,10 @@ export const FIGHT_QUEUE_TRANSITIONS: Record<
   FightQueueStatus,
   FightQueueStatus[]
 > = {
-  scheduled: ['called'],
-  called: ['ready'],
-  ready: ['ongoing'],
-  ongoing: [],
+  waiting: ['handlers_called'],
+  handlers_called: ['birds_at_pit'],
+  birds_at_pit: ['fighting'],
+  fighting: [],
 }
 
 export function validateNoSelfMatch(
@@ -73,10 +73,10 @@ export function canLockMatchList(statuses: MatchStatus[]): string | null {
 
   if (
     statuses.some((status) =>
-      ['locked', 'ready', 'ongoing', 'completed'].includes(status)
+      ['queued', 'at_pit', 'fighting', 'completed'].includes(status)
     )
   ) {
-    return 'Match list is already locked or in progress'
+    return 'Match list is already queued or in progress'
   }
 
   const invalid = statuses.filter((status) => !LOCKABLE_MATCH_STATUSES.includes(status))
@@ -92,7 +92,7 @@ export function isValidFightQueueTransition(
   next: FightQueueStatus
 ): boolean {
   if (current == null) {
-    return next === 'scheduled'
+    return next === 'waiting'
   }
   return FIGHT_QUEUE_TRANSITIONS[current].includes(next)
 }
@@ -100,8 +100,8 @@ export function isValidFightQueueTransition(
 export function matchStatusForQueueStatus(
   queueStatus: FightQueueStatus
 ): MatchStatus | null {
-  if (queueStatus === 'ready') return 'ready'
-  if (queueStatus === 'ongoing') return 'ongoing'
+  if (queueStatus === 'birds_at_pit') return 'at_pit'
+  if (queueStatus === 'fighting') return 'fighting'
   return null
 }
 
@@ -118,9 +118,9 @@ export function collectUsedRoosterIds(
 }
 
 export const BLOCKED_BET_EDIT_QUEUE_STATUSES: FightQueueStatus[] = [
-  'called',
-  'ready',
-  'ongoing',
+  'handlers_called',
+  'birds_at_pit',
+  'fighting',
 ]
 
 const MONEY_EPSILON = 0.005
@@ -190,9 +190,9 @@ export function getFightQueueAdvanceBlockReason(
   meron: MatchSideSettlement,
   wala: MatchSideSettlement
 ): string | null {
-  if (currentQueue === 'scheduled' && nextQueue === 'called') {
+  if (currentQueue === 'waiting' && nextQueue === 'handlers_called') {
     if (!isMatchQueueReady(meron, wala)) {
-      return 'Settle pledge adjustments at Cashier Terminal before calling this fight.'
+      return 'Settle pledge adjustments at Cashier Terminal before staff call handlers for this fight.'
     }
   }
   return null

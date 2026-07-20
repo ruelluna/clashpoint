@@ -107,32 +107,32 @@ describe('canLockMatchList', () => {
     expect(canLockMatchList(['draft', 'confirmed', 'for_review'])).toBeNull()
   })
 
-  it('blocks already locked or in-progress lists', () => {
-    expect(canLockMatchList(['locked'])).toBe(
-      'Match list is already locked or in progress'
+  it('blocks already queued or in-progress lists', () => {
+    expect(canLockMatchList(['queued'])).toBe(
+      'Match list is already queued or in progress'
     )
-    expect(canLockMatchList(['confirmed', 'ongoing'])).toBe(
-      'Match list is already locked or in progress'
+    expect(canLockMatchList(['confirmed', 'fighting'])).toBe(
+      'Match list is already queued or in progress'
     )
   })
 })
 
 describe('fight queue status transitions', () => {
-  it('starts at scheduled when unset', () => {
-    expect(isValidFightQueueTransition(null, 'scheduled')).toBe(true)
-    expect(isValidFightQueueTransition(null, 'called')).toBe(false)
+  it('starts at waiting when unset', () => {
+    expect(isValidFightQueueTransition(null, 'waiting')).toBe(true)
+    expect(isValidFightQueueTransition(null, 'handlers_called')).toBe(false)
   })
 
-  it('follows scheduled → called → ready → ongoing', () => {
-    expect(isValidFightQueueTransition('scheduled', 'called')).toBe(true)
-    expect(isValidFightQueueTransition('called', 'ready')).toBe(true)
-    expect(isValidFightQueueTransition('ready', 'ongoing')).toBe(true)
+  it('follows waiting → handlers_called → birds_at_pit → fighting', () => {
+    expect(isValidFightQueueTransition('waiting', 'handlers_called')).toBe(true)
+    expect(isValidFightQueueTransition('handlers_called', 'birds_at_pit')).toBe(true)
+    expect(isValidFightQueueTransition('birds_at_pit', 'fighting')).toBe(true)
   })
 
   it('blocks skips and backwards moves', () => {
-    expect(isValidFightQueueTransition('scheduled', 'ready')).toBe(false)
-    expect(isValidFightQueueTransition('ongoing', 'ready')).toBe(false)
-    expect(isValidFightQueueTransition('called', 'scheduled')).toBe(false)
+    expect(isValidFightQueueTransition('waiting', 'birds_at_pit')).toBe(false)
+    expect(isValidFightQueueTransition('fighting', 'birds_at_pit')).toBe(false)
+    expect(isValidFightQueueTransition('handlers_called', 'waiting')).toBe(false)
   })
 })
 
@@ -204,11 +204,11 @@ describe('pledge settlement helpers', () => {
     expect(isMatchBetSideSettled(500, 0, 'unpaid')).toBe(false)
   })
 
-  it('blocks call when scheduled match has pending adjustments', () => {
+  it('blocks call when waiting match has pending adjustments', () => {
     expect(
       getFightQueueAdvanceBlockReason(
-        'scheduled',
-        'called',
+        'waiting',
+        'handlers_called',
         { betPaymentStatus: 'paid', entryOutstanding: 0, agreedAmount: 750, collectedAmount: 500 },
         { betPaymentStatus: 'paid', entryOutstanding: 0, agreedAmount: 500, collectedAmount: 500 }
       )
@@ -217,11 +217,11 @@ describe('pledge settlement helpers', () => {
 })
 
 describe('canEditMatchBets', () => {
-  it('allows edits before call and blocks after the fight is called', () => {
+  it('allows edits before handlers are called and blocks after', () => {
     expect(canEditMatchBets('draft', ['unpaid', 'unpaid'])).toBe(true)
     expect(canEditMatchBets('draft', ['paid', 'unpaid'])).toBe(true)
-    expect(canEditMatchBets('locked', ['paid', 'paid'], 'scheduled')).toBe(true)
-    expect(canEditMatchBetAmounts('locked', 'called')).toBe(false)
-    expect(canEditMatchBets('locked', ['paid', 'paid'], 'called')).toBe(false)
+    expect(canEditMatchBets('queued', ['paid', 'paid'], 'waiting')).toBe(true)
+    expect(canEditMatchBetAmounts('queued', 'handlers_called')).toBe(false)
+    expect(canEditMatchBets('queued', ['paid', 'paid'], 'handlers_called')).toBe(false)
   })
 })

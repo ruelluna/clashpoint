@@ -45,7 +45,7 @@ describe('evaluateCashBondRefundEligibility', () => {
   it('blocks refund when match is still pending', () => {
     const result = evaluateCashBondRefundEligibility(
       [rooster('r1', 'matched')],
-      [{ ...completedMatchForRooster('r1'), status: 'locked' }],
+      [{ ...completedMatchForRooster('r1'), status: 'queued' }],
       bondPayment
     )
 

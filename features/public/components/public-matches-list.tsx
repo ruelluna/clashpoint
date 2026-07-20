@@ -6,6 +6,10 @@ import {
   fightQueueStatusColorPalette,
   matchStatusColorPalette,
 } from '@/features/matches/display-utils'
+import {
+  FIGHT_QUEUE_STATUS_LABELS,
+  MATCH_STATUS_LABELS,
+} from '@/features/matches/schema'
 import type { FightQueueStatus, MatchStatus } from '@/features/matches/types'
 import type { PublicMatch } from '@/features/public/types'
 
@@ -70,21 +74,23 @@ export function PublicMatchesList({ matches }: { matches: PublicMatch[] }) {
                     </Text>
                   </Box>
                   <Box as="td" px={4} py={3}>
-                    <Flex gap={2} align="center">
-                      <Badge colorPalette={matchStatusColorPalette(match.status as MatchStatus)}>
-                        {match.status}
+                    {match.queue_status ? (
+                      <Badge
+                        colorPalette={fightQueueStatusColorPalette(
+                          match.queue_status as FightQueueStatus
+                        )}
+                        size="sm"
+                      >
+                        {FIGHT_QUEUE_STATUS_LABELS[match.queue_status as FightQueueStatus]}
                       </Badge>
-                      {match.queue_status ? (
-                        <Badge
-                          colorPalette={fightQueueStatusColorPalette(
-                            match.queue_status as FightQueueStatus
-                          )}
-                          size="sm"
-                        >
-                          {match.queue_status}
-                        </Badge>
-                      ) : null}
-                    </Flex>
+                    ) : (
+                      <Badge
+                        colorPalette={matchStatusColorPalette(match.status as MatchStatus)}
+                        size="sm"
+                      >
+                        {MATCH_STATUS_LABELS[match.status as MatchStatus]}
+                      </Badge>
+                    )}
                   </Box>
                 </Box>
               ))}

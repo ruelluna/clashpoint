@@ -2,13 +2,17 @@ export type MatchStatus =
   | 'draft'
   | 'for_review'
   | 'confirmed'
-  | 'locked'
-  | 'ready'
-  | 'ongoing'
+  | 'queued'
+  | 'at_pit'
+  | 'fighting'
   | 'completed'
   | 'cancelled'
 
-export type FightQueueStatus = 'scheduled' | 'called' | 'ready' | 'ongoing'
+export type FightQueueStatus =
+  | 'waiting'
+  | 'handlers_called'
+  | 'birds_at_pit'
+  | 'fighting'
 
 export type MatchRow = {
   id: string
@@ -77,10 +81,10 @@ export type FightQueueSummary = {
   event_name: string
   venue: string
   total_fights: number
-  scheduled_count: number
-  called_count: number
-  ready_count: number
-  ongoing_count: number
+  waiting_count: number
+  handlers_called_count: number
+  birds_at_pit_count: number
+  fighting_count: number
   current_fight_number: number | null
 }
 

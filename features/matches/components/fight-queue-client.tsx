@@ -19,6 +19,7 @@ import {
   matchStatusColorPalette,
 } from '@/features/matches/display-utils'
 import {
+  FIGHT_QUEUE_ADVANCE_ACTION_LABELS,
   FIGHT_QUEUE_STATUS_LABELS,
   MATCH_STATUS_LABELS,
 } from '@/features/matches/schema'
@@ -42,7 +43,7 @@ function formatWeight(weight: number | null) {
 function nextQueueStatus(
   current: MatchListItem['queue_status']
 ): MatchListItem['queue_status'] | null {
-  if (!current) return 'scheduled'
+  if (!current) return 'waiting'
   const options = FIGHT_QUEUE_TRANSITIONS[current]
   return options[0] ?? null
 }
@@ -116,7 +117,7 @@ function FightQueueRow({
             <input type="hidden" name="eventId" value={eventId} />
             <input type="hidden" name="queueStatus" value={nextStatus} />
             <Button type="submit" size="md" loading={pending} width={{ base: 'full', lg: 'auto' }}>
-              Mark {FIGHT_QUEUE_STATUS_LABELS[nextStatus].toLowerCase()}
+              {FIGHT_QUEUE_ADVANCE_ACTION_LABELS[nextStatus]}
             </Button>
           </form>
         ) : null}
@@ -136,16 +137,16 @@ export function FightQueueClient({
   matches,
   canManage,
 }: FightQueueClientProps) {
-  const ongoing = matches.find((match) => match.queue_status === 'ongoing')
+  const fighting = matches.find((match) => match.queue_status === 'fighting')
 
   return (
     <PageStack>
       <PageHeader
         title="Fight queue"
-        description={`Advance fights through scheduled → called → ready → ongoing for ${eventName}.`}
+        description={`Advance fights through Waiting → Handlers called → Birds at pit → Fighting for ${eventName}.`}
       />
 
-      {ongoing ? (
+      {fighting ? (
         <Box
           borderWidth="1px"
           borderColor="green.emphasized"
@@ -154,10 +155,10 @@ export function FightQueueClient({
           bg="green.subtle"
         >
           <Text fontWeight="medium" color="green.fg">
-            Now fighting: #{ongoing.fight_number}
+            Now fighting: #{fighting.fight_number}
           </Text>
           <Text fontSize="sm" color="green.fg">
-            {ongoing.meron.entry_name} vs {ongoing.wala.entry_name}
+            {fighting.meron.entry_name} vs {fighting.wala.entry_name}
           </Text>
         </Box>
       ) : null}
@@ -166,7 +167,8 @@ export function FightQueueClient({
         {matches.length === 0 ? (
           <Box px={4} py={8} textAlign="center">
             <Text color="fg.muted">
-              No fights in the queue. Lock the match list from Matching first.
+              No fights in the queue yet. Matches appear here after both sides pay at Cashier
+              Terminal.
             </Text>
           </Box>
         ) : (

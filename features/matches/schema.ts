@@ -4,18 +4,18 @@ export const matchStatusSchema = z.enum([
   'draft',
   'for_review',
   'confirmed',
-  'locked',
-  'ready',
-  'ongoing',
+  'queued',
+  'at_pit',
+  'fighting',
   'completed',
   'cancelled',
 ])
 
 export const fightQueueStatusSchema = z.enum([
-  'scheduled',
-  'called',
-  'ready',
-  'ongoing',
+  'waiting',
+  'handlers_called',
+  'birds_at_pit',
+  'fighting',
 ])
 
 export const matchBetPaymentStatusSchema = z.enum([
@@ -109,12 +109,12 @@ export type LookupRoosterForMatchingInput = z.infer<
 export type MatchBetPaymentStatus = z.infer<typeof matchBetPaymentStatusSchema>
 
 export const MATCH_STATUS_LABELS: Record<z.infer<typeof matchStatusSchema>, string> = {
-  draft: 'Draft',
+  draft: 'Awaiting payment',
   for_review: 'For Review',
   confirmed: 'Confirmed',
-  locked: 'Locked',
-  ready: 'Ready',
-  ongoing: 'Ongoing',
+  queued: 'In queue',
+  at_pit: 'Birds at pit',
+  fighting: 'Fighting',
   completed: 'Completed',
   cancelled: 'Cancelled',
 }
@@ -123,10 +123,20 @@ export const FIGHT_QUEUE_STATUS_LABELS: Record<
   z.infer<typeof fightQueueStatusSchema>,
   string
 > = {
-  scheduled: 'Scheduled',
-  called: 'Called',
-  ready: 'Ready',
-  ongoing: 'Ongoing',
+  waiting: 'Waiting',
+  handlers_called: 'Handlers called',
+  birds_at_pit: 'Birds at pit',
+  fighting: 'Fighting',
+}
+
+export const FIGHT_QUEUE_ADVANCE_ACTION_LABELS: Record<
+  z.infer<typeof fightQueueStatusSchema>,
+  string
+> = {
+  waiting: 'Add to queue',
+  handlers_called: 'Call handlers',
+  birds_at_pit: 'Birds at pit',
+  fighting: 'Start fight',
 }
 
 export const MATCH_BET_PAYMENT_STATUS_LABELS: Record<MatchBetPaymentStatus, string> = {

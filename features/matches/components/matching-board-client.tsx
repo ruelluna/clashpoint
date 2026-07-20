@@ -33,6 +33,7 @@ import {
 } from '@/features/matches/actions'
 import { MatchingRoosterScanRow } from '@/features/matches/components/matching-rooster-scan-row'
 import {
+  FIGHT_QUEUE_ADVANCE_ACTION_LABELS,
   FIGHT_QUEUE_STATUS_LABELS,
   MATCH_BET_PAYMENT_STATUS_LABELS,
   MATCH_STATUS_LABELS,
@@ -62,28 +63,6 @@ type MatchingBoardClientProps = {
 
 const initialState: MatchActionState = {}
 
-function statusColor(
-  status: MatchListItem['status']
-): 'gray' | 'blue' | 'green' | 'orange' | 'purple' | 'red' {
-  switch (status) {
-    case 'draft':
-      return 'gray'
-    case 'for_review':
-      return 'orange'
-    case 'confirmed':
-      return 'blue'
-    case 'locked':
-      return 'purple'
-    case 'ready':
-    case 'ongoing':
-      return 'green'
-    case 'cancelled':
-      return 'red'
-    default:
-      return 'gray'
-  }
-}
-
 function betPaymentColor(
   status: MatchListItem['meron']['bet_payment_status']
 ): 'gray' | 'green' | 'orange' {
@@ -94,23 +73,6 @@ function betPaymentColor(
       return 'orange'
     default:
       return 'gray'
-  }
-}
-
-function queueColor(
-  status: MatchListItem['queue_status']
-): 'gray' | 'blue' | 'orange' | 'green' | 'purple' {
-  switch (status) {
-    case 'scheduled':
-      return 'gray'
-    case 'called':
-      return 'blue'
-    case 'ready':
-      return 'orange'
-    case 'ongoing':
-      return 'green'
-    default:
-      return 'purple'
   }
 }
 
@@ -133,7 +95,7 @@ function roosterLabel(rooster: EligibleRooster) {
 function nextQueueStatus(
   current: MatchListItem['queue_status']
 ): MatchListItem['queue_status'] | null {
-  if (!current) return 'scheduled'
+  if (!current) return 'waiting'
   const options = FIGHT_QUEUE_TRANSITIONS[current]
   return options[0] ?? null
 }
@@ -305,8 +267,8 @@ function FightQueueRow({
 
   const nextStatus = nextQueueStatus(match.queue_status)
   const callBlocked =
-    match.queue_status === 'scheduled' &&
-    nextStatus === 'called' &&
+    match.queue_status === 'waiting' &&
+    nextStatus === 'handlers_called' &&
     !matchPledgesSettled(match)
 
   return (
@@ -351,12 +313,13 @@ function FightQueueRow({
               <input type="hidden" name="eventId" value={eventId} />
               <input type="hidden" name="queueStatus" value={nextStatus} />
               <Button type="submit" size="sm" loading={pending} disabled={callBlocked}>
-                Mark {FIGHT_QUEUE_STATUS_LABELS[nextStatus].toLowerCase()}
+                {FIGHT_QUEUE_ADVANCE_ACTION_LABELS[nextStatus]}
               </Button>
             </form>
             {callBlocked ? (
               <Text fontSize="xs" color="orange.fg" maxW="xs">
-                Settle pledge adjustments at Cashier Terminal before calling this fight.
+                Settle pledge adjustments at Cashier Terminal before staff call handlers for this
+                fight.
               </Text>
             ) : null}
           </Stack>
@@ -474,7 +437,7 @@ export function MatchingBoardClient({
     }
   }, [eventId, meronRooster?.rooster_id, walaRooster?.rooster_id])
 
-  const ongoing = queueMatches.find((match) => match.queue_status === 'ongoing')
+  const fighting = queueMatches.find((match) => match.queue_status === 'fighting')
 
   const feedback = createState.error ?? (createState.matchId ? null : createState.success)
 
@@ -709,7 +672,7 @@ export function MatchingBoardClient({
                     <SidePaymentBadges side={match.wala} />
                   </Box>
                   <Stack gap={2} align={{ base: 'flex-start', md: 'flex-end' }}>
-                    <Badge colorPalette={statusColor(match.status)} size="sm">
+                    <Badge colorPalette={matchStatusColorPalette(match.status)} size="sm">
                       {MATCH_STATUS_LABELS[match.status]}
                     </Badge>
                     {canManage && match.meron.bet_barcode ? (
@@ -738,13 +701,13 @@ export function MatchingBoardClient({
         <Text fontSize="lg" fontWeight="semibold">
           Fight queue
         </Text>
-        {ongoing ? (
+        {fighting ? (
           <PanelCard>
             <Text fontWeight="medium" color="green.fg">
-              Now fighting: #{ongoing.fight_number}
+              Now fighting: #{fighting.fight_number}
             </Text>
             <Text fontSize="sm" color="green.fg">
-              {ongoing.meron.entry_name} vs {ongoing.wala.entry_name}
+              {fighting.meron.entry_name} vs {fighting.wala.entry_name}
             </Text>
           </PanelCard>
         ) : null}
