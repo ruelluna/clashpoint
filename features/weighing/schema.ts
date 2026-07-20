@@ -4,6 +4,7 @@ import {
   buildRoosterEntryItemSchema,
   entryRoosterRegistryFieldsSchema,
   roosterColorMarkingSchema,
+  weightGramsBaseSchema,
   weightGramsSchema,
 } from '@/features/entries/schema'
 import type { WeightStatus } from '@/features/weighing/types'
@@ -15,7 +16,7 @@ export const weightStatusSchema = z.enum([
   'for_review',
 ])
 
-export const inspectionWeightGramsSchema = weightGramsSchema.max(
+export const inspectionWeightGramsSchema = weightGramsBaseSchema.max(
   10000,
   'Weight cannot exceed 10000 g'
 )

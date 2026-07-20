@@ -89,11 +89,15 @@ export const entryMetadataSchema = z.object({
   notes: optionalText(2000),
 })
 
-export const weightGramsSchema = z.coerce
+export const weightGramsBaseSchema = z.coerce
   .number()
   .int('Weight must be a whole number of grams')
   .positive('Weight must be greater than zero')
-  .max(9999, 'Weight must be at most 9999 g (4 digits)')
+
+export const weightGramsSchema = weightGramsBaseSchema.max(
+  9999,
+  'Weight must be at most 9999 g (4 digits)'
+)
 
 export const roosterColorMarkingSchema = z
   .string()
