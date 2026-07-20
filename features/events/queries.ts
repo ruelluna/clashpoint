@@ -165,6 +165,12 @@ function mapEventRow(data: Record<string, unknown>): EventRow {
     physical_inspection_required: Boolean(data.physical_inspection_required),
     revolving_fund_initial:
       data.revolving_fund_initial != null ? Number(data.revolving_fund_initial) : 0,
+    cashier_opening_float_default:
+      data.cashier_opening_float_default != null
+        ? Number(data.cashier_opening_float_default)
+        : data.revolving_fund_initial != null
+          ? Number(data.revolving_fund_initial)
+          : 0,
     min_entries: data.min_entries != null ? Number(data.min_entries) : null,
     max_entries: data.max_entries != null ? Number(data.max_entries) : null,
     cocks_per_entry: Number(data.cocks_per_entry),

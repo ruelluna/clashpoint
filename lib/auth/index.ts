@@ -1,5 +1,6 @@
 export { getProfileForUser } from '@/lib/auth/get-profile'
 export { getProfile } from '@/lib/auth/queries'
+export { canOperateAsStaff } from '@/lib/auth/operational-access'
 export {
   canAccessDashboard,
   canAccessDashboardForProfile,
@@ -9,8 +10,10 @@ export {
   hasPermission,
   isSystemOwnerRole,
   requireDashboardAccess,
+  requireOperationalPermission,
   requirePermission,
   requirePortalAccess,
+  requireSystemOwner,
 } from '@/lib/auth/permissions'
 export {
   getPromoterAccessDeniedReason,

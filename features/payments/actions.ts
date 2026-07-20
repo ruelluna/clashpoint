@@ -1,22 +1,31 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
+import { requireOpenCashierSession } from '@/features/cashier-sessions/service'
 import {
+  recordMatchBetPaymentSchema,
   recordPaymentSchema,
   refundPaymentSchema,
 } from '@/features/payments/schema'
 import {
   getCashierTargetByEntryId,
+  recordMatchBetPayment,
   recordPayment,
   refundPayment,
   resolveCashierTarget,
 } from '@/features/payments/service'
 import type { CashierLookupResult, CashierTargetMatch } from '@/features/payments/types'
-import { requirePermission } from '@/lib/auth/permissions'
+import { requireOperationalPermission, requirePermission } from '@/lib/auth/permissions'
 
-export type PaymentActionState = { error?: string; success?: string }
+export type PaymentActionState = {
+  error?: string
+  success?: string
+  paymentId?: string
+  paymentIds?: string[]
+  paymentCategories?: string[]
+  changeGiven?: number
+}
 
 export type CashierLookupActionResult = CashierLookupResult
 
@@ -41,6 +50,9 @@ function revalidateCashierPaths(eventId: string) {
   revalidatePath(`/dashboard/events/${eventId}/revolving-fund`)
   revalidatePath(`/dashboard/events/${eventId}/owners`)
   revalidatePath(`/dashboard/events/${eventId}/roosters`)
+  revalidatePath(`/dashboard/events/${eventId}/matching`)
+  revalidatePath('/dashboard/fights')
+  revalidatePath('/dashboard/transactions')
   revalidatePath('/dashboard/audit')
 }
 
@@ -48,14 +60,16 @@ export async function recordPaymentAction(
   _prev: PaymentActionState,
   formData: FormData
 ): Promise<PaymentActionState> {
-  const profile = await requirePermission('payments.manage')
+  const profile = await requireOperationalPermission('payments.manage')
 
   const parsed = recordPaymentSchema.safeParse({
     eventId: formData.get('eventId'),
     entryId: formData.get('entryId'),
     amountPaid: formData.get('amountPaid'),
+    amountTendered: formData.get('amountTendered'),
     paymentMethod: formData.get('paymentMethod'),
     paymentCategory: formData.get('paymentCategory')?.toString() || undefined,
+    collectEntryFees: formData.get('collectEntryFees')?.toString() || undefined,
     receiptNumber: formData.get('receiptNumber')?.toString().trim() || undefined,
     notes: formData.get('notes')?.toString().trim() || undefined,
   })
@@ -64,23 +78,70 @@ export async function recordPaymentAction(
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
   }
 
-  const result = await recordPayment(profile.id, parsed.data)
+  const sessionResult = await requireOpenCashierSession(profile.id, parsed.data.eventId)
+  if (sessionResult.error || !sessionResult.session) {
+    return { error: sessionResult.error ?? 'Open a cashier session first' }
+  }
+
+  const result = await recordPayment(profile.id, parsed.data, sessionResult.session.id)
   if (result.error) return { error: result.error }
 
   revalidateCashierPaths(parsed.data.eventId)
 
-  if (result.paymentId) {
-    redirect(`/dashboard/events/${parsed.data.eventId}/payments/${result.paymentId}/print`)
+  return {
+    success: 'Payment recorded',
+    paymentId: result.paymentId,
+    paymentIds: result.paymentIds,
+    paymentCategories: result.paymentCategories,
+    changeGiven: parsed.data.changeGiven,
+  }
+}
+
+export async function recordMatchBetPaymentAction(
+  _prev: PaymentActionState,
+  formData: FormData
+): Promise<PaymentActionState> {
+  const profile = await requireOperationalPermission('payments.manage')
+
+  const parsed = recordMatchBetPaymentSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchBetId: formData.get('matchBetId'),
+    amountPaid: formData.get('amountPaid'),
+    amountTendered: formData.get('amountTendered'),
+    paymentMethod: formData.get('paymentMethod'),
+    notes: formData.get('notes')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
   }
 
-  return { success: 'Payment recorded' }
+  const sessionResult = await requireOpenCashierSession(profile.id, parsed.data.eventId)
+  if (sessionResult.error || !sessionResult.session) {
+    return { error: sessionResult.error ?? 'Open a cashier session first' }
+  }
+
+  const result = await recordMatchBetPayment(
+    profile.id,
+    parsed.data,
+    sessionResult.session.id
+  )
+  if (result.error) return { error: result.error }
+
+  revalidateCashierPaths(parsed.data.eventId)
+
+  return {
+    success: 'Palitada payment recorded',
+    paymentId: result.paymentId,
+    changeGiven: parsed.data.changeGiven,
+  }
 }
 
 export async function refundPaymentAction(
   _prev: PaymentActionState,
   formData: FormData
 ): Promise<PaymentActionState> {
-  const profile = await requirePermission('payments.manage')
+  const profile = await requireOperationalPermission('payments.manage')
 
   const parsed = refundPaymentSchema.safeParse({
     paymentId: formData.get('paymentId'),
@@ -90,6 +151,11 @@ export async function refundPaymentAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const sessionResult = await requireOpenCashierSession(profile.id, parsed.data.eventId)
+  if (sessionResult.error || !sessionResult.session) {
+    return { error: sessionResult.error ?? 'Open a cashier session first' }
   }
 
   const result = await refundPayment(profile.id, parsed.data)

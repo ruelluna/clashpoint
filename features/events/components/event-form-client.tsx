@@ -219,6 +219,12 @@ export function EventFormClient({
   const [revolvingFundInitial, setRevolvingFundInitial] = useState(
     () => event?.revolving_fund_initial ?? 0
   )
+  const [cashierOpeningFloatDefault, setCashierOpeningFloatDefault] = useState(
+    () =>
+      event?.cashier_opening_float_default ??
+      event?.revolving_fund_initial ??
+      0
+  )
 
   const [prizeType, setPrizeType] = useState<PrizeType>(
     () => buildInitialPrizeState(event).prizeType
@@ -523,6 +529,22 @@ export function EventFormClient({
                   setRevolvingFundInitial(Number(event.target.value) || 0)
                 }
                 readOnly={mode === 'edit'}
+              />
+            </FormField>
+
+            <FormField
+              label="Default cashier opening float"
+              helpText="Pre-filled when staff open the Cashier Terminal. They can adjust with a note."
+            >
+              <Input
+                name="cashierOpeningFloatDefault"
+                type="number"
+                min={0}
+                step="0.01"
+                value={cashierOpeningFloatDefault}
+                onChange={(event) =>
+                  setCashierOpeningFloatDefault(Number(event.target.value) || 0)
+                }
               />
             </FormField>
 

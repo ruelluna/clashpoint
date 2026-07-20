@@ -42,6 +42,134 @@ export type Database = {
         }
         Relationships: []
       }
+      cashier_session_movements: {
+        Row: {
+          id: string
+          cashier_session_id: string
+          event_id: string
+          movement_type: Database['public']['Enums']['cashier_session_movement_type']
+          amount: number
+          description: string
+          admin_user_id: string | null
+          recorded_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          cashier_session_id: string
+          event_id: string
+          movement_type: Database['public']['Enums']['cashier_session_movement_type']
+          amount: number
+          description: string
+          admin_user_id?: string | null
+          recorded_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          cashier_session_id?: string
+          event_id?: string
+          movement_type?: Database['public']['Enums']['cashier_session_movement_type']
+          amount?: number
+          description?: string
+          admin_user_id?: string | null
+          recorded_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cashier_session_movements_cashier_session_id_fkey'
+            columns: ['cashier_session_id']
+            isOneToOne: false
+            referencedRelation: 'cashier_sessions'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cashier_session_movements_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cashier_session_movements_admin_user_id_fkey'
+            columns: ['admin_user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cashier_session_movements_recorded_by_fkey'
+            columns: ['recorded_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      cashier_sessions: {
+        Row: {
+          id: string
+          event_id: string
+          staff_user_id: string
+          opening_float_amount: number
+          opening_float_default: number
+          opening_float_note: string | null
+          status: Database['public']['Enums']['cashier_session_status']
+          opened_at: string
+          closed_at: string | null
+          closing_counted_cash: number | null
+          closing_notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          staff_user_id: string
+          opening_float_amount: number
+          opening_float_default?: number
+          opening_float_note?: string | null
+          status?: Database['public']['Enums']['cashier_session_status']
+          opened_at?: string
+          closed_at?: string | null
+          closing_counted_cash?: number | null
+          closing_notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          staff_user_id?: string
+          opening_float_amount?: number
+          opening_float_default?: number
+          opening_float_note?: string | null
+          status?: Database['public']['Enums']['cashier_session_status']
+          opened_at?: string
+          closed_at?: string | null
+          closing_counted_cash?: number | null
+          closing_notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cashier_sessions_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cashier_sessions_staff_user_id_fkey'
+            columns: ['staff_user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       permissions: {
         Row: {
           id: string
@@ -230,6 +358,7 @@ export type Database = {
           tax_commission: number
           physical_inspection_required: boolean
           revolving_fund_initial: number
+          cashier_opening_float_default: number
           min_entries: number | null
           max_entries: number | null
           cocks_per_entry: number
@@ -290,6 +419,7 @@ export type Database = {
           tax_commission?: number
           physical_inspection_required?: boolean
           revolving_fund_initial?: number
+          cashier_opening_float_default?: number
           min_entries?: number | null
           max_entries?: number | null
           cocks_per_entry?: number
@@ -350,6 +480,7 @@ export type Database = {
           tax_commission?: number
           physical_inspection_required?: boolean
           revolving_fund_initial?: number
+          cashier_opening_float_default?: number
           min_entries?: number | null
           max_entries?: number | null
           cocks_per_entry?: number
@@ -630,6 +761,7 @@ export type Database = {
           balance_after: number
           description: string | null
           source_payment_id: string | null
+          cashier_session_id: string | null
           created_by: string | null
           created_at: string
         }
@@ -641,6 +773,7 @@ export type Database = {
           balance_after: number
           description?: string | null
           source_payment_id?: string | null
+          cashier_session_id?: string | null
           created_by?: string | null
           created_at?: string
         }
@@ -652,6 +785,7 @@ export type Database = {
           balance_after?: number
           description?: string | null
           source_payment_id?: string | null
+          cashier_session_id?: string | null
           created_by?: string | null
           created_at?: string
         }
@@ -668,6 +802,13 @@ export type Database = {
             columns: ['source_payment_id']
             isOneToOne: false
             referencedRelation: 'payments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'event_revolving_fund_ledger_cashier_session_id_fkey'
+            columns: ['cashier_session_id']
+            isOneToOne: false
+            referencedRelation: 'cashier_sessions'
             referencedColumns: ['id']
           },
         ]
@@ -724,13 +865,19 @@ export type Database = {
           event_id: string
           amount_due: number
           amount_paid: number
+          amount_tendered: number | null
+          change_given: number | null
           balance: number
           payment_method: Database['public']['Enums']['payment_method'] | null
           receipt_number: string | null
           payment_status: Database['public']['Enums']['payment_status']
           payment_category: Database['public']['Enums']['payment_category']
+          match_bet_id: string | null
+          match_id: string | null
+          fight_side: Database['public']['Enums']['fight_side'] | null
           receipt_path: string | null
           received_by: string | null
+          cashier_session_id: string | null
           paid_at: string | null
           notes: string | null
           created_at: string
@@ -743,13 +890,19 @@ export type Database = {
           event_id: string
           amount_due: number
           amount_paid?: number
+          amount_tendered?: number | null
+          change_given?: number | null
           balance?: number
           payment_method?: Database['public']['Enums']['payment_method'] | null
           receipt_number?: string | null
           payment_status?: Database['public']['Enums']['payment_status']
           payment_category?: Database['public']['Enums']['payment_category']
+          match_bet_id?: string | null
+          match_id?: string | null
+          fight_side?: Database['public']['Enums']['fight_side'] | null
           receipt_path?: string | null
           received_by?: string | null
+          cashier_session_id?: string | null
           paid_at?: string | null
           notes?: string | null
           created_at?: string
@@ -762,13 +915,19 @@ export type Database = {
           event_id?: string
           amount_due?: number
           amount_paid?: number
+          amount_tendered?: number | null
+          change_given?: number | null
           balance?: number
           payment_method?: Database['public']['Enums']['payment_method'] | null
           receipt_number?: string | null
           payment_status?: Database['public']['Enums']['payment_status']
           payment_category?: Database['public']['Enums']['payment_category']
+          match_bet_id?: string | null
+          match_id?: string | null
+          fight_side?: Database['public']['Enums']['fight_side'] | null
           receipt_path?: string | null
           received_by?: string | null
+          cashier_session_id?: string | null
           paid_at?: string | null
           notes?: string | null
           created_at?: string
@@ -787,6 +946,13 @@ export type Database = {
             columns: ['event_id']
             isOneToOne: false
             referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payments_cashier_session_id_fkey'
+            columns: ['cashier_session_id']
+            isOneToOne: false
+            referencedRelation: 'cashier_sessions'
             referencedColumns: ['id']
           },
         ]
@@ -1075,6 +1241,10 @@ export type Database = {
           event_id: string
           side: Database['public']['Enums']['fight_side']
           amount: number
+          barcode: string
+          payment_status: Database['public']['Enums']['match_bet_payment_status']
+          payment_id: string | null
+          printed_at: string | null
           recorded_by: string | null
           notes: string | null
           created_at: string
@@ -1086,6 +1256,10 @@ export type Database = {
           event_id: string
           side: Database['public']['Enums']['fight_side']
           amount?: number
+          barcode: string
+          payment_status?: Database['public']['Enums']['match_bet_payment_status']
+          payment_id?: string | null
+          printed_at?: string | null
           recorded_by?: string | null
           notes?: string | null
           created_at?: string
@@ -1097,6 +1271,10 @@ export type Database = {
           event_id?: string
           side?: Database['public']['Enums']['fight_side']
           amount?: number
+          barcode?: string
+          payment_status?: Database['public']['Enums']['match_bet_payment_status']
+          payment_id?: string | null
+          printed_at?: string | null
           recorded_by?: string | null
           notes?: string | null
           created_at?: string
@@ -1115,6 +1293,13 @@ export type Database = {
             columns: ['event_id']
             isOneToOne: false
             referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'match_bets_payment_id_fkey'
+            columns: ['payment_id']
+            isOneToOne: false
+            referencedRelation: 'payments'
             referencedColumns: ['id']
           },
         ]
@@ -1463,6 +1648,8 @@ export type Database = {
         | 'event_organizer'
         | 'promoter'
         | 'staff'
+      cashier_session_movement_type: 'opening_float' | 'admin_handover' | 'adjustment'
+      cashier_session_status: 'open' | 'closed'
       promoter_status: 'active' | 'inactive' | 'suspended'
       commission_type: 'none' | 'fixed' | 'percentage' | 'custom'
       event_type: 'classic' | 'derby'
@@ -1537,12 +1724,15 @@ export type Database = {
         | 'passed'
         | 'failed'
         | 'for_review'
+      match_bet_payment_status: 'unpaid' | 'paid' | 'refunded' | 'waived'
       payment_category:
         | 'registration'
         | 'rooster_entry'
+        | 'entry_fees'
         | 'cash_bond'
         | 'adjustment'
         | 'legacy'
+        | 'match_bet'
       revolving_fund_entry_type: 'opening' | 'adjustment' | 'collection' | 'refund'
       registration_payment_status:
         | 'not_required'

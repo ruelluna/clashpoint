@@ -1,12 +1,15 @@
 export function sumPrizePoolFromPayments(
   payments: Array<{ amountPaid: number; paymentCategory: string; paymentStatus: string }>
 ): number {
+  const prizePoolCategories = new Set([
+    'registration',
+    'rooster_entry',
+    'entry_fees',
+  ])
+
   const total = payments.reduce((sum, payment) => {
     if (payment.paymentStatus === 'refunded') return sum
-    if (
-      payment.paymentCategory !== 'registration' &&
-      payment.paymentCategory !== 'rooster_entry'
-    ) {
+    if (!prizePoolCategories.has(payment.paymentCategory)) {
       return sum
     }
     return sum + payment.amountPaid

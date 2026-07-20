@@ -1,13 +1,18 @@
 import { EventPageLayout } from '@/components/dashboard/event-page-layout'
 import { notFound } from 'next/navigation'
 
+import {
+  getOpenCashierSessionForStaff,
+  listAdminHandoverCandidates,
+} from '@/features/cashier-sessions/queries'
 import { listEntriesByEvent } from '@/features/entries/queries'
 import { eventFeeSettingsFromRow } from '@/features/events/fee-utils'
 import { getEvent } from '@/features/events/queries'
 import { CashierClient } from '@/features/payments/components/cashier-client'
 import { listPaymentsByEvent } from '@/features/payments/service'
-import { getRevolvingFundBalance } from '@/features/revolving-fund/service'
-import { requirePermission } from '@/lib/auth/permissions'
+import { canOperateAsStaff } from '@/lib/auth/operational-access'
+import { getUser } from '@/lib/auth/session'
+import { hasPermission, requirePermission } from '@/lib/auth/permissions'
 
 type PaymentsPageProps = {
   params: Promise<{ id: string }>
@@ -15,16 +20,23 @@ type PaymentsPageProps = {
 }
 
 export default async function PaymentsPage({ params, searchParams }: PaymentsPageProps) {
-  await requirePermission('payments.manage')
+  const profile = await requirePermission('payments.manage')
   const { id } = await params
   const { barcode } = await searchParams
   const event = await getEvent(id)
   if (!event) notFound()
 
-  const [entries, payments, revolvingFundBalance] = await Promise.all([
+  const user = await getUser()
+  const canOperate =
+    Boolean(user) &&
+    canOperateAsStaff(profile) &&
+    (await hasPermission(user!.id, 'payments.manage'))
+
+  const [entries, payments, session, adminCandidates] = await Promise.all([
     listEntriesByEvent(id, event.cocks_per_entry),
     listPaymentsByEvent(id),
-    getRevolvingFundBalance(id),
+    canOperate && user ? getOpenCashierSessionForStaff(id, user.id) : Promise.resolve(null),
+    canOperate ? listAdminHandoverCandidates() : Promise.resolve([]),
   ])
 
   const feeSettings = eventFeeSettingsFromRow(event)
@@ -37,7 +49,11 @@ export default async function PaymentsPage({ params, searchParams }: PaymentsPag
         feeSettings={feeSettings}
         entries={entries}
         payments={payments}
-        revolvingFundBalance={revolvingFundBalance}
+        canOperate={canOperate}
+        cashierDisplayName={profile.display_name ?? 'Staff'}
+        session={session}
+        defaultOpeningFloat={event.cashier_opening_float_default}
+        adminCandidates={adminCandidates}
         initialBarcode={barcode ?? null}
       />
     </EventPageLayout>

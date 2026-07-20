@@ -1,8 +1,16 @@
 import 'server-only'
 
 import { hasAnyPermission } from '@/lib/auth/permissions'
+import { getProfile } from '@/lib/auth/queries'
 
-export const EVENT_TAB_DEFINITIONS = [
+type EventTabDefinition = {
+  slug: string
+  label: string
+  permissions: readonly string[]
+  staffExcluded?: boolean
+}
+
+export const EVENT_TAB_DEFINITIONS: EventTabDefinition[] = [
   { slug: '', label: 'Overview', permissions: ['events.view'] },
   {
     slug: 'owners',
@@ -21,13 +29,14 @@ export const EVENT_TAB_DEFINITIONS = [
   },
   {
     slug: 'payments',
-    label: 'Cashier',
+    label: 'Cashier Terminal',
     permissions: ['payments.manage'],
   },
   {
     slug: 'revolving-fund',
     label: 'Revolving fund',
-    permissions: ['payments.manage', 'events.manage'],
+    permissions: ['events.manage'],
+    staffExcluded: true,
   },
   { slug: 'matching', label: 'Matching', permissions: ['matches.manage', 'events.view'] },
   { slug: 'results', label: 'Results', permissions: ['results.manage', 'events.view'] },
@@ -41,14 +50,17 @@ export const EVENT_TAB_DEFINITIONS = [
   },
   { slug: 'announcement', label: 'Announcement', permissions: ['events.view'] },
   { slug: 'reports', label: 'Reports', permissions: ['reports.view', 'events.view'] },
-] as const
+]
 
 export type EventTabSlug = (typeof EVENT_TAB_DEFINITIONS)[number]['slug']
 
 export async function getVisibleEventTabs(userId: string) {
+  const profile = await getProfile(userId)
   const tabs = []
 
   for (const tab of EVENT_TAB_DEFINITIONS) {
+    if (tab.staffExcluded && profile?.role === 'staff') continue
+
     const allowed = await hasAnyPermission(userId, [...tab.permissions])
     if (allowed) tabs.push({ slug: tab.slug, label: tab.label })
   }

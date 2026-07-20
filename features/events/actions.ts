@@ -124,6 +124,10 @@ function parseEventFields(formData: FormData) {
     taxCommission: formData.get('taxCommission')?.toString() ?? '0',
     physicalInspectionRequired: parseCheckbox(formData.get('physicalInspectionRequired')),
     revolvingFundInitial: formData.get('revolvingFundInitial')?.toString() ?? '0',
+    cashierOpeningFloatDefault:
+      formData.get('cashierOpeningFloatDefault')?.toString() ??
+      formData.get('revolvingFundInitial')?.toString() ??
+      '0',
     cocksPerEntry: String(cocksPerEntry),
     registrationRules: parseRegistrationRules(formData, isDerby),
     legalAuthorized: true,

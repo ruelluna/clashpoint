@@ -64,6 +64,8 @@ async function toEventInsert(input: CreateEventInput | UpdateEventInput) {
     tax_commission: input.taxCommission,
     physical_inspection_required: input.physicalInspectionRequired,
     revolving_fund_initial: input.revolvingFundInitial,
+    cashier_opening_float_default:
+      input.cashierOpeningFloatDefault ?? input.revolvingFundInitial,
     min_entries: null,
     max_entries: null,
     cocks_per_entry: resolveCocksPerEntry(

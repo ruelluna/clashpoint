@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { sumPrizePoolFromPayments } from '@/features/events/prize-pool-utils'
 
 describe('sumPrizePoolFromPayments', () => {
-  it('sums registration and rooster entry payments excluding refunds', () => {
+  it('sums registration, rooster entry, and entry_fees payments excluding refunds', () => {
     const total = sumPrizePoolFromPayments([
       {
         amountPaid: 500,
@@ -14,6 +14,11 @@ describe('sumPrizePoolFromPayments', () => {
         amountPaid: 300,
         paymentCategory: 'rooster_entry',
         paymentStatus: 'partial',
+      },
+      {
+        amountPaid: 900,
+        paymentCategory: 'entry_fees',
+        paymentStatus: 'paid',
       },
       {
         amountPaid: 100,
@@ -27,6 +32,6 @@ describe('sumPrizePoolFromPayments', () => {
       },
     ])
 
-    expect(total).toBe(800)
+    expect(total).toBe(1700)
   })
 })

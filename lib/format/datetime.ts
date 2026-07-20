@@ -1,5 +1,5 @@
 const APP_LOCALE = 'en-PH'
-const APP_TIME_ZONE = 'Asia/Manila'
+export const APP_TIME_ZONE = 'Asia/Manila'
 
 const eventDateTimeOptions: Intl.DateTimeFormatOptions = {
   month: 'short',
@@ -12,4 +12,8 @@ const eventDateTimeOptions: Intl.DateTimeFormatOptions = {
 
 export function formatEventDateTime(iso: string): string {
   return new Date(iso).toLocaleString(APP_LOCALE, eventDateTimeOptions)
+}
+
+export function formatEventDateTimeNow(date = new Date()): string {
+  return date.toLocaleString(APP_LOCALE, eventDateTimeOptions)
 }

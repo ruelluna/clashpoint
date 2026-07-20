@@ -12,6 +12,7 @@ export type RevolvingFundLedgerEntry = {
   balanceAfter: number
   description: string | null
   sourcePaymentId: string | null
+  cashierSessionId: string | null
   createdBy: string | null
   createdAt: string
 }

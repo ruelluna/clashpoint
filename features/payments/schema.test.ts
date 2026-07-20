@@ -60,7 +60,51 @@ describe('recordPaymentSchema', () => {
   const eventId = '00000000-0000-4000-8000-000000000001'
   const entryId = '00000000-0000-4000-8000-000000000002'
 
-  it('accepts cash without receipt number', () => {
+  it('accepts cash with tender matching collected amount', () => {
+    const result = recordPaymentSchema.safeParse({
+      eventId,
+      entryId,
+      amountPaid: 500,
+      amountTendered: 500,
+      paymentMethod: 'cash',
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.receiptNumber).toBeUndefined()
+      expect(result.data.amountTendered).toBe(500)
+      expect(result.data.changeGiven).toBe(0)
+    }
+  })
+
+  it('computes change when tender exceeds collected amount', () => {
+    const result = recordPaymentSchema.safeParse({
+      eventId,
+      entryId,
+      amountPaid: 700,
+      amountTendered: 1000,
+      paymentMethod: 'cash',
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.changeGiven).toBe(300)
+    }
+  })
+
+  it('rejects cash payment when tender is below collected amount', () => {
+    const result = recordPaymentSchema.safeParse({
+      eventId,
+      entryId,
+      amountPaid: 700,
+      amountTendered: 500,
+      paymentMethod: 'cash',
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects cash payment without tender', () => {
     const result = recordPaymentSchema.safeParse({
       eventId,
       entryId,
@@ -68,10 +112,7 @@ describe('recordPaymentSchema', () => {
       paymentMethod: 'cash',
     })
 
-    expect(result.success).toBe(true)
-    if (result.success) {
-      expect(result.data.receiptNumber).toBeUndefined()
-    }
+    expect(result.success).toBe(false)
   })
 
   it('rejects gcash payments', () => {

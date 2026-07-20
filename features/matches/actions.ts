@@ -3,20 +3,24 @@
 import { revalidatePath } from 'next/cache'
 
 import {
+  cancelMatchSchema,
   createMatchSchema,
   lockMatchListSchema,
+  lookupRoosterForMatchingSchema,
   updateFightQueueStatusSchema,
   updateMatchBetSchema,
 } from '@/features/matches/schema'
 import {
+  cancelUnpaidMatch,
   createMatch,
   lockMatchList,
+  lookupEligibleRoosterByBarcode,
   updateFightQueueStatus,
   updateMatchBet,
 } from '@/features/matches/service'
 import { requirePermission } from '@/lib/auth/permissions'
 
-export type MatchActionState = { error?: string; success?: string }
+export type MatchActionState = { error?: string; success?: string; matchId?: string }
 
 export async function createMatchAction(
   _prev: MatchActionState,
@@ -45,7 +49,47 @@ export async function createMatchAction(
 
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
   revalidatePath('/dashboard/fights')
-  return { success: 'Match created' }
+  return {
+    success: 'Match created — print palitada slips for both sides',
+    matchId: result.matchId,
+  }
+}
+
+export async function lookupRoosterForMatchingAction(
+  eventId: string,
+  barcode: string
+): Promise<{ error?: string; rooster?: Awaited<ReturnType<typeof lookupEligibleRoosterByBarcode>>['rooster'] }> {
+  await requirePermission('matches.manage')
+
+  const parsed = lookupRoosterForMatchingSchema.safeParse({ eventId, barcode })
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid barcode' }
+  }
+
+  return lookupEligibleRoosterByBarcode(parsed.data)
+}
+
+export async function cancelMatchAction(
+  _prev: MatchActionState,
+  formData: FormData
+): Promise<MatchActionState> {
+  const profile = await requirePermission('matches.manage')
+
+  const parsed = cancelMatchSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchId: formData.get('matchId'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await cancelUnpaidMatch(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
+  revalidatePath('/dashboard/fights')
+  return { success: 'Match cancelled' }
 }
 
 export async function updateMatchBetAction(

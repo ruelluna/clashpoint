@@ -73,7 +73,7 @@ export const ACCESS_MODULES = [
   },
   {
     id: 'derby-payments',
-    label: 'Derby payments',
+    label: 'Cashier Terminal',
     permissions: ['payments.manage', 'payments.print', 'events.view'],
   },
   {
