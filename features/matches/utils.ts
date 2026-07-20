@@ -138,7 +138,9 @@ export function isBetEditHardLocked(
   matchStatus: MatchStatus,
   queueStatus: FightQueueStatus | null
 ): boolean {
-  if (matchStatus === 'completed' || matchStatus === 'cancelled') return true
+  if (matchStatus === 'completed' || matchStatus === 'cancelled' || matchStatus === 'settling') {
+    return true
+  }
   if (queueStatus && BLOCKED_BET_EDIT_QUEUE_STATUSES.includes(queueStatus)) return true
   return false
 }
@@ -224,6 +226,13 @@ const QUEUE_STATUS_PRIORITY: Record<FightQueueStatus, number> = {
   birds_at_pit: 2,
   handlers_called: 1,
   waiting: 0,
+}
+
+export function resolvePalitadaTargetMatch(queueMatches: MatchListItem[]): MatchListItem | null {
+  const waitingMatches = queueMatches.filter((match) => match.queue_status === 'waiting')
+  if (waitingMatches.length === 0) return null
+
+  return [...waitingMatches].sort((left, right) => left.fight_number - right.fight_number)[0]!
 }
 
 export function resolveActiveMatch(queueMatches: MatchListItem[]): MatchListItem | null {

@@ -115,6 +115,10 @@ function mapMatchRow(row: MatchQueryRow): PublicMatch {
     round_number: row.round_number != null ? Number(row.round_number) : null,
     status: row.status,
     queue_status: row.queue_status as PublicMatch['queue_status'],
+    in_meron_odds: null,
+    in_wala_odds: null,
+    meron_palitada: [],
+    wala_palitada: [],
     meron: {
       entry_id: row.meron_entry?.id ?? '',
       entry_number: row.meron_entry?.entry_number ?? '—',

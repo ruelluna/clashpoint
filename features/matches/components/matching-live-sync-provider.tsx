@@ -1,0 +1,66 @@
+'use client'
+
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+
+import type { MatchListItem, SettlingMatchListItem } from '@/features/matches/types'
+import { useEventMatchingRealtime } from '@/features/matches/hooks/use-event-matching-realtime'
+
+type MatchingLiveSyncContextValue = {
+  queueMatches: MatchListItem[]
+  awaitingPaymentMatches: MatchListItem[]
+  settlingMatches: SettlingMatchListItem[]
+  refreshMatch: (matchId: string) => Promise<void>
+}
+
+const MatchingLiveSyncContext = createContext<MatchingLiveSyncContextValue | null>(null)
+
+type MatchingLiveSyncProviderProps = {
+  eventId: string
+  initialQueueMatches: MatchListItem[]
+  initialAwaitingPaymentMatches: MatchListItem[]
+  initialSettlingMatches: SettlingMatchListItem[]
+  children: ReactNode
+}
+
+export function MatchingLiveSyncProvider({
+  eventId,
+  initialQueueMatches,
+  initialAwaitingPaymentMatches,
+  initialSettlingMatches,
+  children,
+}: MatchingLiveSyncProviderProps) {
+  const [queueMatches, setQueueMatches] = useState(initialQueueMatches)
+  const [awaitingPaymentMatches, setAwaitingPaymentMatches] = useState(
+    initialAwaitingPaymentMatches
+  )
+  const [settlingMatches, setSettlingMatches] = useState(initialSettlingMatches)
+
+  const { refreshMatch } = useEventMatchingRealtime({
+    eventId,
+    setQueueMatches,
+    setAwaitingPaymentMatches,
+    setSettlingMatches,
+  })
+
+  const value = useMemo(
+    () => ({
+      queueMatches,
+      awaitingPaymentMatches,
+      settlingMatches,
+      refreshMatch,
+    }),
+    [queueMatches, awaitingPaymentMatches, settlingMatches, refreshMatch]
+  )
+
+  return (
+    <MatchingLiveSyncContext.Provider value={value}>{children}</MatchingLiveSyncContext.Provider>
+  )
+}
+
+export function useMatchingLiveSync() {
+  const context = useContext(MatchingLiveSyncContext)
+  if (!context) {
+    throw new Error('useMatchingLiveSync must be used within MatchingLiveSyncProvider')
+  }
+  return context
+}

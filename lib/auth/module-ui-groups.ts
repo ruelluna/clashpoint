@@ -20,6 +20,7 @@ export const MODULE_EVENT_TAB_ACCESS_IDS = [
   'rooster-entries',
   'inspection',
   'derby-payments',
+  'bet-balancing',
   'matching',
   'results',
   'standings',

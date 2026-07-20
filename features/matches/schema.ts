@@ -7,6 +7,7 @@ export const matchStatusSchema = z.enum([
   'queued',
   'at_pit',
   'fighting',
+  'settling',
   'completed',
   'cancelled',
 ])
@@ -91,6 +92,36 @@ export const cancelMatchSchema = z.object({
   matchId: z.string().uuid(),
 })
 
+export const palitadaContributorTypeSchema = z.enum(['vip', 'monton'])
+
+export const fightSideSchema = z.enum(['meron', 'wala'])
+
+export const addPalitadaContributionSchema = z.object({
+  eventId: z.string().uuid(),
+  matchId: z.string().uuid(),
+  side: fightSideSchema,
+  contributorName: z.string().trim().min(1, 'Contributor name is required').max(200),
+  contributorType: palitadaContributorTypeSchema.default('vip'),
+  amount: z.coerce.number().positive('Palitada amount must be greater than zero'),
+})
+
+export const deletePalitadaContributionSchema = z.object({
+  eventId: z.string().uuid(),
+  matchId: z.string().uuid(),
+  contributionId: z.string().uuid(),
+})
+
+export const postMatchSettlementObligationSchema = z.object({
+  eventId: z.string().uuid(),
+  matchId: z.string().uuid(),
+  obligationId: z.string().uuid(),
+})
+
+export const completeMatchSettlementSchema = z.object({
+  eventId: z.string().uuid(),
+  matchId: z.string().uuid(),
+})
+
 export const lookupRoosterForMatchingSchema = z.object({
   eventId: z.string().uuid(),
   barcode: z.string().min(1, 'Barcode is required'),
@@ -102,6 +133,12 @@ export type UpdateFightQueueStatusInput = z.infer<typeof updateFightQueueStatusS
 export type UpdateMatchStatusInput = z.infer<typeof updateMatchStatusSchema>
 export type UpdateMatchBetAmountsInput = z.infer<typeof updateMatchBetAmountsSchema>
 export type CancelMatchInput = z.infer<typeof cancelMatchSchema>
+export type AddPalitadaContributionInput = z.infer<typeof addPalitadaContributionSchema>
+export type DeletePalitadaContributionInput = z.infer<typeof deletePalitadaContributionSchema>
+export type PostMatchSettlementObligationInput = z.infer<
+  typeof postMatchSettlementObligationSchema
+>
+export type CompleteMatchSettlementInput = z.infer<typeof completeMatchSettlementSchema>
 export type LookupRoosterForMatchingInput = z.infer<
   typeof lookupRoosterForMatchingSchema
 >
@@ -115,6 +152,7 @@ export const MATCH_STATUS_LABELS: Record<z.infer<typeof matchStatusSchema>, stri
   queued: 'In queue',
   at_pit: 'Birds at pit',
   fighting: 'Fighting',
+  settling: 'Settling',
   completed: 'Completed',
   cancelled: 'Cancelled',
 }

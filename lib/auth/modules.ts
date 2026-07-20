@@ -82,6 +82,11 @@ export const ACCESS_MODULES = [
     permissions: ['entries.manage', 'weighing.manage', 'events.view'],
   },
   {
+    id: 'bet-balancing',
+    label: 'Bet Balancing & Palitada',
+    permissions: ['matches.palitada.manage', 'events.view'],
+  },
+  {
     id: 'matching',
     label: 'Matching & fight queue',
     permissions: ['matches.manage', 'events.view'],

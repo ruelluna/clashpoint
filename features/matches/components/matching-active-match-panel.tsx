@@ -1,6 +1,7 @@
 'use client'
 
 import { Badge, Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
+import Link from 'next/link'
 
 import { LAYOUT_GAP, PanelCard } from '@/components/dashboard'
 import { MatchBetBalancingPanel } from '@/features/matches/components/match-bet-balancing-panel'
@@ -14,9 +15,11 @@ import type { MatchListItem } from '@/features/matches/types'
 type MatchingActiveMatchPanelProps = {
   eventId: string
   activeMatch: MatchListItem | null
+  palitadaTargetMatch: MatchListItem | null
   taxPerFight: number
   taxCommissionRate: number
   canManage: boolean
+  canManagePalitada: boolean
   canRecordResult: boolean
   hasVerifiedResult: boolean
   onOpenFightQueue: () => void
@@ -25,9 +28,11 @@ type MatchingActiveMatchPanelProps = {
 export function MatchingActiveMatchPanel({
   eventId,
   activeMatch,
+  palitadaTargetMatch,
   taxPerFight,
   taxCommissionRate,
   canManage,
+  canManagePalitada,
   canRecordResult,
   hasVerifiedResult,
   onOpenFightQueue,
@@ -61,67 +66,59 @@ export function MatchingActiveMatchPanel({
             </Badge>
           ) : null}
         </Flex>
-        <Box
-          borderWidth="2px"
-          borderColor="green.muted"
-          rounded="md"
-          p={4}
-          bg="green.subtle"
-          mb={4}
-        >
-          <Text fontWeight="semibold" color="green.fg">
-            Active match: #{activeMatch.fight_number}
-          </Text>
-          <Text fontSize="sm" color="green.fg">
-            {activeMatch.meron.entry_name} vs {activeMatch.wala.entry_name}
-          </Text>
-        </Box>
 
-        <Flex direction={{ base: 'column', md: 'row' }} gap={4} mb={4}>
-          <MatchBirdDetailCard side="meron" details={activeMatch.meron} />
-          <MatchBirdDetailCard side="wala" details={activeMatch.wala} />
-        </Flex>
+        {!hasVerifiedResult ? (
+          <Box mb={4}>
+            <MatchOutcomeActions
+              eventId={eventId}
+              matchId={activeMatch.id}
+              fightNumber={activeMatch.fight_number}
+              meronEntryName={activeMatch.meron.entry_name}
+              walaEntryName={activeMatch.wala.entry_name}
+              canRecordResult={canRecordResult}
+            />
+          </Box>
+        ) : canRecordResult ? (
+          <Text fontSize="sm" color="fg.muted" mb={4}>
+            A verified result is already recorded for this match.
+          </Text>
+        ) : null}
 
         {canManage ? (
-          <Stack gap={LAYOUT_GAP.form}>
+          <Stack gap={LAYOUT_GAP.form} mb={4}>
             <FightQueueAdvanceForm
               match={activeMatch}
               eventId={eventId}
               canManage={canManage}
             />
-            <Box>
-              <Button size="sm" variant="outline" disabled>
-                Bet Balancing
-              </Button>
-              <Text fontSize="xs" color="fg.muted" mt={1}>
-                Palitada workflow coming soon.
-              </Text>
-            </Box>
           </Stack>
         ) : null}
+
+        {canManagePalitada && palitadaTargetMatch ? (
+          <Box mb={4} borderWidth="1px" borderColor="border" rounded="md" p={3}>
+            <Text fontSize="sm" mb={2}>
+              Bet Balancing is recorded on waiting fights at the pit before handlers are called.
+            </Text>
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/dashboard/events/${eventId}/matching/pit`}>
+                Bet Balancing — Fight #{palitadaTargetMatch.fight_number}
+              </Link>
+            </Button>
+          </Box>
+        ) : null}
+
+        <Flex direction={{ base: 'column', md: 'row' }} gap={4} mb={4}>
+          <MatchBirdDetailCard side="meron" details={activeMatch.meron} />
+          <MatchBirdDetailCard side="wala" details={activeMatch.wala} />
+        </Flex>
       </PanelCard>
 
       <MatchBetBalancingPanel
         match={activeMatch}
+        fightNumber={activeMatch.fight_number}
         taxPerFight={taxPerFight}
         taxCommissionRate={taxCommissionRate}
       />
-
-      {!hasVerifiedResult ? (
-        <PanelCard title="Match outcome">
-          <MatchOutcomeActions
-            eventId={eventId}
-            matchId={activeMatch.id}
-            canRecordResult={canRecordResult}
-          />
-        </PanelCard>
-      ) : (
-        <PanelCard title="Match outcome">
-          <Text fontSize="sm" color="fg.muted">
-            A verified result is already recorded for this match.
-          </Text>
-        </PanelCard>
-      )}
     </Stack>
   )
 }

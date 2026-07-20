@@ -8,11 +8,12 @@ import {
   listAwaitingPaymentMatches,
   listFightQueueByEvent,
 } from '@/features/matches/queries'
+import { listSettlingMatchesWithObligations } from '@/features/matches/match-settling-service'
 import { listVerifiedResultMatchIds } from '@/features/results/queries'
 import { getUser } from '@/lib/auth/session'
 import { canOperateAsStaff } from '@/lib/auth/operational-access'
 import { getProfile } from '@/lib/auth/queries'
-import { hasPermission, requirePermission } from '@/lib/auth/permissions'
+import { hasAnyPermission, hasPermission, requirePermission } from '@/lib/auth/permissions'
 
 type MatchingPageProps = {
   params: Promise<{ id: string }>
@@ -25,12 +26,13 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
 
   if (!event) notFound()
 
-  const [awaitingPaymentMatches, queueMatches, eligibleRoosters, verifiedResultMatchIds, user] =
+  const [awaitingPaymentMatches, queueMatches, eligibleRoosters, verifiedResultMatchIds, settlingMatches, user] =
     await Promise.all([
       listAwaitingPaymentMatches(id),
       listFightQueueByEvent(id),
       getEligibleRoostersForMatching(id),
       listVerifiedResultMatchIds(id),
+      listSettlingMatchesWithObligations(id),
       getUser(),
     ])
 
@@ -39,6 +41,11 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
     Boolean(user && profile) &&
     canOperateAsStaff(profile!) &&
     (await hasPermission(user!.id, 'matches.manage'))
+  const canManagePalitada =
+    Boolean(user && profile) &&
+    canOperateAsStaff(profile!) &&
+    (await hasAnyPermission(user!.id, ['matches.palitada.manage', 'matches.manage']))
+  const canSettle = canManage
   const canRecordResult = user ? await hasPermission(user.id, 'results.manage') : false
 
   return (
@@ -48,11 +55,14 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
         eventName={event.name}
         awaitingPaymentMatches={awaitingPaymentMatches}
         queueMatches={queueMatches}
+        settlingMatches={settlingMatches}
         eligibleRoosters={eligibleRoosters}
         verifiedResultMatchIds={verifiedResultMatchIds}
         taxPerFight={event.tax_per_fight}
         taxCommissionRate={event.tax_commission}
         canManage={canManage}
+        canManagePalitada={canManagePalitada}
+        canSettle={canSettle}
         canRecordResult={canRecordResult}
       />
     </EventPageLayout>

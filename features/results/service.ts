@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
+import { applyMatchPledgeSettlement } from '@/features/matches/pledge-settlement-service'
 import type { RecordResultInput, VerifyResultInput } from '@/features/results/schema'
 import type { FightResultType, FightSide } from '@/features/results/types'
 import { computeStandings } from '@/features/standings/service'
@@ -132,8 +133,18 @@ export async function recordResult(
 
   await supabase
     .from('matches')
-    .update({ status: 'completed', updated_at: new Date().toISOString() })
+    .update({ status: 'settling', updated_at: new Date().toISOString() })
     .eq('id', input.matchId)
+
+  const settlementResult = await applyMatchPledgeSettlement(
+    actorId,
+    input.eventId,
+    input.matchId,
+    input.resultType
+  )
+  if (settlementResult.error) {
+    return { error: settlementResult.error }
+  }
 
   await writeAuditLog({
     actorId,

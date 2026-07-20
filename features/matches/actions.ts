@@ -3,10 +3,14 @@
 import { revalidatePath } from 'next/cache'
 
 import {
+  addPalitadaContributionSchema,
   cancelMatchSchema,
+  completeMatchSettlementSchema,
   createMatchSchema,
+  deletePalitadaContributionSchema,
   lockMatchListSchema,
   lookupRoosterForMatchingSchema,
+  postMatchSettlementObligationSchema,
   updateFightQueueStatusSchema,
   updateMatchBetAmountsSchema,
 } from '@/features/matches/schema'
@@ -18,7 +22,19 @@ import {
   updateFightQueueStatus,
   updateMatchBetAmounts,
 } from '@/features/matches/service'
-import { requirePermission } from '@/lib/auth/permissions'
+import {
+  addPalitadaContribution,
+  deletePalitadaContribution,
+} from '@/features/matches/palitada-service'
+import {
+  completeMatchSettlement,
+  postMatchSettlementObligation,
+} from '@/features/matches/match-settling-service'
+import {
+  requireMatchSettleManage,
+  requirePalitadaManage,
+  requirePermission,
+} from '@/lib/auth/permissions'
 
 export type MatchActionState = { error?: string; success?: string; matchId?: string }
 
@@ -167,4 +183,115 @@ export async function updateMatchBetAmountsAction(
   revalidatePath('/dashboard/fights')
   revalidatePath('/dashboard/audit')
   return { success: 'Pledge amounts updated — settle adjustments at Cashier Terminal if due' }
+}
+
+export async function addPalitadaContributionAction(
+  _prev: MatchActionState,
+  formData: FormData
+): Promise<MatchActionState> {
+  const profile = await requirePalitadaManage()
+
+  const parsed = addPalitadaContributionSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchId: formData.get('matchId'),
+    side: formData.get('side'),
+    contributorName: formData.get('contributorName'),
+    contributorType: formData.get('contributorType') ?? 'vip',
+    amount: formData.get('amount')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await addPalitadaContribution(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching/pit`)
+  revalidatePath('/dashboard/fights')
+  revalidatePath('/dashboard/audit')
+  return { success: 'Palitada recorded' }
+}
+
+export async function deletePalitadaContributionAction(
+  _prev: MatchActionState,
+  formData: FormData
+): Promise<MatchActionState> {
+  const profile = await requirePalitadaManage()
+
+  const parsed = deletePalitadaContributionSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchId: formData.get('matchId'),
+    contributionId: formData.get('contributionId'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await deletePalitadaContribution(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching/pit`)
+  revalidatePath('/dashboard/fights')
+  revalidatePath('/dashboard/audit')
+  return { success: 'Palitada removed' }
+}
+
+export async function postMatchSettlementObligationAction(
+  _prev: MatchActionState,
+  formData: FormData
+): Promise<MatchActionState> {
+  const profile = await requireMatchSettleManage()
+
+  const parsed = postMatchSettlementObligationSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchId: formData.get('matchId'),
+    obligationId: formData.get('obligationId'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await postMatchSettlementObligation(
+    profile.id,
+    parsed.data.eventId,
+    parsed.data.matchId,
+    parsed.data.obligationId
+  )
+  if (result.error) return { error: result.error }
+
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/revolving-fund`)
+  return { success: 'Obligation posted to revolving fund' }
+}
+
+export async function completeMatchSettlementAction(
+  _prev: MatchActionState,
+  formData: FormData
+): Promise<MatchActionState> {
+  const profile = await requireMatchSettleManage()
+
+  const parsed = completeMatchSettlementSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchId: formData.get('matchId'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await completeMatchSettlement(
+    profile.id,
+    parsed.data.eventId,
+    parsed.data.matchId
+  )
+  if (result.error) return { error: result.error }
+
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
+  revalidatePath('/dashboard/fights')
+  return { success: 'Match marked settled' }
 }

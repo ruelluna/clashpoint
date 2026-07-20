@@ -136,6 +136,19 @@ export async function requireOperationalPermission(
   return profile
 }
 
+export async function requirePalitadaManage(): Promise<Profile> {
+  const profile = await requireAnyPermission([
+    'matches.palitada.manage',
+    'matches.manage',
+  ])
+  if (!canOperateAsStaff(profile)) redirect('/access-denied')
+  return profile
+}
+
+export async function requireMatchSettleManage(): Promise<Profile> {
+  return requireOperationalPermission('matches.manage')
+}
+
 export async function requireSystemOwner(): Promise<Profile> {
   const user = await getUser()
   if (!user) redirect('/login')

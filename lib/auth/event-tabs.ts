@@ -39,6 +39,11 @@ export const EVENT_TAB_DEFINITIONS: EventTabDefinition[] = [
     staffExcluded: true,
   },
   { slug: 'matching', label: 'Matching', permissions: ['matches.manage', 'events.view'] },
+  {
+    slug: 'matching/pit',
+    label: 'Bet Balancing',
+    permissions: ['matches.palitada.manage', 'matches.manage', 'events.view'],
+  },
   { slug: 'results', label: 'Results', permissions: ['results.manage', 'events.view'] },
   { slug: 'standings', label: 'Standings', permissions: ['standings.view', 'events.view'] },
   { slug: 'winners', label: 'Winners', permissions: ['winners.manage', 'events.view'] },

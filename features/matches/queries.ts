@@ -9,6 +9,7 @@ import type {
   MatchListItem,
   MatchRow,
   MatchStatus,
+  PalitadaContributorItem,
 } from '@/features/matches/types'
 import { createClient } from '@/lib/supabase/server'
 
@@ -19,6 +20,8 @@ type MatchQueryRow = {
   round_number: number | null
   status: MatchStatus
   queue_status: MatchRow['queue_status']
+  in_meron_odds: number | null
+  in_wala_odds: number | null
   meron_weight: number | null
   wala_weight: number | null
   meron_entry: {
@@ -85,14 +88,28 @@ type SideBetDetails = {
   payment_status: MatchBetPaymentStatus
 }
 
+type PalitadaRow = {
+  match_id: string
+  side: 'meron' | 'wala'
+  id: string
+  contributor_name: string
+  contributor_type: 'vip' | 'monton'
+  amount: number
+}
+
 function mapMatchRow(
   row: MatchQueryRow,
-  betsByMatch: Map<string, { meron: SideBetDetails; wala: SideBetDetails }>
+  betsByMatch: Map<string, { meron: SideBetDetails; wala: SideBetDetails }>,
+  palitadaByMatch: Map<
+    string,
+    { meron: PalitadaContributorItem[]; wala: PalitadaContributorItem[] }
+  >
 ): MatchListItem {
   const bets = betsByMatch.get(row.id) ?? {
     meron: { amount: 0, collected_amount: 0, barcode: null, payment_status: 'unpaid' as const },
     wala: { amount: 0, collected_amount: 0, barcode: null, payment_status: 'unpaid' as const },
   }
+  const palitada = palitadaByMatch.get(row.id) ?? { meron: [], wala: [] }
   return {
     id: row.id,
     event_id: row.event_id,
@@ -100,6 +117,10 @@ function mapMatchRow(
     round_number: row.round_number != null ? Number(row.round_number) : null,
     status: row.status,
     queue_status: row.queue_status,
+    in_meron_odds: row.in_meron_odds != null ? Number(row.in_meron_odds) : null,
+    in_wala_odds: row.in_wala_odds != null ? Number(row.in_wala_odds) : null,
+    meron_palitada: palitada.meron,
+    wala_palitada: palitada.wala,
     meron: {
       entry_id: row.meron_entry?.id ?? '',
       entry_number: row.meron_entry?.entry_number ?? '—',
@@ -173,6 +194,42 @@ async function loadBetsByMatchIds(
   return map
 }
 
+async function loadPalitadaByMatchIds(
+  matchIds: string[]
+): Promise<
+  Map<string, { meron: PalitadaContributorItem[]; wala: PalitadaContributorItem[] }>
+> {
+  const map = new Map<
+    string,
+    { meron: PalitadaContributorItem[]; wala: PalitadaContributorItem[] }
+  >()
+  if (matchIds.length === 0) return map
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('match_palitada_contributions')
+    .select('match_id, side, id, contributor_name, contributor_type, amount')
+    .in('match_id', matchIds)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+
+  for (const row of (data ?? []) as PalitadaRow[]) {
+    const current = map.get(row.match_id) ?? { meron: [], wala: [] }
+    const item: PalitadaContributorItem = {
+      id: row.id,
+      contributor_name: row.contributor_name,
+      contributor_type: row.contributor_type,
+      amount: Number(row.amount),
+    }
+    if (row.side === 'meron') current.meron.push(item)
+    if (row.side === 'wala') current.wala.push(item)
+    map.set(row.match_id, current)
+  }
+
+  return map
+}
+
 const MATCH_SELECT = `
   id,
   event_id,
@@ -180,6 +237,8 @@ const MATCH_SELECT = `
   round_number,
   status,
   queue_status,
+  in_meron_odds,
+  in_wala_odds,
   meron_weight,
   wala_weight,
   meron_entry:entries!matches_meron_entry_id_fkey ( id, entry_number, entry_name, owner_name ),
@@ -199,8 +258,12 @@ export async function listMatchesByEvent(eventId: string): Promise<MatchListItem
 
   if (error) throw error
   const rows = (data ?? []) as unknown as MatchQueryRow[]
-  const betsByMatch = await loadBetsByMatchIds(rows.map((row) => row.id))
-  return rows.map((row) => mapMatchRow(row, betsByMatch))
+  const matchIds = rows.map((row) => row.id)
+  const [betsByMatch, palitadaByMatch] = await Promise.all([
+    loadBetsByMatchIds(matchIds),
+    loadPalitadaByMatchIds(matchIds),
+  ])
+  return rows.map((row) => mapMatchRow(row, betsByMatch, palitadaByMatch))
 }
 
 export async function listAwaitingPaymentMatches(eventId: string): Promise<MatchListItem[]> {
@@ -215,8 +278,12 @@ export async function listAwaitingPaymentMatches(eventId: string): Promise<Match
 
   if (error) throw error
   const rows = (data ?? []) as unknown as MatchQueryRow[]
-  const betsByMatch = await loadBetsByMatchIds(rows.map((row) => row.id))
-  return rows.map((row) => mapMatchRow(row, betsByMatch))
+  const matchIds = rows.map((row) => row.id)
+  const [betsByMatch, palitadaByMatch] = await Promise.all([
+    loadBetsByMatchIds(matchIds),
+    loadPalitadaByMatchIds(matchIds),
+  ])
+  return rows.map((row) => mapMatchRow(row, betsByMatch, palitadaByMatch))
 }
 
 export async function listFightQueueByEvent(eventId: string): Promise<MatchListItem[]> {
@@ -231,8 +298,12 @@ export async function listFightQueueByEvent(eventId: string): Promise<MatchListI
 
   if (error) throw error
   const rows = (data ?? []) as unknown as MatchQueryRow[]
-  const betsByMatch = await loadBetsByMatchIds(rows.map((row) => row.id))
-  return rows.map((row) => mapMatchRow(row, betsByMatch))
+  const matchIds = rows.map((row) => row.id)
+  const [betsByMatch, palitadaByMatch] = await Promise.all([
+    loadBetsByMatchIds(matchIds),
+    loadPalitadaByMatchIds(matchIds),
+  ])
+  return rows.map((row) => mapMatchRow(row, betsByMatch, palitadaByMatch))
 }
 
 export async function getMatchById(
@@ -251,8 +322,11 @@ export async function getMatchById(
   if (!data) return null
 
   const row = data as unknown as MatchQueryRow
-  const betsByMatch = await loadBetsByMatchIds([row.id])
-  return mapMatchRow(row, betsByMatch)
+  const [betsByMatch, palitadaByMatch] = await Promise.all([
+    loadBetsByMatchIds([row.id]),
+    loadPalitadaByMatchIds([row.id]),
+  ])
+  return mapMatchRow(row, betsByMatch, palitadaByMatch)
 }
 
 export async function getEligibleRoostersForMatching(

@@ -12,6 +12,7 @@ import {
   isRoosterEligibleForMatching,
   isValidFightQueueTransition,
   resolveActiveMatch,
+  resolvePalitadaTargetMatch,
   validateCockUsedOnce,
   validateNoSelfMatch,
   validateRoosterEligibility,
@@ -281,5 +282,17 @@ describe('resolveActiveMatch', () => {
     ])
 
     expect(active?.id).toBe('2')
+  })
+})
+
+describe('resolvePalitadaTargetMatch', () => {
+  it('returns the lowest fight number among waiting matches', () => {
+    const target = resolvePalitadaTargetMatch([
+      buildMatchListItem({ id: '1', fight_number: 3, queue_status: 'waiting' }),
+      buildMatchListItem({ id: '2', fight_number: 2, queue_status: 'waiting' }),
+      buildMatchListItem({ id: '3', fight_number: 1, queue_status: 'handlers_called' }),
+    ])
+
+    expect(target?.id).toBe('2')
   })
 })

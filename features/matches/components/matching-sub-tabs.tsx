@@ -7,18 +7,21 @@ import { useCallback, useMemo } from 'react'
 import { MatchingActiveMatchPanel } from '@/features/matches/components/matching-active-match-panel'
 import { MatchingDeskPanel } from '@/features/matches/components/matching-desk-panel'
 import { MatchingFightQueuePanel } from '@/features/matches/components/matching-fight-queue-panel'
+import { useMatchingLiveSync } from '@/features/matches/components/matching-live-sync-provider'
 import { MatchingPendingPaymentsPanel } from '@/features/matches/components/matching-pending-payments-panel'
-import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
-import { resolveActiveMatch } from '@/features/matches/utils'
+import { MatchingSettlingPanel } from '@/features/matches/components/matching-settling-panel'
+import type { EligibleRooster } from '@/features/matches/types'
+import { resolveActiveMatch, resolvePalitadaTargetMatch } from '@/features/matches/utils'
 
-export type MatchingView = 'active' | 'queue' | 'pending' | 'desk'
+export type MatchingView = 'active' | 'queue' | 'pending' | 'desk' | 'settling'
 
-const MATCHING_VIEWS: MatchingView[] = ['active', 'queue', 'pending', 'desk']
+const MATCHING_VIEWS: MatchingView[] = ['active', 'queue', 'pending', 'settling', 'desk']
 
 const VIEW_LABELS: Record<MatchingView, string> = {
   active: 'Active Match',
   queue: 'Fight Queue',
   pending: 'Pending Payments',
+  settling: 'Settling',
   desk: 'Matching Desk',
 }
 
@@ -31,39 +34,46 @@ function parseMatchingView(value: string | null): MatchingView {
 
 type MatchingSubTabsProps = {
   eventId: string
-  awaitingPaymentMatches: MatchListItem[]
-  queueMatches: MatchListItem[]
   eligibleRoosters: EligibleRooster[]
   verifiedResultMatchIds: string[]
   taxPerFight: number
   taxCommissionRate: number
   canManage: boolean
+  canManagePalitada: boolean
+  canSettle: boolean
   canRecordResult: boolean
   onFeedback?: (message: string | null, isError: boolean) => void
 }
 
 export function MatchingSubTabs({
   eventId,
-  awaitingPaymentMatches,
-  queueMatches,
   eligibleRoosters,
   verifiedResultMatchIds,
   taxPerFight,
   taxCommissionRate,
   canManage,
+  canManagePalitada,
+  canSettle,
   canRecordResult,
   onFeedback,
 }: MatchingSubTabsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const activeView = parseMatchingView(searchParams.get('view'))
+  const { queueMatches, awaitingPaymentMatches, settlingMatches } = useMatchingLiveSync()
 
-  const visibleViews = useMemo(
-    () => (canManage ? MATCHING_VIEWS : MATCHING_VIEWS.filter((view) => view !== 'desk')),
-    [canManage]
-  )
+  const visibleViews = useMemo(() => {
+    let views: MatchingView[] = ['active', 'queue', 'pending']
+    if (canSettle || settlingMatches.length > 0) views.push('settling')
+    if (canManage) views.push('desk')
+    return views
+  }, [canManage, canSettle, settlingMatches.length])
 
   const activeMatch = useMemo(() => resolveActiveMatch(queueMatches), [queueMatches])
+  const palitadaTargetMatch = useMemo(
+    () => resolvePalitadaTargetMatch(queueMatches),
+    [queueMatches]
+  )
   const verifiedResultSet = useMemo(
     () => new Set(verifiedResultMatchIds),
     [verifiedResultMatchIds]
@@ -107,6 +117,11 @@ export function MatchingSubTabs({
                   {awaitingPaymentMatches.length}
                 </Badge>
               ) : null}
+              {view === 'settling' && settlingMatches.length > 0 ? (
+                <Badge ml={2} size="sm" colorPalette="purple">
+                  {settlingMatches.length}
+                </Badge>
+              ) : null}
             </Tabs.Trigger>
           ))}
         </Tabs.List>
@@ -116,9 +131,11 @@ export function MatchingSubTabs({
         <MatchingActiveMatchPanel
           eventId={eventId}
           activeMatch={activeMatch}
+          palitadaTargetMatch={palitadaTargetMatch}
           taxPerFight={taxPerFight}
           taxCommissionRate={taxCommissionRate}
           canManage={canManage}
+          canManagePalitada={canManagePalitada}
           canRecordResult={canRecordResult}
           hasVerifiedResult={
             activeMatch ? verifiedResultSet.has(activeMatch.id) : false
@@ -140,6 +157,14 @@ export function MatchingSubTabs({
           eventId={eventId}
           awaitingPaymentMatches={awaitingPaymentMatches}
           canManage={canManage}
+        />
+      </Tabs.Content>
+
+      <Tabs.Content value="settling" pt={4}>
+        <MatchingSettlingPanel
+          eventId={eventId}
+          settlingMatches={settlingMatches}
+          canSettle={canSettle}
         />
       </Tabs.Content>
 

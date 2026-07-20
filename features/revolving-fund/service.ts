@@ -63,11 +63,13 @@ export type PostRevolvingFundLedgerEntryInput = {
   actorId: string
   sourcePaymentId?: string | null
   cashierSessionId?: string | null
+  sourceMatchId?: string | null
+  obligationKey?: string | null
 }
 
 export async function postRevolvingFundLedgerEntry(
   input: PostRevolvingFundLedgerEntryInput
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; ledgerEntryId?: string }> {
   const supabase = await createClient()
   const amount = roundMoney(input.amount)
 
@@ -84,25 +86,43 @@ export async function postRevolvingFundLedgerEntry(
       .maybeSingle()
 
     if (existingError) return { error: existingError.message }
-    if (existing) return {}
+    if (existing) return { ledgerEntryId: existing.id }
+  }
+
+  if (input.sourceMatchId && input.obligationKey) {
+    const { data: existing, error: existingError } = await supabase
+      .from('event_revolving_fund_ledger')
+      .select('id')
+      .eq('source_match_id', input.sourceMatchId)
+      .eq('obligation_key', input.obligationKey)
+      .maybeSingle()
+
+    if (existingError) return { error: existingError.message }
+    if (existing) return { ledgerEntryId: existing.id }
   }
 
   const currentBalance = await getLatestBalance(supabase, input.eventId)
   const balanceAfter = roundMoney(currentBalance + amount)
 
-  const { error } = await supabase.from('event_revolving_fund_ledger').insert({
-    event_id: input.eventId,
-    entry_type: input.entryType,
-    amount,
-    balance_after: balanceAfter,
-    description: input.description.trim(),
-    source_payment_id: input.sourcePaymentId ?? null,
-    cashier_session_id: input.cashierSessionId ?? null,
-    created_by: input.actorId,
-  })
+  const { data, error } = await supabase
+    .from('event_revolving_fund_ledger')
+    .insert({
+      event_id: input.eventId,
+      entry_type: input.entryType,
+      amount,
+      balance_after: balanceAfter,
+      description: input.description.trim(),
+      source_payment_id: input.sourcePaymentId ?? null,
+      cashier_session_id: input.cashierSessionId ?? null,
+      source_match_id: input.sourceMatchId ?? null,
+      obligation_key: input.obligationKey ?? null,
+      created_by: input.actorId,
+    })
+    .select('id')
+    .single()
 
-  if (error) return { error: error.message }
-  return {}
+  if (error || !data) return { error: error?.message ?? 'Failed to post ledger entry' }
+  return { ledgerEntryId: data.id }
 }
 
 export async function createOpeningLedgerEntry(

@@ -4,19 +4,23 @@ import { Box, Text } from '@chakra-ui/react'
 import { Suspense, useState } from 'react'
 
 import { PageHeader, PageStack } from '@/components/dashboard'
+import { MatchingLiveSyncProvider } from '@/features/matches/components/matching-live-sync-provider'
 import { MatchingSubTabs } from '@/features/matches/components/matching-sub-tabs'
-import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
+import type { EligibleRooster, MatchListItem, SettlingMatchListItem } from '@/features/matches/types'
 
 type MatchingBoardClientProps = {
   eventId: string
   eventName: string
   awaitingPaymentMatches: MatchListItem[]
   queueMatches: MatchListItem[]
+  settlingMatches: SettlingMatchListItem[]
   eligibleRoosters: EligibleRooster[]
   verifiedResultMatchIds: string[]
   taxPerFight: number
   taxCommissionRate: number
   canManage: boolean
+  canManagePalitada: boolean
+  canSettle: boolean
   canRecordResult: boolean
 }
 
@@ -61,17 +65,24 @@ function MatchingBoardContent(props: MatchingBoardClientProps) {
 
 export function MatchingBoardClient(props: MatchingBoardClientProps) {
   return (
-    <Suspense
-      fallback={
-        <PageStack>
-          <PageHeader title="Matching" description="Loading matching board…" />
-          <Text fontSize="sm" color="fg.muted">
-            Loading…
-          </Text>
-        </PageStack>
-      }
+    <MatchingLiveSyncProvider
+      eventId={props.eventId}
+      initialQueueMatches={props.queueMatches}
+      initialAwaitingPaymentMatches={props.awaitingPaymentMatches}
+      initialSettlingMatches={props.settlingMatches}
     >
-      <MatchingBoardContent {...props} />
-    </Suspense>
+      <Suspense
+        fallback={
+          <PageStack>
+            <PageHeader title="Matching" description="Loading matching board…" />
+            <Text fontSize="sm" color="fg.muted">
+              Loading…
+            </Text>
+          </PageStack>
+        }
+      >
+        <MatchingBoardContent {...props} />
+      </Suspense>
+    </MatchingLiveSyncProvider>
   )
 }

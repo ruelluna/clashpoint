@@ -475,9 +475,9 @@ export function EventFormClient({
                 />
               </FormField>
               <FormField
-                label="Tax commission"
+                label="Pledge commission rate (%)"
                 flex="1"
-                helpText="Management or montón share collected per fight."
+                helpText="Percentage applied to each side's gross pledge total for inside bets."
               >
                 <Input
                   name="taxCommission"

@@ -762,6 +762,8 @@ export type Database = {
           description: string | null
           source_payment_id: string | null
           cashier_session_id: string | null
+          source_match_id: string | null
+          obligation_key: string | null
           created_by: string | null
           created_at: string
         }
@@ -774,6 +776,8 @@ export type Database = {
           description?: string | null
           source_payment_id?: string | null
           cashier_session_id?: string | null
+          source_match_id?: string | null
+          obligation_key?: string | null
           created_by?: string | null
           created_at?: string
         }
@@ -786,6 +790,8 @@ export type Database = {
           description?: string | null
           source_payment_id?: string | null
           cashier_session_id?: string | null
+          source_match_id?: string | null
+          obligation_key?: string | null
           created_by?: string | null
           created_at?: string
         }
@@ -1330,6 +1336,9 @@ export type Database = {
           wala_weight: number | null
           status: Database['public']['Enums']['match_status']
           queue_status: Database['public']['Enums']['fight_queue_status'] | null
+          in_meron_odds: number | null
+          in_wala_odds: number | null
+          pledge_settlement_snapshot: Json | null
           created_by: string | null
           created_at: string
           updated_at: string
@@ -1347,6 +1356,9 @@ export type Database = {
           wala_weight?: number | null
           status?: Database['public']['Enums']['match_status']
           queue_status?: Database['public']['Enums']['fight_queue_status'] | null
+          in_meron_odds?: number | null
+          in_wala_odds?: number | null
+          pledge_settlement_snapshot?: Json | null
           created_by?: string | null
           created_at?: string
           updated_at?: string
@@ -1364,11 +1376,204 @@ export type Database = {
           wala_weight?: number | null
           status?: Database['public']['Enums']['match_status']
           queue_status?: Database['public']['Enums']['fight_queue_status'] | null
+          in_meron_odds?: number | null
+          in_wala_odds?: number | null
+          pledge_settlement_snapshot?: Json | null
           created_by?: string | null
           created_at?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      match_palitada_contributions: {
+        Row: {
+          id: string
+          match_id: string
+          event_id: string
+          side: Database['public']['Enums']['fight_side']
+          contributor_name: string
+          contributor_type: Database['public']['Enums']['palitada_contributor_type']
+          amount: number
+          recorded_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          event_id: string
+          side: Database['public']['Enums']['fight_side']
+          contributor_name: string
+          contributor_type?: Database['public']['Enums']['palitada_contributor_type']
+          amount: number
+          recorded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          event_id?: string
+          side?: Database['public']['Enums']['fight_side']
+          contributor_name?: string
+          contributor_type?: Database['public']['Enums']['palitada_contributor_type']
+          amount?: number
+          recorded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'match_palitada_contributions_match_id_fkey'
+            columns: ['match_id']
+            isOneToOne: false
+            referencedRelation: 'matches'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'match_palitada_contributions_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      match_pledge_settlements: {
+        Row: {
+          id: string
+          match_id: string
+          event_id: string
+          result_type: Database['public']['Enums']['fight_result_type']
+          total_winning_pool: number
+          in_meron_odds: number | null
+          in_wala_odds: number | null
+          snapshot: Json
+          recorded_by: string | null
+          settled_at: string | null
+          settled_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          event_id: string
+          result_type: Database['public']['Enums']['fight_result_type']
+          total_winning_pool?: number
+          in_meron_odds?: number | null
+          in_wala_odds?: number | null
+          snapshot: Json
+          recorded_by?: string | null
+          settled_at?: string | null
+          settled_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          event_id?: string
+          result_type?: Database['public']['Enums']['fight_result_type']
+          total_winning_pool?: number
+          in_meron_odds?: number | null
+          in_wala_odds?: number | null
+          snapshot?: Json
+          recorded_by?: string | null
+          settled_at?: string | null
+          settled_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'match_pledge_settlements_match_id_fkey'
+            columns: ['match_id']
+            isOneToOne: false
+            referencedRelation: 'matches'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'match_pledge_settlements_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      match_settlement_obligations: {
+        Row: {
+          id: string
+          match_id: string
+          event_id: string
+          obligation_key: string
+          obligation_type: Database['public']['Enums']['match_settlement_obligation_type']
+          amount: number
+          label: string
+          description: string | null
+          contributor_id: string | null
+          requires_ledger_post: boolean
+          status: Database['public']['Enums']['match_settlement_obligation_status']
+          ledger_entry_id: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          event_id: string
+          obligation_key: string
+          obligation_type: Database['public']['Enums']['match_settlement_obligation_type']
+          amount: number
+          label: string
+          description?: string | null
+          contributor_id?: string | null
+          requires_ledger_post?: boolean
+          status?: Database['public']['Enums']['match_settlement_obligation_status']
+          ledger_entry_id?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          event_id?: string
+          obligation_key?: string
+          obligation_type?: Database['public']['Enums']['match_settlement_obligation_type']
+          amount?: number
+          label?: string
+          description?: string | null
+          contributor_id?: string | null
+          requires_ledger_post?: boolean
+          status?: Database['public']['Enums']['match_settlement_obligation_status']
+          ledger_entry_id?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'match_settlement_obligations_match_id_fkey'
+            columns: ['match_id']
+            isOneToOne: false
+            referencedRelation: 'matches'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'match_settlement_obligations_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'match_settlement_obligations_contributor_id_fkey'
+            columns: ['contributor_id']
+            isOneToOne: false
+            referencedRelation: 'match_palitada_contributions'
+            referencedColumns: ['id']
+          },
+        ]
       }
       fight_results: {
         Row: {
@@ -1777,6 +1982,7 @@ export type Database = {
         | 'queued'
         | 'at_pit'
         | 'fighting'
+        | 'settling'
         | 'completed'
         | 'cancelled'
       fight_queue_status:
@@ -1785,6 +1991,14 @@ export type Database = {
         | 'birds_at_pit'
         | 'fighting'
       fight_side: 'meron' | 'wala'
+      palitada_contributor_type: 'vip' | 'monton'
+      match_settlement_obligation_type:
+        | 'monton_palitada_stake'
+        | 'monton_palitada_payout'
+        | 'monton_palitada_draw_refund'
+        | 'monton_house_earnings'
+        | 'vip_palitada_payout_info'
+      match_settlement_obligation_status: 'pending' | 'posted'
       fight_result_type:
         | 'meron_win'
         | 'wala_win'
