@@ -35,6 +35,11 @@ import {
   REGISTRATION_STATUS_LABELS,
 } from '@/lib/derby/enums'
 import type { EligibilityStatus, InspectionStatus, RegistrationWorkflowStatus } from '@/lib/derby/enums'
+import {
+  eligibilityStatusColorPalette,
+  inspectionStatusColorPalette,
+  registrationWorkflowStatusColorPalette,
+} from '@/lib/derby/status-colors'
 
 type EventRoostersClientProps = {
   eventId: string
@@ -56,31 +61,6 @@ const INSPECTION_STATUS_LABELS: Record<InspectionStatus, string> = {
   passed: 'Passed',
   failed: 'Failed',
   for_review: 'For review',
-}
-
-function statusColor(status: RegistrationWorkflowStatus): 'gray' | 'orange' | 'green' | 'red' {
-  if (status === 'approved' || status === 'matched' || status === 'completed') return 'green'
-  if (status === 'rejected' || status === 'disqualified') return 'red'
-  if (status.startsWith('pending')) return 'orange'
-  return 'gray'
-}
-
-function eligibilityColor(
-  status: EligibilityStatus
-): 'green' | 'orange' | 'yellow' | 'red' | 'gray' {
-  if (status === 'eligible') return 'green'
-  if (status === 'ineligible') return 'red'
-  if (status === 'pending_review') return 'yellow'
-  return 'orange'
-}
-
-function inspectionColor(
-  status: InspectionStatus
-): 'green' | 'red' | 'orange' | 'gray' {
-  if (status === 'passed') return 'green'
-  if (status === 'failed') return 'red'
-  if (status === 'for_review') return 'orange'
-  return 'gray'
 }
 
 function AddRoosterDialog({
@@ -279,13 +259,13 @@ function RoosterListCard({
                 {paymentBadge.label}
               </Badge>
             ) : null}
-            <Badge colorPalette={statusColor(registration.registration_status)} size="sm">
+            <Badge colorPalette={registrationWorkflowStatusColorPalette(registration.registration_status)} size="sm">
               {REGISTRATION_STATUS_LABELS[registration.registration_status]}
             </Badge>
-            <Badge colorPalette={eligibilityColor(registration.eligibility_status)} size="sm">
+            <Badge colorPalette={eligibilityStatusColorPalette(registration.eligibility_status)} size="sm">
               {ELIGIBILITY_STATUS_LABELS[registration.eligibility_status]}
             </Badge>
-            <Badge colorPalette={inspectionColor(registration.inspection_status)} size="sm">
+            <Badge colorPalette={inspectionStatusColorPalette(registration.inspection_status)} size="sm">
               {INSPECTION_STATUS_LABELS[registration.inspection_status]}
             </Badge>
           </Flex>

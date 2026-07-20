@@ -24,6 +24,7 @@ import {
   recordRevolvingFundAdjustmentAction,
   type RevolvingFundActionState,
 } from '@/features/revolving-fund/actions'
+import { revolvingFundEntryTypeColorPalette } from '@/features/revolving-fund/display-utils'
 import type { RevolvingFundLedgerEntry } from '@/features/revolving-fund/types'
 
 type RevolvingFundClientProps = {

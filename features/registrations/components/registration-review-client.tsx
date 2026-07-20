@@ -16,6 +16,10 @@ import type {
   RegistrationWorkflowStatus,
   RoosterApprovalStatus,
 } from '@/lib/derby/enums'
+import {
+  eligibilityStatusColorPalette,
+  registrationWorkflowStatusColorPalette,
+} from '@/lib/derby/status-colors'
 
 type RegistrationReviewClientProps = {
   eventId: string
@@ -29,50 +33,6 @@ const statusFilterOptions: Array<{ value: '' | RegistrationWorkflowStatus; label
     Object.entries(REGISTRATION_STATUS_LABELS) as Array<[RegistrationWorkflowStatus, string]>
   ).map(([value, label]) => ({ value, label })),
 ]
-
-function registrationStatusColor(
-  status: RegistrationWorkflowStatus
-): 'gray' | 'blue' | 'orange' | 'green' | 'red' | 'purple' {
-  switch (status) {
-    case 'draft':
-      return 'gray'
-    case 'submitted':
-    case 'pending_review':
-    case 'pending_weighing':
-    case 'pending_inspection':
-    case 'pending_documents':
-    case 'pending_band_verification':
-      return 'orange'
-    case 'conditionally_approved':
-      return 'purple'
-    case 'approved':
-    case 'matched':
-    case 'completed':
-      return 'green'
-    case 'rejected':
-    case 'disqualified':
-      return 'red'
-    default:
-      return 'blue'
-  }
-}
-
-function eligibilityColor(
-  status: EligibilityStatus
-): 'green' | 'orange' | 'yellow' | 'red' | 'gray' {
-  switch (status) {
-    case 'eligible':
-      return 'green'
-    case 'conditionally_eligible':
-      return 'orange'
-    case 'pending_review':
-      return 'yellow'
-    case 'ineligible':
-      return 'red'
-    default:
-      return 'gray'
-  }
-}
 
 export function RegistrationReviewClient({
   eventId,
@@ -203,7 +163,7 @@ export function RegistrationReviewClient({
                 </Box>
                 <Box flex="0.9">
                   <Badge
-                    colorPalette={registrationStatusColor(registration.registration_status)}
+                    colorPalette={registrationWorkflowStatusColorPalette(registration.registration_status)}
                     size="sm"
                   >
                     {REGISTRATION_STATUS_LABELS[registration.registration_status]}
@@ -216,7 +176,7 @@ export function RegistrationReviewClient({
                 </Box>
                 <Box flex="0.8">
                   <Badge
-                    colorPalette={eligibilityColor(registration.eligibility_status)}
+                    colorPalette={eligibilityStatusColorPalette(registration.eligibility_status)}
                     size="sm"
                   >
                     {ELIGIBILITY_STATUS_LABELS[registration.eligibility_status]}

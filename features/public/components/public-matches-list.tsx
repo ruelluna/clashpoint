@@ -2,6 +2,11 @@
 
 import { Badge, Box, Flex, Text } from '@chakra-ui/react'
 
+import {
+  fightQueueStatusColorPalette,
+  matchStatusColorPalette,
+} from '@/features/matches/display-utils'
+import type { FightQueueStatus, MatchStatus } from '@/features/matches/types'
 import type { PublicMatch } from '@/features/public/types'
 
 function formatWeight(weight: number | null) {
@@ -66,9 +71,16 @@ export function PublicMatchesList({ matches }: { matches: PublicMatch[] }) {
                   </Box>
                   <Box as="td" px={4} py={3}>
                     <Flex gap={2} align="center">
-                      <Badge variant="subtle">{match.status}</Badge>
+                      <Badge colorPalette={matchStatusColorPalette(match.status as MatchStatus)}>
+                        {match.status}
+                      </Badge>
                       {match.queue_status ? (
-                        <Badge colorPalette="blue" size="sm">
+                        <Badge
+                          colorPalette={fightQueueStatusColorPalette(
+                            match.queue_status as FightQueueStatus
+                          )}
+                          size="sm"
+                        >
                           {match.queue_status}
                         </Badge>
                       ) : null}
