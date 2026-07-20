@@ -11,6 +11,9 @@ export type OutstandingDueLine = {
   amountDue: number
   amountPaid: number
   outstanding: number
+  displayLabel?: string
+  refundHint?: string
+  refundable?: boolean
 }
 
 export type EntryOutstandingDues = {
@@ -26,17 +29,17 @@ export type CashierPaymentCategoryOption = {
   outstanding: number
 }
 
+export const REGISTRATION_DUES_CATEGORIES: PaymentCategory[] = [
+  'registration',
+  'rooster_entry',
+  'cash_bond',
+]
+
 const ENTRY_FEE_LINE_CATEGORIES: PaymentCategory[] = ['registration', 'rooster_entry']
 
 function roundMoney(value: number): number {
   return Number(value.toFixed(2))
 }
-
-const CASHIER_CATEGORIES: PaymentCategory[] = [
-  'registration',
-  'rooster_entry',
-  'cash_bond',
-]
 
 function allocateEntryFeesPaid(
   entryFeesPaid: number,
@@ -117,13 +120,21 @@ function buildEntryFeeLines(
   return lines
 }
 
-export function splitEntryFeesPayment(
+export type RegistrationDuesSplit = {
+  registration: number
+  rooster_entry: number
+  cash_bond: number
+}
+
+export function splitRegistrationDuesPayment(
   amountPaid: number,
   lines: OutstandingDueLine[]
-): { registration: number; rooster_entry: number } {
+): RegistrationDuesSplit {
   let remaining = roundMoney(Math.max(0, amountPaid))
+
   const registrationLine = lines.find((line) => line.category === 'registration')
   const roosterLine = lines.find((line) => line.category === 'rooster_entry')
+  const cashBondLine = lines.find((line) => line.category === 'cash_bond')
 
   const toRegistration = roundMoney(
     Math.min(remaining, registrationLine?.outstanding ?? 0)
@@ -131,13 +142,42 @@ export function splitEntryFeesPayment(
   remaining = roundMoney(remaining - toRegistration)
 
   const toRooster = roundMoney(Math.min(remaining, roosterLine?.outstanding ?? 0))
+  remaining = roundMoney(remaining - toRooster)
+
+  const toCashBond = roundMoney(Math.min(remaining, cashBondLine?.outstanding ?? 0))
 
   return {
     registration: toRegistration,
     rooster_entry: toRooster,
+    cash_bond: toCashBond,
   }
 }
 
+/** @deprecated Use splitRegistrationDuesPayment */
+export function splitEntryFeesPayment(
+  amountPaid: number,
+  lines: OutstandingDueLine[]
+): { registration: number; rooster_entry: number } {
+  const split = splitRegistrationDuesPayment(amountPaid, lines)
+  return {
+    registration: split.registration,
+    rooster_entry: split.rooster_entry,
+  }
+}
+
+export function getRegistrationDuesOutstanding(lines: OutstandingDueLine[]): number {
+  return roundMoney(
+    lines
+      .filter((line) => REGISTRATION_DUES_CATEGORIES.includes(line.category))
+      .reduce((sum, line) => sum + line.outstanding, 0)
+  )
+}
+
+export function hasRegistrationDuesOutstanding(lines: OutstandingDueLine[]): boolean {
+  return getRegistrationDuesOutstanding(lines) > 0
+}
+
+/** @deprecated Use getRegistrationDuesOutstanding */
 export function getEntryFeesOutstanding(lines: OutstandingDueLine[]): number {
   return roundMoney(
     lines
@@ -151,7 +191,7 @@ export function getCashierPaymentCategoryOptions(
 ): CashierPaymentCategoryOption[] {
   const options: CashierPaymentCategoryOption[] = []
 
-  for (const category of ['cash_bond', 'adjustment'] as const) {
+  for (const category of ['adjustment'] as const) {
     const line = dues.lines.find((item) => item.category === category)
     if (line && line.outstanding > 0) {
       options.push({
@@ -206,22 +246,19 @@ export function computeOutstandingDues(
     lines.reduce((sum, line) => sum + line.outstanding, 0)
   )
 
-  const entryFeesOutstanding = getEntryFeesOutstanding(lines)
-  const firstNonEntryOpen =
-    lines.find(
-      (line) =>
-        line.outstanding > 0 &&
-        !ENTRY_FEE_LINE_CATEGORIES.includes(line.category)
-    ) ?? null
+  const registrationDuesOutstanding = getRegistrationDuesOutstanding(lines)
+  const adjustmentLine = lines.find((line) => line.category === 'adjustment')
 
   const suggestedCategory =
-    entryFeesOutstanding > 0
+    registrationDuesOutstanding > 0
       ? null
-      : (firstNonEntryOpen?.category ?? null)
+      : adjustmentLine && adjustmentLine.outstanding > 0
+        ? 'adjustment'
+        : null
   const suggestedAmount =
-    entryFeesOutstanding > 0
-      ? entryFeesOutstanding
-      : (firstNonEntryOpen?.outstanding ?? 0)
+    registrationDuesOutstanding > 0
+      ? registrationDuesOutstanding
+      : (adjustmentLine?.outstanding ?? 0)
 
   return {
     lines,

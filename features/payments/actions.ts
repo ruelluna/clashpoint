@@ -7,12 +7,14 @@ import {
   recordMatchBetPaymentSchema,
   recordPaymentSchema,
   refundPaymentSchema,
+  refundSelectedPaymentsSchema,
 } from '@/features/payments/schema'
 import {
   getCashierTargetByEntryId,
   recordMatchBetPayment,
   recordPayment,
   refundPayment,
+  refundSelectedPayments,
   resolveCashierTarget,
 } from '@/features/payments/service'
 import type { CashierLookupResult, CashierTargetMatch } from '@/features/payments/types'
@@ -24,6 +26,8 @@ export type PaymentActionState = {
   paymentId?: string
   paymentIds?: string[]
   paymentCategories?: string[]
+  collectionBatchId?: string
+  refundBatchId?: string
   changeGiven?: number
 }
 
@@ -69,7 +73,10 @@ export async function recordPaymentAction(
     amountTendered: formData.get('amountTendered'),
     paymentMethod: formData.get('paymentMethod'),
     paymentCategory: formData.get('paymentCategory')?.toString() || undefined,
-    collectEntryFees: formData.get('collectEntryFees')?.toString() || undefined,
+    collectRegistrationDues:
+      formData.get('collectRegistrationDues')?.toString() ||
+      formData.get('collectEntryFees')?.toString() ||
+      undefined,
     receiptNumber: formData.get('receiptNumber')?.toString().trim() || undefined,
     notes: formData.get('notes')?.toString().trim() || undefined,
   })
@@ -93,6 +100,7 @@ export async function recordPaymentAction(
     paymentId: result.paymentId,
     paymentIds: result.paymentIds,
     paymentCategories: result.paymentCategories,
+    collectionBatchId: result.collectionBatchId,
     changeGiven: parsed.data.changeGiven,
   }
 }
@@ -163,4 +171,41 @@ export async function refundPaymentAction(
 
   revalidateCashierPaths(parsed.data.eventId)
   return { success: 'Payment refunded' }
+}
+
+export async function refundSelectedPaymentsAction(
+  _prev: PaymentActionState,
+  formData: FormData
+): Promise<PaymentActionState> {
+  const profile = await requireOperationalPermission('payments.manage')
+
+  const paymentIds = formData
+    .getAll('paymentIds')
+    .map((value) => value.toString())
+    .filter(Boolean)
+
+  const parsed = refundSelectedPaymentsSchema.safeParse({
+    eventId: formData.get('eventId'),
+    reason: formData.get('reason'),
+    paymentIds,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const sessionResult = await requireOpenCashierSession(profile.id, parsed.data.eventId)
+  if (sessionResult.error || !sessionResult.session) {
+    return { error: sessionResult.error ?? 'Open a cashier session first' }
+  }
+
+  const result = await refundSelectedPayments(profile.id, parsed.data)
+  if (result.error) return { error: result.error }
+
+  revalidateCashierPaths(parsed.data.eventId)
+
+  return {
+    success: 'Refund recorded',
+    refundBatchId: result.refundBatchId,
+  }
 }
