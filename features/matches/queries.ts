@@ -5,6 +5,7 @@ import type { ConditionallyApprovedMatchHandling } from '@/lib/derby/enums'
 import type {
   EligibleRooster,
   FightQueueSummary,
+  MatchBetPaymentStatus,
   MatchListItem,
   MatchRow,
   MatchStatus,
@@ -24,11 +25,13 @@ type MatchQueryRow = {
     id: string
     entry_number: string
     entry_name: string
+    owner_name: string
   } | null
   wala_entry: {
     id: string
     entry_number: string
     entry_name: string
+    owner_name: string
   } | null
   meron_rooster: {
     id: string
@@ -42,12 +45,21 @@ type MatchQueryRow = {
   } | null
 }
 
+type BetRow = {
+  match_id: string
+  side: 'meron' | 'wala'
+  amount: number
+  barcode: string
+  payment_status: MatchBetPaymentStatus
+}
+
 type RoosterQueryRow = {
   id: string
   entry_id: string
   cock_number: number
   band_number: string
   category: string | null
+  cock_entry_barcode: string | null
   status: string
   registration_status: string
   approval_status: string
@@ -65,11 +77,20 @@ type RoosterQueryRow = {
   } | null
 }
 
+type SideBetDetails = {
+  amount: number
+  barcode: string | null
+  payment_status: MatchBetPaymentStatus
+}
+
 function mapMatchRow(
   row: MatchQueryRow,
-  betsByMatch: Map<string, { meron: number; wala: number }>
+  betsByMatch: Map<string, { meron: SideBetDetails; wala: SideBetDetails }>
 ): MatchListItem {
-  const bets = betsByMatch.get(row.id) ?? { meron: 0, wala: 0 }
+  const bets = betsByMatch.get(row.id) ?? {
+    meron: { amount: 0, barcode: null, payment_status: 'unpaid' as const },
+    wala: { amount: 0, barcode: null, payment_status: 'unpaid' as const },
+  }
   return {
     id: row.id,
     event_id: row.event_id,
@@ -81,44 +102,65 @@ function mapMatchRow(
       entry_id: row.meron_entry?.id ?? '',
       entry_number: row.meron_entry?.entry_number ?? '—',
       entry_name: row.meron_entry?.entry_name ?? '—',
+      owner_name: row.meron_entry?.owner_name ?? '—',
       rooster_id: row.meron_rooster?.id ?? '',
       cock_number: Number(row.meron_rooster?.cock_number ?? 0),
       band_number: row.meron_rooster?.band_number ?? '—',
       weight: row.meron_weight != null ? Number(row.meron_weight) : null,
-      bet_amount: bets.meron,
+      bet_amount: bets.meron.amount,
+      bet_barcode: bets.meron.barcode,
+      bet_payment_status: bets.meron.payment_status,
     },
     wala: {
       entry_id: row.wala_entry?.id ?? '',
       entry_number: row.wala_entry?.entry_number ?? '—',
       entry_name: row.wala_entry?.entry_name ?? '—',
+      owner_name: row.wala_entry?.owner_name ?? '—',
       rooster_id: row.wala_rooster?.id ?? '',
       cock_number: Number(row.wala_rooster?.cock_number ?? 0),
       band_number: row.wala_rooster?.band_number ?? '—',
       weight: row.wala_weight != null ? Number(row.wala_weight) : null,
-      bet_amount: bets.wala,
+      bet_amount: bets.wala.amount,
+      bet_barcode: bets.wala.barcode,
+      bet_payment_status: bets.wala.payment_status,
     },
   }
 }
 
 async function loadBetsByMatchIds(
   matchIds: string[]
-): Promise<Map<string, { meron: number; wala: number }>> {
-  const map = new Map<string, { meron: number; wala: number }>()
+): Promise<Map<string, { meron: SideBetDetails; wala: SideBetDetails }>> {
+  const map = new Map<string, { meron: SideBetDetails; wala: SideBetDetails }>()
   if (matchIds.length === 0) return map
 
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('match_bets')
-    .select('match_id, side, amount')
+    .select('match_id, side, amount, barcode, payment_status')
     .in('match_id', matchIds)
 
   if (error) throw error
 
-  for (const row of data ?? []) {
-    const matchId = row.match_id as string
-    const current = map.get(matchId) ?? { meron: 0, wala: 0 }
-    if (row.side === 'meron') current.meron = Number(row.amount)
-    if (row.side === 'wala') current.wala = Number(row.amount)
+  for (const row of (data ?? []) as BetRow[]) {
+    const matchId = row.match_id
+    const current = map.get(matchId) ?? {
+      meron: { amount: 0, barcode: null, payment_status: 'unpaid' as const },
+      wala: { amount: 0, barcode: null, payment_status: 'unpaid' as const },
+    }
+    if (row.side === 'meron') {
+      current.meron = {
+        amount: Number(row.amount),
+        barcode: row.barcode,
+        payment_status: row.payment_status,
+      }
+    }
+    if (row.side === 'wala') {
+      current.wala = {
+        amount: Number(row.amount),
+        barcode: row.barcode,
+        payment_status: row.payment_status,
+      }
+    }
     map.set(matchId, current)
   }
 
@@ -134,8 +176,8 @@ const MATCH_SELECT = `
   queue_status,
   meron_weight,
   wala_weight,
-  meron_entry:entries!matches_meron_entry_id_fkey ( id, entry_number, entry_name ),
-  wala_entry:entries!matches_wala_entry_id_fkey ( id, entry_number, entry_name ),
+  meron_entry:entries!matches_meron_entry_id_fkey ( id, entry_number, entry_name, owner_name ),
+  wala_entry:entries!matches_wala_entry_id_fkey ( id, entry_number, entry_name, owner_name ),
   meron_rooster:rooster_event_registrations!matches_meron_rooster_id_fkey ( id, cock_number, band_number ),
   wala_rooster:rooster_event_registrations!matches_wala_rooster_id_fkey ( id, cock_number, band_number )
 `
@@ -146,6 +188,23 @@ export async function listMatchesByEvent(eventId: string): Promise<MatchListItem
     .from('matches')
     .select(MATCH_SELECT)
     .eq('event_id', eventId)
+    .neq('status', 'cancelled')
+    .order('fight_number', { ascending: true })
+
+  if (error) throw error
+  const rows = (data ?? []) as unknown as MatchQueryRow[]
+  const betsByMatch = await loadBetsByMatchIds(rows.map((row) => row.id))
+  return rows.map((row) => mapMatchRow(row, betsByMatch))
+}
+
+export async function listAwaitingPaymentMatches(eventId: string): Promise<MatchListItem[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT)
+    .eq('event_id', eventId)
+    .eq('status', 'draft')
+    .is('queue_status', null)
     .order('fight_number', { ascending: true })
 
   if (error) throw error
@@ -161,12 +220,33 @@ export async function listFightQueueByEvent(eventId: string): Promise<MatchListI
     .select(MATCH_SELECT)
     .eq('event_id', eventId)
     .in('status', ['locked', 'ready', 'ongoing'])
+    .not('queue_status', 'is', null)
     .order('fight_number', { ascending: true })
 
   if (error) throw error
   const rows = (data ?? []) as unknown as MatchQueryRow[]
   const betsByMatch = await loadBetsByMatchIds(rows.map((row) => row.id))
   return rows.map((row) => mapMatchRow(row, betsByMatch))
+}
+
+export async function getMatchById(
+  eventId: string,
+  matchId: string
+): Promise<MatchListItem | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT)
+    .eq('event_id', eventId)
+    .eq('id', matchId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  const row = data as unknown as MatchQueryRow
+  const betsByMatch = await loadBetsByMatchIds([row.id])
+  return mapMatchRow(row, betsByMatch)
 }
 
 export async function getEligibleRoostersForMatching(
@@ -189,6 +269,7 @@ export async function getEligibleRoostersForMatching(
           cock_number,
           band_number,
           category,
+          cock_entry_barcode,
           status,
           registration_status,
           approval_status,
@@ -277,6 +358,7 @@ export async function getEligibleRoostersForMatching(
       entry_name: row.entries?.entry_name ?? '—',
       cock_number: Number(row.cock_number),
       band_number: row.band_number,
+      cock_entry_barcode: row.cock_entry_barcode,
       official_weight:
         row.weighings?.official_weight != null
           ? Number(row.weighings.official_weight)

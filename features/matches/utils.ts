@@ -1,4 +1,5 @@
 import type { FightQueueStatus, MatchStatus, RoosterEligibilityContext } from '@/features/matches/types'
+import type { MatchBetPaymentStatus } from '@/features/matches/types'
 
 const ACTIVE_MATCH_STATUSES: MatchStatus[] = [
   'draft',
@@ -114,4 +115,29 @@ export function collectUsedRoosterIds(
     used.add(match.wala_rooster_id)
   }
   return used
+}
+
+export type MatchSidePaymentReadiness = {
+  betPaymentStatus: MatchBetPaymentStatus
+  entryOutstanding: number
+}
+
+export function isMatchSideQueueReady(side: MatchSidePaymentReadiness): boolean {
+  if (side.betPaymentStatus !== 'paid') return false
+  return side.entryOutstanding <= 0
+}
+
+export function isMatchQueueReady(
+  meron: MatchSidePaymentReadiness,
+  wala: MatchSidePaymentReadiness
+): boolean {
+  return isMatchSideQueueReady(meron) && isMatchSideQueueReady(wala)
+}
+
+export function canEditMatchBets(
+  matchStatus: MatchStatus,
+  betPaymentStatuses: MatchBetPaymentStatus[]
+): boolean {
+  if (!['draft', 'for_review', 'confirmed'].includes(matchStatus)) return false
+  return betPaymentStatuses.every((status) => status === 'unpaid')
 }

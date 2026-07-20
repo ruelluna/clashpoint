@@ -39,13 +39,19 @@ import type { PaymentCategory } from '@/features/payments/fee-calc'
 import {
   getCashierDuesAction,
   lookupCashierTargetAction,
+  recordMatchBetPaymentAction,
   recordPaymentAction,
   refundPaymentAction,
   type PaymentActionState,
 } from '@/features/payments/actions'
 import { getCashierPaymentCategoryOptions, getEntryFeesOutstanding } from '@/features/payments/dues'
 import { PAYMENT_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
-import type { CashierTargetMatch, PaymentLedgerItem } from '@/features/payments/types'
+import type {
+  CashierTargetMatch,
+  MatchBetCashierTarget,
+  PaymentLedgerItem,
+} from '@/features/payments/types'
+import { FIGHT_SIDE_LABELS, MATCH_BET_PAYMENT_STATUS_LABELS } from '@/features/matches/schema'
 import { formatEventDateTime } from '@/lib/format/datetime'
 
 type CashierClientProps = {
@@ -168,6 +174,7 @@ export function CashierClient({
   const [scannerOpen, setScannerOpen] = useState(false)
   const [matches, setMatches] = useState<CashierTargetMatch[]>([])
   const [activeMatch, setActiveMatch] = useState<CashierTargetMatch | null>(null)
+  const [activeMatchBet, setActiveMatchBet] = useState<MatchBetCashierTarget | null>(null)
 
   const [recordState, recordAction, recordPending] = useActionState(
     recordPaymentAction,
@@ -178,6 +185,7 @@ export function CashierClient({
   >([])
 
   useEffect(() => {
+<<<<<<< HEAD
 <<<<<<< Updated upstream
     if (recordState.paymentId) {
       setLastPaymentId(recordState.paymentId)
@@ -189,6 +197,8 @@ export function CashierClient({
   const [amountTendered, setAmountTendered] = useState(0)
 =======
 =======
+=======
+>>>>>>> main
     if (!recordState.paymentIds?.length) return
     const categories = (recordState.paymentCategories ?? []) as PaymentCategory[]
     setLastPaymentIds(
@@ -198,9 +208,27 @@ export function CashierClient({
       }))
     )
   }, [recordState.paymentIds, recordState.paymentCategories])
+
+  const [betRecordState, betRecordAction, betRecordPending] = useActionState(
+    recordMatchBetPaymentAction,
+    initialState
+  )
+  const [lastPaymentId, setLastPaymentId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (betRecordState.paymentId) {
+      setLastPaymentId(betRecordState.paymentId)
+    }
+  }, [betRecordState.paymentId])
+
   const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('cash_bond')
+<<<<<<< HEAD
 >>>>>>> Stashed changes
 >>>>>>> cashier-payment-category-updated
+=======
+  const [collectAmount, setCollectAmount] = useState(0)
+  const [amountTendered, setAmountTendered] = useState(0)
+>>>>>>> main
   const [paymentMethod, setPaymentMethod] = useState<
     keyof typeof PAYMENT_METHOD_LABELS
   >('cash')
@@ -208,9 +236,11 @@ export function CashierClient({
 
   const applyMatch = useCallback((match: CashierTargetMatch) => {
     setActiveMatch(match)
+    setActiveMatchBet(null)
     setMatches([])
     setScanError(null)
     setLastPaymentIds([])
+    setLastPaymentId(null)
     const suggested = match.dues.suggestedCategory
     if (suggested) {
       setPaymentCategory(suggested)
@@ -218,6 +248,27 @@ export function CashierClient({
     }
     const options = getCashierPaymentCategoryOptions(match.dues)
     if (options[0]) setPaymentCategory(options[0].category)
+  }, [])
+
+  const applyMatchBet = useCallback((matchBet: MatchBetCashierTarget) => {
+    setActiveMatchBet(matchBet)
+    setActiveMatch({
+      entryId: matchBet.entryId,
+      entryNumber: matchBet.entryNumber,
+      entryName: matchBet.entryName,
+      ownerName: matchBet.ownerName,
+      ownerBarcode: null,
+      roosterCount: 1,
+      paymentStatus: 'unpaid',
+      dues: matchBet.entryDues,
+      matchedVia: 'search',
+    })
+    setMatches([])
+    setScanError(null)
+    setLastPaymentIds([])
+    setLastPaymentId(null)
+    const suggested = matchBet.entryDues.suggestedCategory
+    if (suggested) setPaymentCategory(suggested)
   }, [])
 
   const resolveQuery = useCallback(
@@ -231,6 +282,7 @@ export function CashierClient({
       setScanPending(true)
       setScanError(null)
       setMatches([])
+      setActiveMatchBet(null)
 
       const result = await lookupCashierTargetAction(eventId, trimmed)
       setScanPending(false)
@@ -239,6 +291,12 @@ export function CashierClient({
         setScanError(result.error)
         setActiveMatch(null)
         scanInputRef.current?.select()
+        return
+      }
+
+      if (result.matchBet) {
+        applyMatchBet(result.matchBet)
+        setScanValue('')
         return
       }
 
@@ -252,7 +310,7 @@ export function CashierClient({
       setActiveMatch(null)
       setMatches(found)
     },
-    [applyMatch, eventId]
+    [applyMatch, applyMatchBet, eventId]
   )
 
   useEffect(() => {
@@ -280,9 +338,6 @@ export function CashierClient({
     )
     if (selected) return selected.outstanding
     return activeMatch.dues.suggestedAmount
-<<<<<<< Updated upstream
-  }, [activeMatch, paymentCategory, paymentCategoryOptions])
-=======
   }, [
     activeMatch,
     collectEntryFees,
@@ -290,10 +345,9 @@ export function CashierClient({
     paymentCategory,
     paymentCategoryOptions,
   ])
->>>>>>> Stashed changes
 
   const collectInputKey = activeMatch
-    ? `${activeMatch.entryId}-${paymentCategory}-${suggestedAmount}`
+    ? `${activeMatch.entryId}-${collectEntryFees ? 'entry-fees' : paymentCategory}-${suggestedAmount}`
     : 'none'
 
   useEffect(() => {
@@ -423,7 +477,7 @@ export function CashierClient({
             <Input
               ref={scanInputRef}
               size="md"
-              placeholder="Scan OWN-/COCK- barcode, or search owner / entry #"
+              placeholder="Scan OWN-/COCK-/BET- barcode, or search owner / entry #"
               value={scanValue}
               onChange={(event) => {
                 setScanValue(event.target.value)
@@ -499,8 +553,109 @@ export function CashierClient({
         </Stack>
       </PanelCard>
 
+      {activeMatchBet ? (
+        <PanelCard title="Palitada slip">
+          <Stack gap={LAYOUT_GAP.form}>
+            <Box>
+              <Text fontWeight="medium">
+                Fight #{activeMatchBet.fightNumber} · {FIGHT_SIDE_LABELS[activeMatchBet.side]}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                #{activeMatchBet.entryNumber} {activeMatchBet.entryName} · {activeMatchBet.ownerName}
+              </Text>
+              <Text fontSize="sm" color="fg.muted">
+                Cock #{activeMatchBet.cockNumber} · Band {activeMatchBet.bandNumber}
+              </Text>
+              <Text fontSize="sm" color="fg.muted" mt={1}>
+                {activeMatchBet.betBarcode}
+              </Text>
+              <Badge mt={2} colorPalette={activeMatchBet.betPaymentStatus === 'paid' ? 'green' : 'gray'}>
+                Palitada {MATCH_BET_PAYMENT_STATUS_LABELS[activeMatchBet.betPaymentStatus]}
+              </Badge>
+            </Box>
+
+            {activeMatchBet.betPaymentStatus === 'unpaid' && terminalReady ? (
+              <form action={betRecordAction}>
+                <Stack gap={LAYOUT_GAP.form} maxW="xl">
+                  <input type="hidden" name="eventId" value={eventId} />
+                  <input type="hidden" name="matchBetId" value={activeMatchBet.matchBetId} />
+                  <input type="hidden" name="amountPaid" value={String(activeMatchBet.betAmount)} />
+                  <input type="hidden" name="paymentMethod" value="cash" />
+
+                  <Flex justify="space-between" fontWeight="semibold">
+                    <Text>Palitada due</Text>
+                    <Text data-testid="cashier-palitada-due">
+                      {formatCurrency(activeMatchBet.betAmount)}
+                    </Text>
+                  </Flex>
+
+                  <FormField label="Cash tendered" required>
+                    <Input
+                      name="amountTendered"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      value={amountTendered > 0 ? amountTendered : ''}
+                      onChange={(event) => {
+                        const parsed = Number.parseFloat(event.currentTarget.value)
+                        setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
+                      }}
+                      data-testid="cashier-palitada-tendered"
+                    />
+                  </FormField>
+
+                  {betRecordState.error ? (
+                    <Text fontSize="sm" color="red.500">
+                      {betRecordState.error}
+                    </Text>
+                  ) : null}
+                  {betRecordState.success ? (
+                    <Stack gap={2}>
+                      <Text fontSize="sm" color="green.600">
+                        {betRecordState.success}
+                      </Text>
+                      {betRecordState.changeGiven != null && betRecordState.changeGiven > 0 ? (
+                        <Text fontSize="sm" fontWeight="medium">
+                          Change: {formatCurrency(betRecordState.changeGiven)}
+                        </Text>
+                      ) : null}
+                      {lastPaymentId ? (
+                        <ButtonGroup>
+                          <Button asChild size="sm" variant="outline">
+                            <Link
+                              href={`/dashboard/events/${eventId}/payments/${lastPaymentId}/print`}
+                            >
+                              Print receipt
+                            </Link>
+                          </Button>
+                        </ButtonGroup>
+                      ) : null}
+                    </Stack>
+                  ) : null}
+
+                  <Button
+                    type="submit"
+                    loading={betRecordPending}
+                    alignSelf="flex-start"
+                    disabled={!isCashierTenderValid(activeMatchBet.betAmount, amountTendered)}
+                    data-testid="cashier-record-palitada"
+                  >
+                    Collect palitada
+                  </Button>
+                </Stack>
+              </form>
+            ) : activeMatchBet.betPaymentStatus === 'paid' ? (
+              <Text fontSize="sm" color="fg.muted">
+                Palitada already collected for this slip.
+              </Text>
+            ) : null}
+          </Stack>
+        </PanelCard>
+      ) : null}
+
       {activeMatch ? (
-        <PanelCard title="Outstanding dues">
+        <PanelCard title={activeMatchBet ? 'Entry fees (same owner)' : 'Outstanding dues'}>
           <Stack gap={LAYOUT_GAP.form}>
             <Box>
               <Text fontWeight="medium">
@@ -585,6 +740,9 @@ export function CashierClient({
                   ) : null}
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
                   <CashierTenderFields
                     collectAmount={collectAmount}
                     onCollectAmountChange={(value) => {
@@ -615,6 +773,7 @@ export function CashierClient({
                       </NativeSelect.Field>
                     </NativeSelect.Root>
                   </FormField>
+<<<<<<< HEAD
 =======
                   <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
                     <FormField label="Amount paid" required flex="1">
@@ -654,6 +813,8 @@ export function CashierClient({
                     </FormField>
                   </Flex>
 >>>>>>> cashier-payment-category-updated
+=======
+>>>>>>> main
 
                   <FormField label="Notes">
                     <Textarea name="notes" rows={2} maxLength={2000} />
@@ -670,18 +831,23 @@ export function CashierClient({
                         {recordState.success}
                       </Text>
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
                       {recordState.changeGiven != null && recordState.changeGiven > 0 ? (
                         <Text fontSize="sm" fontWeight="medium" data-testid="cashier-change-success">
                           Change: {formatCurrency(recordState.changeGiven)}
                         </Text>
                       ) : null}
+<<<<<<< HEAD
 =======
 <<<<<<< Updated upstream
 >>>>>>> cashier-payment-category-updated
                       {lastPaymentId ? (
 =======
+=======
+>>>>>>> main
                       {lastPaymentIds.length > 0 ? (
->>>>>>> Stashed changes
                         <ButtonGroup>
                           {lastPaymentIds.map((payment) => (
                             <Button key={payment.id} asChild size="sm" variant="outline">
@@ -697,10 +863,14 @@ export function CashierClient({
                             size="sm"
                             variant="ghost"
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> main
                             onClick={() => {
-                              setLastPaymentId(null)
+                              setLastPaymentIds([])
                               setAmountTendered(0)
                             }}
+<<<<<<< HEAD
 =======
 <<<<<<< Updated upstream
                             onClick={() => setLastPaymentId(null)}
@@ -708,6 +878,8 @@ export function CashierClient({
                             onClick={() => setLastPaymentIds([])}
 >>>>>>> Stashed changes
 >>>>>>> cashier-payment-category-updated
+=======
+>>>>>>> main
                           >
                             Continue
                           </Button>
