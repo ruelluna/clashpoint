@@ -102,12 +102,45 @@ export function isValidFightQueueTransition(
   return FIGHT_QUEUE_TRANSITIONS[current].includes(next)
 }
 
+export const FIGHT_QUEUE_ROLLBACK: Record<FightQueueStatus, FightQueueStatus | null> = {
+  fighting: 'birds_at_pit',
+  birds_at_pit: 'handlers_called',
+  handlers_called: 'waiting',
+  waiting: null,
+}
+
+export function previousQueueStatus(
+  current: FightQueueStatus | null
+): FightQueueStatus | null {
+  if (!current) return null
+  return FIGHT_QUEUE_ROLLBACK[current]
+}
+
+export function isValidFightQueueRollback(
+  current: FightQueueStatus | null,
+  previous: FightQueueStatus
+): boolean {
+  if (!current) return false
+  return FIGHT_QUEUE_ROLLBACK[current] === previous
+}
+
 export function matchStatusForQueueStatus(
   queueStatus: FightQueueStatus
 ): MatchStatus | null {
   if (queueStatus === 'birds_at_pit') return 'at_pit'
   if (queueStatus === 'fighting') return 'fighting'
   return null
+}
+
+export function matchStatusForQueueStatusChange(
+  targetQueue: FightQueueStatus,
+  isRollback: boolean
+): MatchStatus | null {
+  if (isRollback) {
+    if (targetQueue === 'waiting' || targetQueue === 'handlers_called') return 'queued'
+    return matchStatusForQueueStatus(targetQueue)
+  }
+  return matchStatusForQueueStatus(targetQueue)
 }
 
 export function collectUsedRoosterIds(
@@ -128,6 +161,12 @@ export const BLOCKED_BET_EDIT_QUEUE_STATUSES: FightQueueStatus[] = [
   'fighting',
 ]
 
+export const PALITADA_EDITABLE_QUEUE_STATUSES: FightQueueStatus[] = [
+  'waiting',
+  'handlers_called',
+  'birds_at_pit',
+]
+
 const MONEY_EPSILON = 0.005
 
 export function roundMatchMoney(amount: number): number {
@@ -142,6 +181,17 @@ export function isBetEditHardLocked(
     return true
   }
   if (queueStatus && BLOCKED_BET_EDIT_QUEUE_STATUSES.includes(queueStatus)) return true
+  return false
+}
+
+export function isPalitadaEditLocked(
+  matchStatus: MatchStatus,
+  queueStatus: FightQueueStatus | null
+): boolean {
+  if (matchStatus === 'completed' || matchStatus === 'cancelled' || matchStatus === 'settling') {
+    return true
+  }
+  if (queueStatus === 'fighting') return true
   return false
 }
 
@@ -228,11 +278,36 @@ const QUEUE_STATUS_PRIORITY: Record<FightQueueStatus, number> = {
   waiting: 0,
 }
 
-export function resolvePalitadaTargetMatch(queueMatches: MatchListItem[]): MatchListItem | null {
-  const waitingMatches = queueMatches.filter((match) => match.queue_status === 'waiting')
-  if (waitingMatches.length === 0) return null
+const BET_BALANCING_QUEUE_PRIORITY: Record<FightQueueStatus, number> = {
+  birds_at_pit: 3,
+  handlers_called: 2,
+  waiting: 1,
+  fighting: 0,
+}
 
-  return [...waitingMatches].sort((left, right) => left.fight_number - right.fight_number)[0]!
+export function resolveBetBalancingTargetMatch(
+  queueMatches: MatchListItem[]
+): MatchListItem | null {
+  const candidates = queueMatches.filter(
+    (match) =>
+      match.queue_status != null &&
+      PALITADA_EDITABLE_QUEUE_STATUSES.includes(match.queue_status)
+  )
+
+  if (candidates.length === 0) return null
+
+  return [...candidates].sort((left, right) => {
+    const priorityDiff =
+      BET_BALANCING_QUEUE_PRIORITY[right.queue_status!] -
+      BET_BALANCING_QUEUE_PRIORITY[left.queue_status!]
+    if (priorityDiff !== 0) return priorityDiff
+    return left.fight_number - right.fight_number
+  })[0]!
+}
+
+/** @deprecated Use resolveBetBalancingTargetMatch */
+export function resolvePalitadaTargetMatch(queueMatches: MatchListItem[]): MatchListItem | null {
+  return resolveBetBalancingTargetMatch(queueMatches)
 }
 
 export function resolveActiveMatch(queueMatches: MatchListItem[]): MatchListItem | null {

@@ -140,6 +140,7 @@ export async function updateFightQueueStatusAction(
   const parsed = updateFightQueueStatusSchema.safeParse({
     matchId: formData.get('matchId'),
     queueStatus: formData.get('queueStatus'),
+    direction: formData.get('direction')?.toString() || 'advance',
   })
 
   if (!parsed.success) {
@@ -152,6 +153,7 @@ export async function updateFightQueueStatusAction(
   const eventId = formData.get('eventId')?.toString()
   if (eventId) {
     revalidatePath(`/dashboard/events/${eventId}/matching`)
+  revalidatePath(`/dashboard/events/${eventId}/matching/pit`)
   }
   revalidatePath('/dashboard/fights')
   revalidatePath('/dashboard/audit')

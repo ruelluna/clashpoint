@@ -20,6 +20,7 @@ type MatchingActiveMatchPanelProps = {
   taxCommissionRate: number
   canManage: boolean
   canManagePalitada: boolean
+  canManageQueueOverride: boolean
   canRecordResult: boolean
   hasVerifiedResult: boolean
   onOpenFightQueue: () => void
@@ -33,6 +34,7 @@ export function MatchingActiveMatchPanel({
   taxCommissionRate,
   canManage,
   canManagePalitada,
+  canManageQueueOverride,
   canRecordResult,
   hasVerifiedResult,
   onOpenFightQueue,
@@ -90,6 +92,7 @@ export function MatchingActiveMatchPanel({
               match={activeMatch}
               eventId={eventId}
               canManage={canManage}
+              canManageQueueOverride={canManageQueueOverride}
             />
           </Stack>
         ) : null}
@@ -97,7 +100,8 @@ export function MatchingActiveMatchPanel({
         {canManagePalitada && palitadaTargetMatch ? (
           <Box mb={4} borderWidth="1px" borderColor="border" rounded="md" p={3}>
             <Text fontSize="sm" mb={2}>
-              Bet Balancing is recorded on waiting fights at the pit before handlers are called.
+              Record Palitada on the pit screen while the fight is waiting or at the pit — before it
+              starts.
             </Text>
             <Button asChild size="sm" variant="outline">
               <Link href={`/dashboard/events/${eventId}/matching/pit`}>

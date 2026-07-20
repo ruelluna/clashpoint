@@ -5,9 +5,8 @@ import { getEvent } from '@/features/events/queries'
 import { MatchingPitClient } from '@/features/matches/components/matching-pit-client'
 import { listFightQueueByEvent } from '@/features/matches/queries'
 import { getUser } from '@/lib/auth/session'
-import { canOperateAsStaff } from '@/lib/auth/operational-access'
 import { getProfile } from '@/lib/auth/queries'
-import { hasAnyPermission, requirePermission } from '@/lib/auth/permissions'
+import { canPerformEventOperation, requirePermission } from '@/lib/auth/permissions'
 
 type MatchingPitPageProps = {
   params: Promise<{ id: string }>
@@ -22,10 +21,12 @@ export default async function MatchingPitPage({ params }: MatchingPitPageProps) 
 
   const [queueMatches, user] = await Promise.all([listFightQueueByEvent(id), getUser()])
   const profile = user ? await getProfile(user.id) : null
-  const canManagePalitada =
-    Boolean(user && profile) &&
-    canOperateAsStaff(profile!) &&
-    (await hasAnyPermission(user!.id, ['matches.palitada.manage', 'matches.manage']))
+  const canManagePalitada = user && profile
+    ? await canPerformEventOperation(profile, user.id, [
+        'matches.palitada.manage',
+        'matches.manage',
+      ])
+    : false
 
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>

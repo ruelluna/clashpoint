@@ -30,6 +30,7 @@ import {
   canEditMatchBetAmounts,
   getMatchBetAdjustmentDelta,
   isMatchBetSideSettled,
+  previousQueueStatus,
 } from '@/features/matches/utils'
 
 export const initialMatchActionState: MatchActionState = {}
@@ -222,34 +223,59 @@ export function FightQueueAdvanceForm({
   match,
   eventId,
   canManage,
+  canManageQueueOverride = false,
 }: {
   match: MatchListItem
   eventId: string
   canManage: boolean
+  canManageQueueOverride?: boolean
 }) {
-  const [state, action, pending] = useActionState(
+  const [advanceState, advanceAction, advancePending] = useActionState(
+    updateFightQueueStatusAction,
+    initialMatchActionState
+  )
+  const [rollbackState, rollbackAction, rollbackPending] = useActionState(
     updateFightQueueStatusAction,
     initialMatchActionState
   )
 
   const nextStatus = nextQueueStatus(match.queue_status)
+  const prevStatus = previousQueueStatus(match.queue_status)
   const callBlocked =
     match.queue_status === 'waiting' &&
     nextStatus === 'handlers_called' &&
     !matchPledgesSettled(match)
 
-  if (!canManage || !nextStatus) return null
+  const state = advanceState.error || advanceState.success ? advanceState : rollbackState
+
+  if (!canManage) return null
 
   return (
     <Stack gap={2} align={{ base: 'flex-start', lg: 'flex-end' }}>
-      <form action={action}>
-        <input type="hidden" name="matchId" value={match.id} />
-        <input type="hidden" name="eventId" value={eventId} />
-        <input type="hidden" name="queueStatus" value={nextStatus} />
-        <Button type="submit" size="sm" loading={pending} disabled={callBlocked}>
-          {FIGHT_QUEUE_ADVANCE_ACTION_LABELS[nextStatus]}
-        </Button>
-      </form>
+      <Flex gap={2} wrap="wrap">
+        {nextStatus ? (
+          <form action={advanceAction}>
+            <input type="hidden" name="matchId" value={match.id} />
+            <input type="hidden" name="eventId" value={eventId} />
+            <input type="hidden" name="queueStatus" value={nextStatus} />
+            <input type="hidden" name="direction" value="advance" />
+            <Button type="submit" size="sm" loading={advancePending} disabled={callBlocked}>
+              {FIGHT_QUEUE_ADVANCE_ACTION_LABELS[nextStatus]}
+            </Button>
+          </form>
+        ) : null}
+        {canManageQueueOverride && prevStatus ? (
+          <form action={rollbackAction}>
+            <input type="hidden" name="matchId" value={match.id} />
+            <input type="hidden" name="eventId" value={eventId} />
+            <input type="hidden" name="queueStatus" value={prevStatus} />
+            <input type="hidden" name="direction" value="rollback" />
+            <Button type="submit" size="sm" variant="outline" loading={rollbackPending}>
+              Step back
+            </Button>
+          </form>
+        ) : null}
+      </Flex>
       {callBlocked ? (
         <Text fontSize="xs" color="orange.fg" maxW="xs">
           Settle pledge adjustments at Cashier Terminal before staff call handlers for this fight.
@@ -273,10 +299,12 @@ export function FightQueueRow({
   match,
   eventId,
   canManage,
+  canManageQueueOverride = false,
 }: {
   match: MatchListItem
   eventId: string
   canManage: boolean
+  canManageQueueOverride?: boolean
 }) {
   return (
     <Box px={4} py={3} borderBottomWidth="1px" borderColor="border" _last={{ borderBottomWidth: 0 }}>
@@ -313,7 +341,12 @@ export function FightQueueRow({
             <SidePaymentBadges side={match.wala} />
           </Box>
         </Flex>
-        <FightQueueAdvanceForm match={match} eventId={eventId} canManage={canManage} />
+        <FightQueueAdvanceForm
+          match={match}
+          eventId={eventId}
+          canManage={canManage}
+          canManageQueueOverride={canManageQueueOverride}
+        />
         <AdjustPledgeForm eventId={eventId} match={match} canManage={canManage} />
       </Flex>
     </Box>

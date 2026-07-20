@@ -13,9 +13,10 @@ import { MatchBetBalancingPanel } from '@/features/matches/components/match-bet-
 import { MatchPalitadaRecordForm } from '@/features/matches/components/match-palitada-record-form'
 import { MatchingLiveSyncProvider, useMatchingLiveSync } from '@/features/matches/components/matching-live-sync-provider'
 import { formatCurrency } from '@/features/matches/components/matching-shared'
-import { FIGHT_SIDE_LABELS } from '@/features/matches/schema'
+import { FIGHT_QUEUE_STATUS_LABELS, FIGHT_SIDE_LABELS } from '@/features/matches/schema'
+import { fightQueueStatusColorPalette } from '@/features/matches/display-utils'
 import type { MatchListItem, SettlingMatchListItem } from '@/features/matches/types'
-import { resolvePalitadaTargetMatch } from '@/features/matches/utils'
+import { resolveBetBalancingTargetMatch } from '@/features/matches/utils'
 
 type MatchingPitClientProps = {
   eventId: string
@@ -34,7 +35,7 @@ function MatchingPitContent({
   canManagePalitada,
 }: Omit<MatchingPitClientProps, 'queueMatches'>) {
   const { queueMatches } = useMatchingLiveSync()
-  const targetMatch = useMemo(() => resolvePalitadaTargetMatch(queueMatches), [queueMatches])
+  const targetMatch = useMemo(() => resolveBetBalancingTargetMatch(queueMatches), [queueMatches])
 
   const settlement = targetMatch
     ? calculatePledgeSettlement({
@@ -69,7 +70,7 @@ function MatchingPitContent({
     <PageStack>
       <PageHeader
         title="Bet Balancing"
-        description={`Record Palitada on waiting fights for ${eventName}. Use this screen at the pit before handlers are called.`}
+        description={`Record Palitada while a fight is waiting or at the pit for ${eventName}. Locked once the fight starts.`}
       />
 
       {!canManagePalitada ? (
@@ -79,11 +80,11 @@ function MatchingPitContent({
           </Text>
         </PanelCard>
       ) : !targetMatch ? (
-        <PanelCard title="No waiting fight">
+        <PanelCard title="No fight open for Bet Balancing">
           <Stack gap={3}>
             <Text fontSize="sm" color="fg.muted">
-              There is no fight in the queue with status Waiting. Advance a paid fight to the queue
-              first.
+              There is no fight in Waiting, Handlers called, or Birds at pit. Advance a paid fight
+              into the queue first.
             </Text>
             <Link href={`/dashboard/events/${eventId}/matching?view=queue`}>
               Open fight queue
@@ -94,7 +95,13 @@ function MatchingPitContent({
         <Stack gap={LAYOUT_GAP.section}>
           <PanelCard title={`Fight #${targetMatch.fight_number}`}>
             <Flex gap={2} wrap="wrap" mb={3}>
-              <Badge colorPalette="blue">Waiting</Badge>
+              {targetMatch.queue_status ? (
+                <Badge
+                  colorPalette={fightQueueStatusColorPalette(targetMatch.queue_status)}
+                >
+                  {FIGHT_QUEUE_STATUS_LABELS[targetMatch.queue_status]}
+                </Badge>
+              ) : null}
               {settlement?.isBalanced ? (
                 <Badge colorPalette="green">Balanced</Badge>
               ) : (
@@ -115,6 +122,7 @@ function MatchingPitContent({
                 eventId={eventId}
                 match={targetMatch}
                 defaultSide={settlement?.underdogSide ?? 'meron'}
+                disabled={targetMatch.queue_status === 'fighting'}
               />
             </Box>
 

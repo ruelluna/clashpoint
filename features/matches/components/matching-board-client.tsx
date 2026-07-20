@@ -20,6 +20,7 @@ type MatchingBoardClientProps = {
   taxCommissionRate: number
   canManage: boolean
   canManagePalitada: boolean
+  canManageQueueOverride: boolean
   canSettle: boolean
   canRecordResult: boolean
 }

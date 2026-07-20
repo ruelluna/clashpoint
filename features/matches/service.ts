@@ -25,13 +25,16 @@ import {
   canLockMatchList,
   collectUsedRoosterIds,
   getFightQueueAdvanceBlockReason,
+  isValidFightQueueRollback,
   isValidFightQueueTransition,
-  matchStatusForQueueStatus,
+  matchStatusForQueueStatusChange,
   roundMatchMoney,
   validateCockUsedOnce,
   validateNoSelfMatch,
   validateRoosterEligibility,
 } from '@/features/matches/utils'
+import { getProfile } from '@/lib/auth/queries'
+import { isSystemOwnerRole } from '@/lib/auth/permissions'
 import { getEntryOutstandingDues } from '@/features/payments/service'
 import type { Database } from '@/lib/supabase/database.types'
 import type { ConditionallyApprovedMatchHandling } from '@/lib/derby/enums'
@@ -636,6 +639,14 @@ export async function updateFightQueueStatus(
   input: UpdateFightQueueStatusInput
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
+  const isRollback = input.direction === 'rollback'
+
+  if (isRollback) {
+    const profile = await getProfile(actorId)
+    if (!profile || !isSystemOwnerRole(profile.role)) {
+      return { error: 'Only administrators can step the fight queue back' }
+    }
+  }
 
   const { data: match, error: fetchError } = await supabase
     .from('matches')
@@ -647,7 +658,19 @@ export async function updateFightQueueStatus(
   if (!match) return { error: 'Match not found' }
 
   const currentQueue = (match.queue_status as string | null) ?? null
-  if (
+
+  if (isRollback) {
+    if (
+      !isValidFightQueueRollback(
+        currentQueue as FightQueueStatus | null,
+        input.queueStatus
+      )
+    ) {
+      return {
+        error: `Cannot step fight #${match.fight_number} back from ${currentQueue ?? 'unset'} to ${input.queueStatus}`,
+      }
+    }
+  } else if (
     !isValidFightQueueTransition(
       currentQueue as FightQueueStatus | null,
       input.queueStatus
@@ -658,11 +681,15 @@ export async function updateFightQueueStatus(
     }
   }
 
-  if (!['queued', 'at_pit', 'fighting'].includes(match.status as string) && input.queueStatus !== 'waiting') {
+  if (
+    !isRollback &&
+    !['queued', 'at_pit', 'fighting'].includes(match.status as string) &&
+    input.queueStatus !== 'waiting'
+  ) {
     return { error: 'Match must be queued before advancing the fight queue' }
   }
 
-  if (currentQueue === 'waiting' && input.queueStatus === 'handlers_called') {
+  if (!isRollback && currentQueue === 'waiting' && input.queueStatus === 'handlers_called') {
     const { data: bets, error: betsError } = await supabase
       .from('match_bets')
       .select('side, payment_status, amount, collected_amount')
@@ -703,7 +730,7 @@ export async function updateFightQueueStatus(
     if (advanceBlock) return { error: advanceBlock }
   }
 
-  const nextMatchStatus = matchStatusForQueueStatus(input.queueStatus)
+  const nextMatchStatus = matchStatusForQueueStatusChange(input.queueStatus, isRollback)
   const payload: MatchUpdate = {
     queue_status: input.queueStatus,
   }

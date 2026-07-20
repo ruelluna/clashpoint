@@ -57,6 +57,7 @@ export const lockMatchListSchema = z.object({
 export const updateFightQueueStatusSchema = z.object({
   matchId: z.string().uuid(),
   queueStatus: fightQueueStatusSchema,
+  direction: z.enum(['advance', 'rollback']).optional().default('advance'),
 })
 
 export const updateMatchStatusSchema = z.object({

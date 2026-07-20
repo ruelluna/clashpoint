@@ -38,6 +38,7 @@ import { getUser } from '@/lib/auth/session'
 import {
   canAccessDashboard,
   canAccessDashboardForProfile,
+  canPerformEventOperation,
   isSystemOwnerRole,
   requireNonStaffAnyPermission,
 } from '@/lib/auth/permissions'
@@ -166,5 +167,55 @@ describe('requireNonStaffAnyPermission', () => {
     await expect(
       requireNonStaffAnyPermission(['events.manage'])
     ).rejects.toThrow('redirect:/access-denied')
+  })
+})
+
+describe('canPerformEventOperation', () => {
+  const adminProfile: Profile = {
+    id: '00000000-0000-4000-8000-000000000010',
+    role: 'admin',
+    display_name: 'Admin',
+    is_active: true,
+    deactivated_at: null,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  }
+
+  const staffProfile: Profile = {
+    id: '00000000-0000-4000-8000-000000000011',
+    role: 'staff',
+    display_name: 'Staff',
+    is_active: true,
+    deactivated_at: null,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    createClient.mockResolvedValue({
+      from: vi.fn(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      })),
+    })
+    vi.mocked(getProfile).mockImplementation(async (userId: string) => {
+      if (userId === adminProfile.id) return adminProfile
+      if (userId === staffProfile.id) return staffProfile
+      return null
+    })
+  })
+
+  it('returns true for system owner roles without granular permission checks', async () => {
+    await expect(
+      canPerformEventOperation(adminProfile, adminProfile.id, ['matches.palitada.manage'])
+    ).resolves.toBe(true)
+  })
+
+  it('returns false for staff without the requested permission', async () => {
+    await expect(
+      canPerformEventOperation(staffProfile, staffProfile.id, ['matches.palitada.manage'])
+    ).resolves.toBe(false)
   })
 })

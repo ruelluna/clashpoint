@@ -11,9 +11,13 @@ import {
 import { listSettlingMatchesWithObligations } from '@/features/matches/match-settling-service'
 import { listVerifiedResultMatchIds } from '@/features/results/queries'
 import { getUser } from '@/lib/auth/session'
-import { canOperateAsStaff } from '@/lib/auth/operational-access'
 import { getProfile } from '@/lib/auth/queries'
-import { hasAnyPermission, hasPermission, requirePermission } from '@/lib/auth/permissions'
+import {
+  canPerformEventOperation,
+  hasPermission,
+  isSystemOwnerRole,
+  requirePermission,
+} from '@/lib/auth/permissions'
 
 type MatchingPageProps = {
   params: Promise<{ id: string }>
@@ -37,14 +41,16 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
     ])
 
   const profile = user ? await getProfile(user.id) : null
-  const canManage =
-    Boolean(user && profile) &&
-    canOperateAsStaff(profile!) &&
-    (await hasPermission(user!.id, 'matches.manage'))
-  const canManagePalitada =
-    Boolean(user && profile) &&
-    canOperateAsStaff(profile!) &&
-    (await hasAnyPermission(user!.id, ['matches.palitada.manage', 'matches.manage']))
+  const canManage = user && profile
+    ? await canPerformEventOperation(profile, user.id, ['matches.manage'])
+    : false
+  const canManagePalitada = user && profile
+    ? await canPerformEventOperation(profile, user.id, [
+        'matches.palitada.manage',
+        'matches.manage',
+      ])
+    : false
+  const canManageQueueOverride = Boolean(profile && isSystemOwnerRole(profile.role))
   const canSettle = canManage
   const canRecordResult = user ? await hasPermission(user.id, 'results.manage') : false
 
@@ -62,6 +68,7 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
         taxCommissionRate={event.tax_commission}
         canManage={canManage}
         canManagePalitada={canManagePalitada}
+        canManageQueueOverride={canManageQueueOverride}
         canSettle={canSettle}
         canRecordResult={canRecordResult}
       />

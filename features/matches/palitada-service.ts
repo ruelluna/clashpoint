@@ -7,7 +7,7 @@ import {
   calculatePledgeSettlement,
   validatePalitadaContribution,
 } from '@/features/matches/pledge-settlement'
-import { isBetEditHardLocked } from '@/features/matches/utils'
+import { isPalitadaEditLocked } from '@/features/matches/utils'
 import { writeAuditLog } from '@/features/audit/service'
 import { createClient } from '@/lib/supabase/server'
 
@@ -20,10 +20,8 @@ export async function addPalitadaContribution(
     return { error: context.error ?? 'Match not found' }
   }
 
-  if (
-    isBetEditHardLocked(context.match.status, context.match.queue_status)
-  ) {
-    return { error: 'Palitada cannot be changed after handlers are called' }
+  if (isPalitadaEditLocked(context.match.status, context.match.queue_status)) {
+    return { error: 'Palitada cannot be changed after the fight has started' }
   }
 
   const settlement = calculatePledgeSettlement(
@@ -86,10 +84,8 @@ export async function deletePalitadaContribution(
     return { error: context.error ?? 'Match not found' }
   }
 
-  if (
-    isBetEditHardLocked(context.match.status, context.match.queue_status)
-  ) {
-    return { error: 'Palitada cannot be changed after handlers are called' }
+  if (isPalitadaEditLocked(context.match.status, context.match.queue_status)) {
+    return { error: 'Palitada cannot be changed after the fight has started' }
   }
 
   const supabase = await createClient()

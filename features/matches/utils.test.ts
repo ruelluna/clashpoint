@@ -9,9 +9,13 @@ import {
   getMatchBetAdjustmentDelta,
   isMatchBetSideSettled,
   isMatchQueueReady,
+  isPalitadaEditLocked,
   isRoosterEligibleForMatching,
+  isValidFightQueueRollback,
   isValidFightQueueTransition,
+  previousQueueStatus,
   resolveActiveMatch,
+  resolveBetBalancingTargetMatch,
   resolvePalitadaTargetMatch,
   validateCockUsedOnce,
   validateNoSelfMatch,
@@ -285,14 +289,63 @@ describe('resolveActiveMatch', () => {
   })
 })
 
-describe('resolvePalitadaTargetMatch', () => {
-  it('returns the lowest fight number among waiting matches', () => {
-    const target = resolvePalitadaTargetMatch([
-      buildMatchListItem({ id: '1', fight_number: 3, queue_status: 'waiting' }),
-      buildMatchListItem({ id: '2', fight_number: 2, queue_status: 'waiting' }),
-      buildMatchListItem({ id: '3', fight_number: 1, queue_status: 'handlers_called' }),
+describe('resolveBetBalancingTargetMatch', () => {
+  it('prefers birds at pit over waiting', () => {
+    const target = resolveBetBalancingTargetMatch([
+      buildMatchListItem({ id: '1', fight_number: 1, queue_status: 'waiting' }),
+      buildMatchListItem({ id: '2', fight_number: 2, queue_status: 'birds_at_pit' }),
     ])
 
     expect(target?.id).toBe('2')
+  })
+
+  it('returns the lowest fight number among waiting matches when no pit fight exists', () => {
+    const target = resolveBetBalancingTargetMatch([
+      buildMatchListItem({ id: '1', fight_number: 3, queue_status: 'waiting' }),
+      buildMatchListItem({ id: '2', fight_number: 2, queue_status: 'waiting' }),
+    ])
+
+    expect(target?.id).toBe('2')
+  })
+
+  it('ignores fighting matches', () => {
+    expect(
+      resolveBetBalancingTargetMatch([
+        buildMatchListItem({ id: '1', fight_number: 1, queue_status: 'fighting' }),
+      ])
+    ).toBeNull()
+  })
+})
+
+describe('resolvePalitadaTargetMatch', () => {
+  it('delegates to resolveBetBalancingTargetMatch', () => {
+    const target = resolvePalitadaTargetMatch([
+      buildMatchListItem({ id: '2', fight_number: 2, queue_status: 'birds_at_pit' }),
+    ])
+
+    expect(target?.id).toBe('2')
+  })
+})
+
+describe('isPalitadaEditLocked', () => {
+  it('allows palitada edits through birds at pit', () => {
+    expect(isPalitadaEditLocked('at_pit', 'birds_at_pit')).toBe(false)
+  })
+
+  it('locks palitada once fighting starts', () => {
+    expect(isPalitadaEditLocked('fighting', 'fighting')).toBe(true)
+  })
+})
+
+describe('fight queue rollback helpers', () => {
+  it('maps previous queue status', () => {
+    expect(previousQueueStatus('birds_at_pit')).toBe('handlers_called')
+    expect(previousQueueStatus('waiting')).toBeNull()
+  })
+
+  it('validates rollback transitions', () => {
+    expect(isValidFightQueueRollback('birds_at_pit', 'handlers_called')).toBe(true)
+    expect(isValidFightQueueRollback('birds_at_pit', 'waiting')).toBe(false)
+    expect(isValidFightQueueTransition('birds_at_pit', 'fighting')).toBe(true)
   })
 })

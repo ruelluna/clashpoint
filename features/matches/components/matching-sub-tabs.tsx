@@ -11,7 +11,7 @@ import { useMatchingLiveSync } from '@/features/matches/components/matching-live
 import { MatchingPendingPaymentsPanel } from '@/features/matches/components/matching-pending-payments-panel'
 import { MatchingSettlingPanel } from '@/features/matches/components/matching-settling-panel'
 import type { EligibleRooster } from '@/features/matches/types'
-import { resolveActiveMatch, resolvePalitadaTargetMatch } from '@/features/matches/utils'
+import { resolveActiveMatch, resolveBetBalancingTargetMatch } from '@/features/matches/utils'
 
 export type MatchingView = 'active' | 'queue' | 'pending' | 'desk' | 'settling'
 
@@ -40,6 +40,7 @@ type MatchingSubTabsProps = {
   taxCommissionRate: number
   canManage: boolean
   canManagePalitada: boolean
+  canManageQueueOverride: boolean
   canSettle: boolean
   canRecordResult: boolean
   onFeedback?: (message: string | null, isError: boolean) => void
@@ -53,6 +54,7 @@ export function MatchingSubTabs({
   taxCommissionRate,
   canManage,
   canManagePalitada,
+  canManageQueueOverride,
   canSettle,
   canRecordResult,
   onFeedback,
@@ -71,7 +73,7 @@ export function MatchingSubTabs({
 
   const activeMatch = useMemo(() => resolveActiveMatch(queueMatches), [queueMatches])
   const palitadaTargetMatch = useMemo(
-    () => resolvePalitadaTargetMatch(queueMatches),
+    () => resolveBetBalancingTargetMatch(queueMatches),
     [queueMatches]
   )
   const verifiedResultSet = useMemo(
@@ -136,6 +138,7 @@ export function MatchingSubTabs({
           taxCommissionRate={taxCommissionRate}
           canManage={canManage}
           canManagePalitada={canManagePalitada}
+          canManageQueueOverride={canManageQueueOverride}
           canRecordResult={canRecordResult}
           hasVerifiedResult={
             activeMatch ? verifiedResultSet.has(activeMatch.id) : false
@@ -149,6 +152,7 @@ export function MatchingSubTabs({
           eventId={eventId}
           queueMatches={queueMatches}
           canManage={canManage}
+          canManageQueueOverride={canManageQueueOverride}
         />
       </Tabs.Content>
 

@@ -10,12 +10,14 @@ type MatchingFightQueuePanelProps = {
   eventId: string
   queueMatches: MatchListItem[]
   canManage: boolean
+  canManageQueueOverride?: boolean
 }
 
 export function MatchingFightQueuePanel({
   eventId,
   queueMatches,
   canManage,
+  canManageQueueOverride = false,
 }: MatchingFightQueuePanelProps) {
   return (
     <PanelCard flush title="Fight queue">
@@ -32,6 +34,7 @@ export function MatchingFightQueuePanel({
             match={match}
             eventId={eventId}
             canManage={canManage}
+            canManageQueueOverride={canManageQueueOverride}
           />
         ))
       )}

@@ -73,6 +73,16 @@ export async function hasPermission(
   return hasAnyPermission(userId, [permission])
 }
 
+export async function canPerformEventOperation(
+  profile: Profile,
+  userId: string,
+  permissions: string[]
+): Promise<boolean> {
+  if (isSystemOwnerRole(profile.role)) return true
+  if (!canOperateAsStaff(profile)) return false
+  return hasAnyPermission(userId, permissions)
+}
+
 export async function canAccessDashboardForProfile(
   profile: Profile
 ): Promise<boolean> {
@@ -141,12 +151,18 @@ export async function requirePalitadaManage(): Promise<Profile> {
     'matches.palitada.manage',
     'matches.manage',
   ])
-  if (!canOperateAsStaff(profile)) redirect('/access-denied')
+  if (!isSystemOwnerRole(profile.role) && !canOperateAsStaff(profile)) {
+    redirect('/access-denied')
+  }
   return profile
 }
 
 export async function requireMatchSettleManage(): Promise<Profile> {
-  return requireOperationalPermission('matches.manage')
+  const profile = await requirePermission('matches.manage')
+  if (!isSystemOwnerRole(profile.role) && !canOperateAsStaff(profile)) {
+    redirect('/access-denied')
+  }
+  return profile
 }
 
 export async function requireSystemOwner(): Promise<Profile> {
