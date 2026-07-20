@@ -878,6 +878,9 @@ export type Database = {
           receipt_path: string | null
           received_by: string | null
           cashier_session_id: string | null
+          collection_batch_id: string | null
+          refund_batch_id: string | null
+          refunded_amount: number | null
           paid_at: string | null
           notes: string | null
           created_at: string
@@ -903,6 +906,9 @@ export type Database = {
           receipt_path?: string | null
           received_by?: string | null
           cashier_session_id?: string | null
+          collection_batch_id?: string | null
+          refund_batch_id?: string | null
+          refunded_amount?: number | null
           paid_at?: string | null
           notes?: string | null
           created_at?: string
@@ -928,6 +934,9 @@ export type Database = {
           receipt_path?: string | null
           received_by?: string | null
           cashier_session_id?: string | null
+          collection_batch_id?: string | null
+          refund_batch_id?: string | null
+          refunded_amount?: number | null
           paid_at?: string | null
           notes?: string | null
           created_at?: string

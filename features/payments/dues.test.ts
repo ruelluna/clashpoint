@@ -5,8 +5,9 @@ import {
   classifyCashierQuery,
   computeOutstandingDues,
   getCashierPaymentCategoryOptions,
-  getEntryFeesOutstanding,
-  splitEntryFeesPayment,
+  getRegistrationDuesOutstanding,
+  hasRegistrationDuesOutstanding,
+  splitRegistrationDuesPayment,
 } from '@/features/payments/dues'
 
 const settings: EventFeeSettings = {
@@ -19,14 +20,14 @@ const settings: EventFeeSettings = {
 }
 
 describe('computeOutstandingDues', () => {
-  it('returns full dues when nothing paid and suggests combined entry-fee amount', () => {
+  it('returns full dues when nothing paid and suggests combined registration dues amount', () => {
     const result = computeOutstandingDues(settings, 2, {})
 
     expect(result.totalOutstanding).toBe(500 + 400 + 1000)
     expect(result.suggestedCategory).toBeNull()
-    expect(result.suggestedAmount).toBe(900)
+    expect(result.suggestedAmount).toBe(1900)
     expect(result.lines).toHaveLength(3)
-    expect(getEntryFeesOutstanding(result.lines)).toBe(900)
+    expect(getRegistrationDuesOutstanding(result.lines)).toBe(1900)
   })
 
   it('allocates legacy entry_fees payments to registration first then rooster entry', () => {
@@ -42,7 +43,7 @@ describe('computeOutstandingDues', () => {
     expect(rooster?.outstanding).toBe(300)
     expect(rooster?.amountPaid).toBe(100)
     expect(result.suggestedCategory).toBeNull()
-    expect(result.suggestedAmount).toBe(300)
+    expect(result.suggestedAmount).toBe(1300)
   })
 
   it('combines direct category payments with legacy entry_fees allocation', () => {
@@ -57,15 +58,16 @@ describe('computeOutstandingDues', () => {
     expect(rooster?.amountPaid).toBe(300)
   })
 
-  it('skips fully paid entry fees and suggests cash bond next', () => {
+  it('suggests registration dues when entry fees paid but bond remains', () => {
     const result = computeOutstandingDues(settings, 2, {
       registration: 500,
       rooster_entry: 400,
     })
 
-    expect(result.suggestedCategory).toBe('cash_bond')
+    expect(result.suggestedCategory).toBeNull()
     expect(result.suggestedAmount).toBe(1000)
     expect(result.totalOutstanding).toBe(1000)
+    expect(hasRegistrationDuesOutstanding(result.lines)).toBe(true)
   })
 
   it('includes positive fee-adjustment collect amounts', () => {
@@ -74,7 +76,19 @@ describe('computeOutstandingDues', () => {
     const adjustment = result.lines.find((line) => line.category === 'adjustment')
     expect(adjustment?.outstanding).toBe(150)
     expect(result.totalOutstanding).toBe(1000 + 150)
-    expect(result.suggestedCategory).toBe('cash_bond')
+    expect(result.suggestedCategory).toBeNull()
+    expect(result.suggestedAmount).toBe(1000)
+  })
+
+  it('suggests adjustment when registration dues are cleared', () => {
+    const result = computeOutstandingDues(settings, 1, {
+      registration: 500,
+      rooster_entry: 200,
+      cash_bond: 1000,
+    }, 200, 50)
+
+    expect(result.suggestedCategory).toBe('adjustment')
+    expect(result.suggestedAmount).toBe(150)
   })
 
   it('returns zero outstanding when all categories are paid', () => {
@@ -89,51 +103,86 @@ describe('computeOutstandingDues', () => {
   })
 })
 
-describe('splitEntryFeesPayment', () => {
+describe('splitRegistrationDuesPayment', () => {
   it('applies registration first then rooster entry for partial payments', () => {
     const dues = computeOutstandingDues(settings, 2, {})
 
-    expect(splitEntryFeesPayment(600, dues.lines)).toEqual({
+    expect(splitRegistrationDuesPayment(600, dues.lines)).toEqual({
       registration: 500,
       rooster_entry: 100,
+      cash_bond: 0,
     })
   })
 
   it('allocates only to registration when amount covers registration only', () => {
     const dues = computeOutstandingDues(settings, 2, {})
 
-    expect(splitEntryFeesPayment(500, dues.lines)).toEqual({
+    expect(splitRegistrationDuesPayment(500, dues.lines)).toEqual({
       registration: 500,
       rooster_entry: 0,
+      cash_bond: 0,
     })
   })
 
-  it('allocates across both categories for full payment', () => {
+  it('allocates across entry fees for full entry-fee payment', () => {
     const dues = computeOutstandingDues(settings, 2, {})
 
-    expect(splitEntryFeesPayment(900, dues.lines)).toEqual({
+    expect(splitRegistrationDuesPayment(900, dues.lines)).toEqual({
       registration: 500,
       rooster_entry: 400,
+      cash_bond: 0,
+    })
+  })
+
+  it('allocates registration, rooster, then cash bond in FIFO order', () => {
+    const bondSettings: EventFeeSettings = {
+      registrationFeeEnabled: true,
+      registrationFeeAmount: 400,
+      roosterEntryFeeEnabled: true,
+      roosterEntryFeeAmount: 50,
+      cashBondEnabled: true,
+      cashBondAmount: 2000,
+    }
+    const dues = computeOutstandingDues(bondSettings, 2, {})
+
+    expect(splitRegistrationDuesPayment(2000, dues.lines)).toEqual({
+      registration: 400,
+      rooster_entry: 100,
+      cash_bond: 1500,
+    })
+  })
+
+  it('allocates only to cash bond when entry fees are paid', () => {
+    const dues = computeOutstandingDues(settings, 2, {
+      registration: 500,
+      rooster_entry: 400,
+    })
+
+    expect(splitRegistrationDuesPayment(500, dues.lines)).toEqual({
+      registration: 0,
+      rooster_entry: 0,
+      cash_bond: 500,
     })
   })
 })
 
 describe('getCashierPaymentCategoryOptions', () => {
-  it('excludes entry fees and only offers bond or adjustment', () => {
+  it('excludes registration dues and only offers adjustment when applicable', () => {
     const dues = computeOutstandingDues(settings, 2, {})
     const options = getCashierPaymentCategoryOptions(dues)
 
-    expect(options.map((option) => option.category)).toEqual(['cash_bond'])
+    expect(options).toHaveLength(0)
   })
 
-  it('returns only bond when entry fees are paid', () => {
+  it('returns only adjustment when registration dues are paid', () => {
     const dues = computeOutstandingDues(settings, 2, {
       registration: 500,
       rooster_entry: 400,
-    })
+      cash_bond: 1000,
+    }, 100, 0)
     const options = getCashierPaymentCategoryOptions(dues)
 
-    expect(options.map((option) => option.category)).toEqual(['cash_bond'])
+    expect(options.map((option) => option.category)).toEqual(['adjustment'])
   })
 })
 

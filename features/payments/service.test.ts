@@ -177,6 +177,8 @@ describe('refundPayment', () => {
       payment_status: 'refunded',
       balance: 10000,
       amount_paid: 0,
+      refunded_amount: 10000,
+      refund_batch_id: null,
       amount_tendered: null,
       change_given: null,
     })
@@ -223,6 +225,8 @@ describe('refundPayment', () => {
       payment_status: 'refunded',
       balance: 500,
       amount_paid: 0,
+      refunded_amount: 500,
+      refund_batch_id: null,
       amount_tendered: null,
       change_given: null,
     })

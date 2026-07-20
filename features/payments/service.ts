@@ -12,20 +12,34 @@ import {
 import {
   classifyCashierQuery,
   computeOutstandingDues,
-  getEntryFeesOutstanding,
-  splitEntryFeesPayment,
+  getRegistrationDuesOutstanding,
+  REGISTRATION_DUES_CATEGORIES,
+  splitRegistrationDuesPayment,
   type EntryOutstandingDues,
 } from '@/features/payments/dues'
+import {
+  buildBatchReceiptLine,
+  deriveEntryPaymentStatus,
+} from '@/features/payments/batch-receipt'
+import { buildRefundBatchReceiptLine } from '@/features/payments/batch-refund-receipt'
+import {
+  CASH_BOND_PAID_DISPLAY_LABEL,
+  evaluateCashBondRefundEligibility,
+  type CashBondRefundEligibility,
+} from '@/features/payments/cash-bond-refund'
+import { getPaymentRefundEligibility } from '@/features/payments/refund-eligibility'
 import {
   calculateBalance,
   getNextPaymentReference,
   type RecordMatchBetPaymentInput,
   type RecordPaymentInput,
   type RefundPaymentInput,
+  type RefundSelectedPaymentsInput,
 } from '@/features/payments/schema'
 import {
   allocateSplitPaymentTender,
   clearedTenderFieldsForRefund,
+  roundMoney,
 } from '@/features/payments/tender'
 import type { PaymentStatus } from '@/features/entries/types'
 import type { MatchBetPaymentStatus } from '@/features/matches/types'
@@ -34,7 +48,10 @@ import type {
   CashierSelectableEntry,
   CashierTargetMatch,
   MatchBetCashierTarget,
+  PaymentBatchReceiptItem,
+  PaymentBatchReceiptLine,
   PaymentLedgerItem,
+  PaymentRefundBatchReceiptItem,
 } from '@/features/payments/types'
 import { postRevolvingFundLedgerEntry } from '@/features/revolving-fund/service'
 import { createClient } from '@/lib/supabase/server'
@@ -48,6 +65,7 @@ import {
 export { calculateBalance } from '@/features/payments/schema'
 export type { EntryOutstandingDues } from '@/features/payments/dues'
 export type { CashierSelectableEntry } from '@/features/payments/types'
+export type { CashBondRefundEligibility } from '@/features/payments/cash-bond-refund'
 
 type PaymentLedgerRow = {
   id: string
@@ -67,7 +85,11 @@ type PaymentLedgerRow = {
   paid_at: string | null
   notes: string | null
   created_at: string
+  updated_at: string
   cashier_session_id: string | null
+  collection_batch_id: string | null
+  refund_batch_id: string | null
+  refunded_amount: number | null
   entries: {
     entry_number: string
     entry_name: string
@@ -101,8 +123,12 @@ function mapPaymentLedgerRow(row: PaymentLedgerRow) {
     paidAt: row.paid_at,
     notes: row.notes,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
     cashierSessionId: row.cashier_session_id,
     cashierName: row.cashier_sessions?.profiles?.display_name ?? null,
+    collectionBatchId: row.collection_batch_id ?? null,
+    refundBatchId: row.refund_batch_id ?? null,
+    refundedAmount: row.refunded_amount != null ? Number(row.refunded_amount) : null,
     sessionOpenedAt: row.cashier_sessions?.opened_at ?? null,
     matchId: row.match_id,
     fightSide: row.fight_side,
@@ -134,7 +160,11 @@ export async function listPaymentsByEvent(eventId: string): Promise<PaymentLedge
       paid_at,
       notes,
       created_at,
+      updated_at,
       cashier_session_id,
+      collection_batch_id,
+      refund_batch_id,
+      refunded_amount,
       match_id,
       fight_side,
       entries ( entry_number, entry_name, owner_name ),
@@ -172,8 +202,12 @@ export async function listPaymentsByEvent(eventId: string): Promise<PaymentLedge
       paidAt: mapped.paidAt,
       notes: mapped.notes,
       createdAt: mapped.createdAt,
+      updatedAt: mapped.updatedAt,
       cashierSessionId: mapped.cashierSessionId,
       cashierName: mapped.cashierName,
+      collectionBatchId: mapped.collectionBatchId,
+      refundBatchId: mapped.refundBatchId,
+      refundedAmount: mapped.refundedAmount,
       matchId: mapped.matchId,
       fightSide: mapped.fightSide,
       fightNumber: mapped.fightNumber,
@@ -333,9 +367,15 @@ export async function recordPayment(
   actorId: string,
   input: RecordPaymentInput,
   cashierSessionId: string
-): Promise<{ error?: string; paymentId?: string; paymentIds?: string[]; paymentCategories?: PaymentCategory[] }> {
-  if (input.collectEntryFees) {
-    return recordSplitEntryFeesPayment(actorId, input, cashierSessionId)
+): Promise<{
+  error?: string
+  paymentId?: string
+  paymentIds?: string[]
+  paymentCategories?: PaymentCategory[]
+  collectionBatchId?: string
+}> {
+  if (input.collectRegistrationDues) {
+    return recordSplitRegistrationDuesPayment(actorId, input, cashierSessionId)
   }
 
   const supabase = await createClient()
@@ -465,11 +505,17 @@ export async function recordPayment(
   return { paymentId: data.id, paymentIds: [data.id], paymentCategories: [category] }
 }
 
-async function recordSplitEntryFeesPayment(
+async function recordSplitRegistrationDuesPayment(
   actorId: string,
   input: RecordPaymentInput,
   cashierSessionId: string
-): Promise<{ error?: string; paymentId?: string; paymentIds?: string[]; paymentCategories?: PaymentCategory[] }> {
+): Promise<{
+  error?: string
+  paymentId?: string
+  paymentIds?: string[]
+  paymentCategories?: PaymentCategory[]
+  collectionBatchId?: string
+}> {
   const supabase = await createClient()
 
   const { data: entry, error: entryError } = await supabase
@@ -488,26 +534,30 @@ async function recordSplitEntryFeesPayment(
     return { error: duesResult.error ?? 'Could not load entry dues' }
   }
 
-  const combinedOutstanding = getEntryFeesOutstanding(duesResult.dues.lines)
+  const combinedOutstanding = getRegistrationDuesOutstanding(duesResult.dues.lines)
   if (combinedOutstanding <= 0) {
-    return { error: 'No registration or entry fees are outstanding' }
+    return { error: 'No registration dues are outstanding' }
   }
   if (input.amountPaid > combinedOutstanding) {
-    return { error: 'Payment exceeds the amount due for entry fees' }
+    return { error: 'Payment exceeds the amount due for registration dues' }
   }
 
-  const split = splitEntryFeesPayment(input.amountPaid, duesResult.dues.lines)
-  const portions: Array<{ category: 'registration' | 'rooster_entry'; amount: number }> = []
+  const split = splitRegistrationDuesPayment(input.amountPaid, duesResult.dues.lines)
+  const portions: Array<{ category: PaymentCategory; amount: number }> = []
   if (split.registration > 0) {
     portions.push({ category: 'registration', amount: split.registration })
   }
   if (split.rooster_entry > 0) {
     portions.push({ category: 'rooster_entry', amount: split.rooster_entry })
   }
+  if (split.cash_bond > 0) {
+    portions.push({ category: 'cash_bond', amount: split.cash_bond })
+  }
   if (portions.length === 0) {
-    return { error: 'No entry fee amount to collect' }
+    return { error: 'No registration dues amount to collect' }
   }
 
+  const collectionBatchId = crypto.randomUUID()
   let references = await listPaymentReferencesForEvent(input.eventId)
   const paymentIds: string[] = []
   const paidAt = new Date().toISOString()
@@ -558,6 +608,7 @@ async function recordSplitEntryFeesPayment(
         payment_category: portion.category,
         received_by: actorId,
         cashier_session_id: cashierSessionId,
+        collection_batch_id: collectionBatchId,
         paid_at: paidAt,
         notes: input.notes ?? null,
       })
@@ -587,6 +638,7 @@ async function recordSplitEntryFeesPayment(
         payment_status: paymentStatus,
         payment_category: portion.category,
         cashier_session_id: cashierSessionId,
+        collection_batch_id: collectionBatchId,
       },
     })
 
@@ -618,6 +670,7 @@ async function recordSplitEntryFeesPayment(
     paymentId: paymentIds[0],
     paymentIds,
     paymentCategories: portions.map((portion) => portion.category),
+    collectionBatchId,
   }
 }
 
@@ -783,7 +836,11 @@ export async function getPaymentForEvent(
       paid_at,
       notes,
       created_at,
+      updated_at,
       cashier_session_id,
+      collection_batch_id,
+      refund_batch_id,
+      refunded_amount,
       match_id,
       fight_side,
       entries ( entry_number, entry_name, owner_name ),
@@ -822,8 +879,12 @@ export async function getPaymentForEvent(
     paidAt: mapped.paidAt,
     notes: mapped.notes,
     createdAt: mapped.createdAt,
+    updatedAt: mapped.updatedAt,
     cashierSessionId: mapped.cashierSessionId,
     cashierName: mapped.cashierName,
+    collectionBatchId: mapped.collectionBatchId,
+    refundBatchId: mapped.refundBatchId,
+    refundedAmount: mapped.refundedAmount,
     matchId: mapped.matchId,
     fightSide: mapped.fightSide,
     fightNumber: mapped.fightNumber,
@@ -832,9 +893,179 @@ export async function getPaymentForEvent(
   }
 }
 
+type BatchPaymentRow = PaymentLedgerRow
+
+async function getCategoryPaidExcludingBatch(
+  entryId: string,
+  category: PaymentCategory,
+  batchId: string
+): Promise<number> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('payments')
+    .select('amount_paid, collection_batch_id')
+    .eq('entry_id', entryId)
+    .eq('payment_category', category)
+    .neq('payment_status', 'refunded')
+
+  if (error) throw error
+
+  return (data ?? [])
+    .filter((row) => row.collection_batch_id !== batchId)
+    .reduce((sum, row) => sum + Number(row.amount_paid), 0)
+}
+
+async function getPriorBatchReceipt(
+  entryId: string,
+  batchId: string,
+  batchPaidAt: string
+): Promise<{ reference: string; totalCollected: number } | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('payments')
+    .select('payment_reference, collection_batch_id, amount_paid, paid_at')
+    .eq('entry_id', entryId)
+    .not('collection_batch_id', 'is', null)
+    .neq('collection_batch_id', batchId)
+    .neq('payment_status', 'refunded')
+    .lt('paid_at', batchPaidAt)
+    .order('paid_at', { ascending: false })
+
+  if (error) throw error
+  if (!data?.length) return null
+
+  const priorBatchId = data[0].collection_batch_id as string
+  const priorRows = data.filter((row) => row.collection_batch_id === priorBatchId)
+  const totalCollected = roundMoney(
+    priorRows.reduce((sum, row) => sum + Number(row.amount_paid), 0)
+  )
+
+  return {
+    reference: priorRows[0]?.payment_reference as string,
+    totalCollected,
+  }
+}
+
+export async function getPaymentBatchForEvent(
+  eventId: string,
+  batchId: string
+): Promise<PaymentBatchReceiptItem | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('payments')
+    .select(
+      `
+      id,
+      payment_reference,
+      entry_id,
+      amount_due,
+      amount_paid,
+      amount_tendered,
+      change_given,
+      balance,
+      payment_method,
+      receipt_number,
+      payment_status,
+      payment_category,
+      paid_at,
+      notes,
+      created_at,
+      cashier_session_id,
+      collection_batch_id,
+      match_id,
+      fight_side,
+      entries ( entry_number, entry_name, owner_name, payment_status ),
+      match_bets!payments_match_bet_id_fkey ( barcode ),
+      matches ( fight_number ),
+      cashier_sessions (
+        opened_at,
+        profiles!cashier_sessions_staff_user_id_fkey ( display_name )
+      )
+    `
+    )
+    .eq('event_id', eventId)
+    .eq('collection_batch_id', batchId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  if (!data?.length) return null
+
+  const rows = data as unknown as BatchPaymentRow[]
+  const firstRow = rows[0]
+  const mappedFirst = mapPaymentLedgerRow(firstRow)
+  const paidAt = firstRow.paid_at ?? firstRow.created_at
+
+  const categoryOrder = REGISTRATION_DUES_CATEGORIES
+  const sortedRows = [...rows].sort(
+    (a, b) =>
+      categoryOrder.indexOf(a.payment_category) - categoryOrder.indexOf(b.payment_category)
+  )
+
+  const duesResult = await getEntryOutstandingDues(eventId, firstRow.entry_id)
+  const configuredLines =
+    duesResult.dues?.lines.filter((line) =>
+      REGISTRATION_DUES_CATEGORIES.includes(line.category)
+    ) ?? []
+
+  const lines: PaymentBatchReceiptLine[] = []
+  for (const category of categoryOrder) {
+    const configured = configuredLines.find((line) => line.category === category)
+    if (!configured || configured.amountDue <= 0) continue
+
+    const previouslyPaid = await getCategoryPaidExcludingBatch(
+      firstRow.entry_id,
+      category,
+      batchId
+    )
+    const batchRow = sortedRows.find((row) => row.payment_category === category)
+    const amountCollected = batchRow ? Number(batchRow.amount_paid) : 0
+
+    lines.push(
+      buildBatchReceiptLine(category, configured.amountDue, previouslyPaid, amountCollected)
+    )
+  }
+
+  const priorBatch = await getPriorBatchReceipt(firstRow.entry_id, batchId, paidAt)
+  const isFollowUpCollect = lines.some((line) => line.previouslyPaid > 0)
+
+  const totalCollected = roundMoney(
+    sortedRows.reduce((sum, row) => sum + Number(row.amount_paid), 0)
+  )
+  const lastRow = sortedRows[sortedRows.length - 1]
+  const changeGiven =
+    lastRow.change_given != null ? Number(lastRow.change_given) : null
+  const amountTendered =
+    changeGiven != null ? roundMoney(totalCollected + changeGiven) : null
+
+  const entryPaymentStatus = deriveEntryPaymentStatus(lines)
+
+  return {
+    collectionBatchId: batchId,
+    paymentReference: mappedFirst.paymentReference,
+    eventName: '',
+    entryId: mappedFirst.entryId,
+    entryNumber: mappedFirst.entryNumber,
+    entryName: mappedFirst.entryName,
+    ownerName: mappedFirst.ownerName,
+    cashierName: mappedFirst.cashierName,
+    sessionOpenedAt: mappedFirst.sessionOpenedAt,
+    paymentMethod: mappedFirst.paymentMethod,
+    amountTendered,
+    changeGiven,
+    totalCollected,
+    paidAt,
+    entryPaymentStatus,
+    lines,
+    priorReceiptReference: priorBatch?.reference ?? null,
+    priorReceiptCollected: priorBatch?.totalCollected ?? null,
+    isFollowUpCollect,
+  }
+}
+
 export async function refundPayment(
   actorId: string,
-  input: RefundPaymentInput
+  input: RefundPaymentInput,
+  options?: { refundBatchId?: string }
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
 
@@ -852,6 +1083,8 @@ export async function refundPayment(
   if (payment.payment_status === 'refunded') {
     return { error: 'Payment is already refunded' }
   }
+
+  const refundAmount = Number(payment.amount_paid)
 
   if (payment.payment_category === 'match_bet') {
     const matchBetId = payment.match_bet_id as string | null
@@ -875,6 +1108,8 @@ export async function refundPayment(
       payment_status: 'refunded',
       balance: Number(payment.amount_due),
       amount_paid: 0,
+      refunded_amount: refundAmount > 0 ? refundAmount : null,
+      refund_batch_id: options?.refundBatchId ?? null,
       ...clearedTenderFieldsForRefund(),
     })
     .eq('id', input.paymentId)
@@ -907,11 +1142,12 @@ export async function refundPayment(
     newValues: {
       payment_status: 'refunded',
       entry_id: payment.entry_id,
+      refund_batch_id: options?.refundBatchId ?? null,
+      refunded_amount: refundAmount > 0 ? refundAmount : null,
     },
     reason: input.reason,
   })
 
-  const refundAmount = Number(payment.amount_paid)
   if (refundAmount > 0) {
     const fundResult = await postRevolvingFundLedgerEntry({
       eventId: input.eventId,
@@ -925,6 +1161,225 @@ export async function refundPayment(
   }
 
   return {}
+}
+
+export async function refundSelectedPayments(
+  actorId: string,
+  input: RefundSelectedPaymentsInput
+): Promise<{ error?: string; refundBatchId?: string }> {
+  const supabase = await createClient()
+  const uniquePaymentIds = [...new Set(input.paymentIds)]
+
+  const { data: payments, error: fetchError } = await supabase
+    .from('payments')
+    .select(
+      'id, payment_category, payment_status, amount_paid, event_id, entry_id, collection_batch_id'
+    )
+    .eq('event_id', input.eventId)
+    .in('id', uniquePaymentIds)
+
+  if (fetchError) return { error: fetchError.message }
+  if (!payments?.length || payments.length !== uniquePaymentIds.length) {
+    return { error: 'One or more payments were not found' }
+  }
+
+  for (const payment of payments) {
+    const category = payment.payment_category as PaymentCategory
+
+    if (category === 'cash_bond') {
+      const entryId = payment.entry_id as string
+      const bondEligibility = await getEntryCashBondRefundEligibility(
+        input.eventId,
+        entryId
+      )
+      if (!bondEligibility.eligible || bondEligibility.paymentId !== payment.id) {
+        return {
+          error: bondEligibility.reason ?? 'Cash bond cannot be refunded',
+        }
+      }
+      continue
+    }
+
+    const eligibility = getPaymentRefundEligibility({
+      paymentCategory: category,
+      paymentStatus: payment.payment_status as PaymentStatus,
+      amountPaid: Number(payment.amount_paid),
+    })
+    if (!eligibility.refundable) {
+      return {
+        error: eligibility.reason ?? 'One or more selected items cannot be refunded',
+      }
+    }
+  }
+
+  const refundBatchId = crypto.randomUUID()
+
+  for (const paymentId of uniquePaymentIds) {
+    const result = await refundPayment(
+      actorId,
+      {
+        paymentId,
+        eventId: input.eventId,
+        reason: input.reason,
+      },
+      { refundBatchId }
+    )
+    if (result.error) return { error: result.error }
+  }
+
+  return { refundBatchId }
+}
+
+export async function getRefundBatchForEvent(
+  eventId: string,
+  refundBatchId: string
+): Promise<PaymentRefundBatchReceiptItem | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('payments')
+    .select(
+      `
+      id,
+      payment_reference,
+      entry_id,
+      amount_due,
+      amount_paid,
+      refunded_amount,
+      payment_status,
+      payment_category,
+      paid_at,
+      created_at,
+      updated_at,
+      collection_batch_id,
+      refund_batch_id,
+      notes,
+      entries ( entry_number, entry_name, owner_name ),
+      cashier_sessions (
+        profiles!cashier_sessions_staff_user_id_fkey ( display_name )
+      )
+    `
+    )
+    .eq('event_id', eventId)
+    .eq('refund_batch_id', refundBatchId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  if (!data?.length) return null
+
+  const rows = data as unknown as Array<
+    PaymentLedgerRow & {
+      refunded_amount: number | null
+      refund_batch_id: string | null
+      updated_at: string
+    }
+  >
+  const firstRow = rows[0]
+  const collectionBatchId = firstRow.collection_batch_id
+  const categoryOrder = REGISTRATION_DUES_CATEGORIES
+
+  const { data: auditRows, error: auditError } = await supabase
+    .from('audit_logs')
+    .select('new_values, created_at')
+    .eq('action', 'payment.refunded')
+    .eq('entity_id', firstRow.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (auditError) throw auditError
+  const auditNewValues = auditRows?.[0]?.new_values as { reason?: string } | null
+  const reason = auditNewValues?.reason ?? 'Refund'
+
+  let originalReceiptReference = firstRow.payment_reference
+  let collectionRows: BatchPaymentRow[] = []
+
+  if (collectionBatchId) {
+    const { data: batchData, error: batchError } = await supabase
+      .from('payments')
+      .select(
+        `
+        id,
+        payment_reference,
+        entry_id,
+        amount_due,
+        amount_paid,
+        refunded_amount,
+        payment_status,
+        payment_category,
+        paid_at,
+        created_at,
+        collection_batch_id
+      `
+      )
+      .eq('event_id', eventId)
+      .eq('collection_batch_id', collectionBatchId)
+      .order('created_at', { ascending: true })
+
+    if (batchError) throw batchError
+    collectionRows = (batchData ?? []) as unknown as BatchPaymentRow[]
+    originalReceiptReference =
+      collectionRows[0]?.payment_reference ?? originalReceiptReference
+  }
+
+  const duesResult = await getEntryOutstandingDues(eventId, firstRow.entry_id)
+  const configuredLines =
+    duesResult.dues?.lines.filter((line) =>
+      REGISTRATION_DUES_CATEGORIES.includes(line.category)
+    ) ?? []
+
+  const refundByCategory = new Map<PaymentCategory, number>()
+  for (const row of rows) {
+    const category = row.payment_category as PaymentCategory
+    const amount = Number(row.refunded_amount ?? 0)
+    refundByCategory.set(category, (refundByCategory.get(category) ?? 0) + amount)
+  }
+
+  const lines = []
+  for (const category of categoryOrder) {
+    const configured = configuredLines.find((line) => line.category === category)
+    if (!configured || configured.amountDue <= 0) continue
+
+    const collectionRow = collectionRows.find((row) => row.payment_category === category)
+    const normalizedCollected = collectionRow
+      ? collectionRow.payment_status === 'refunded'
+        ? Number(collectionRow.refunded_amount ?? 0)
+        : Number(collectionRow.amount_paid)
+      : 0
+    const amountRefunded = refundByCategory.get(category) ?? 0
+
+    if (normalizedCollected <= 0 && amountRefunded <= 0) continue
+
+    lines.push(
+      buildRefundBatchReceiptLine(
+        category,
+        configured.amountDue,
+        normalizedCollected,
+        amountRefunded
+      )
+    )
+  }
+
+  const totalRefunded = roundMoney(
+    rows.reduce((sum, row) => sum + Number(row.refunded_amount ?? 0), 0)
+  )
+  const mappedFirst = mapPaymentLedgerRow(firstRow)
+  const refundedAt = firstRow.updated_at ?? firstRow.paid_at ?? firstRow.created_at
+
+  return {
+    refundBatchId,
+    refundReference: firstRow.payment_reference,
+    originalReceiptReference,
+    collectionBatchId,
+    eventName: '',
+    entryId: firstRow.entry_id,
+    entryNumber: mappedFirst.entryNumber,
+    entryName: mappedFirst.entryName,
+    ownerName: mappedFirst.ownerName,
+    cashierName: mappedFirst.cashierName,
+    reason,
+    totalRefunded,
+    lines,
+    refundedAt,
+  }
 }
 
 type EntryCashierRow = {
@@ -1011,6 +1466,101 @@ async function getAdjustmentCollectOutstanding(
     collectDue: Number(collectDue.toFixed(2)),
     paid: totalPaid,
   }
+}
+
+export async function getEntryCashBondRefundEligibility(
+  eventId: string,
+  entryId: string
+): Promise<CashBondRefundEligibility> {
+  const supabase = await createClient()
+
+  const { data: roosters, error: roosterError } = await supabase
+    .from('rooster_event_registrations')
+    .select('id, registration_status')
+    .eq('event_id', eventId)
+    .eq('entry_id', entryId)
+
+  if (roosterError) throw roosterError
+
+  const { data: matches, error: matchError } = await supabase
+    .from('matches')
+    .select(
+      'status, meron_entry_id, wala_entry_id, meron_rooster_id, wala_rooster_id'
+    )
+    .eq('event_id', eventId)
+    .or(`meron_entry_id.eq.${entryId},wala_entry_id.eq.${entryId}`)
+
+  if (matchError) throw matchError
+
+  const { data: bondPayments, error: paymentError } = await supabase
+    .from('payments')
+    .select('id, amount_paid, payment_status, refunded_amount')
+    .eq('event_id', eventId)
+    .eq('entry_id', entryId)
+    .eq('payment_category', 'cash_bond')
+    .order('created_at', { ascending: false })
+
+  if (paymentError) throw paymentError
+
+  const activeBond = (bondPayments ?? []).find(
+    (row) => row.payment_status !== 'refunded' && Number(row.amount_paid) > 0
+  )
+  const refundedBond = (bondPayments ?? []).find(
+    (row) => row.payment_status === 'refunded'
+  )
+  const bondRow = activeBond ?? refundedBond ?? bondPayments?.[0] ?? null
+
+  return evaluateCashBondRefundEligibility(
+    (roosters ?? []).map((row) => ({
+      id: row.id as string,
+      registrationStatus: row.registration_status as string,
+    })),
+    (matches ?? []).map((row) => ({
+      status: row.status as string,
+      meronEntryId: row.meron_entry_id as string,
+      walaEntryId: row.wala_entry_id as string,
+      meronRoosterId: row.meron_rooster_id as string,
+      walaRoosterId: row.wala_rooster_id as string,
+    })),
+    bondRow
+      ? {
+          id: bondRow.id as string,
+          amountPaid: Number(bondRow.amount_paid),
+          paymentStatus: bondRow.payment_status as string,
+        }
+      : null
+  )
+}
+
+function applyCashBondRefundToDues(
+  dues: EntryOutstandingDues,
+  cashBondRefund: CashBondRefundEligibility
+): EntryOutstandingDues {
+  const bondLine = dues.lines.find((line) => line.category === 'cash_bond')
+  if (!bondLine) {
+    return dues
+  }
+
+  const bondPaid = bondLine.amountPaid > 0 && bondLine.outstanding <= 0
+  if (!bondPaid && cashBondRefund.reason !== 'Already refunded') {
+    return { ...dues, lines: dues.lines.map((line) => ({ ...line })) }
+  }
+
+  const lines = dues.lines.map((line) => {
+    if (line.category !== 'cash_bond') return line
+
+    return {
+      ...line,
+      displayLabel:
+        bondPaid || cashBondRefund.reason === 'Already refunded'
+          ? CASH_BOND_PAID_DISPLAY_LABEL
+          : line.label,
+      refundHint: cashBondRefund.eligible ? undefined : cashBondRefund.reason,
+      refundable: cashBondRefund.eligible,
+    }
+  })
+
+  return { ...dues, lines }
 }
 
 export async function getEntryOutstandingDues(
@@ -1137,7 +1687,11 @@ async function buildCashierMatch(
   entry: EntryCashierRow,
   matchedVia: CashierTargetMatch['matchedVia']
 ): Promise<CashierTargetMatch> {
-  const duesResult = await getEntryOutstandingDues(eventId, entry.id)
+  const [duesResult, cashBondRefund] = await Promise.all([
+    getEntryOutstandingDues(eventId, entry.id),
+    getEntryCashBondRefundEligibility(eventId, entry.id),
+  ])
+
   if (duesResult.error || !duesResult.dues) {
     throw new Error(duesResult.error ?? 'Failed to compute dues')
   }
@@ -1152,7 +1706,8 @@ async function buildCashierMatch(
     ownerBarcode: entry.owner_barcode,
     roosterCount,
     paymentStatus: entry.payment_status,
-    dues: duesResult.dues,
+    dues: applyCashBondRefundToDues(duesResult.dues, cashBondRefund),
+    cashBondRefund,
     matchedVia,
   }
 }
