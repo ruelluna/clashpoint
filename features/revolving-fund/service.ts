@@ -129,7 +129,7 @@ export async function listRevolvingFundLedger(
     .from('event_revolving_fund_ledger')
     .select('*')
     .eq('event_id', eventId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
 
   if (error) throw error
   return ((data ?? []) as LedgerRow[]).map(mapLedgerRow)
