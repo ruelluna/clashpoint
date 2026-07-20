@@ -13,6 +13,7 @@ import {
   classifyCashierQuery,
   computeOutstandingDues,
   getEntryFeesOutstanding,
+  splitEntryFeesPayment,
   type EntryOutstandingDues,
 } from '@/features/payments/dues'
 import {
@@ -22,7 +23,10 @@ import {
   type RecordPaymentInput,
   type RefundPaymentInput,
 } from '@/features/payments/schema'
-import { clearedTenderFieldsForRefund } from '@/features/payments/tender'
+import {
+  allocateSplitPaymentTender,
+  clearedTenderFieldsForRefund,
+} from '@/features/payments/tender'
 import type { PaymentStatus } from '@/features/entries/types'
 import type { MatchBetPaymentStatus } from '@/features/matches/types'
 import type {
@@ -321,7 +325,11 @@ export async function recordPayment(
   actorId: string,
   input: RecordPaymentInput,
   cashierSessionId: string
-): Promise<{ error?: string; paymentId?: string }> {
+): Promise<{ error?: string; paymentId?: string; paymentIds?: string[]; paymentCategories?: PaymentCategory[] }> {
+  if (input.collectEntryFees) {
+    return recordSplitEntryFeesPayment(actorId, input, cashierSessionId)
+  }
+
   const supabase = await createClient()
 
   const { data: entry, error: entryError } = await supabase
@@ -347,46 +355,31 @@ export async function recordPayment(
 
   const category = input.paymentCategory ?? 'legacy'
 
+  if (category === 'entry_fees') {
+    return { error: 'Combined entry fees are no longer collected. Use entry fee collection instead.' }
+  }
+
   let amountDue: number
   let projectedTotal: number
   let balance: number
   let paymentStatus: PaymentStatus
 
-  if (category === 'entry_fees') {
-    const duesResult = await getEntryOutstandingDues(input.eventId, input.entryId)
-    if (duesResult.error || !duesResult.dues) {
-      return { error: duesResult.error ?? 'Could not load entry dues' }
-    }
+  const dueResult = await getEntryAmountDue(input.entryId, input.eventId, category)
+  if (dueResult.error) return { error: dueResult.error }
 
-    const combinedOutstanding = getEntryFeesOutstanding(duesResult.dues.lines)
-    if (combinedOutstanding <= 0) {
-      return { error: 'No registration or entry fees are outstanding' }
-    }
-    if (input.amountPaid > combinedOutstanding) {
-      return { error: 'Payment exceeds the amount due for this category' }
-    }
+  amountDue = dueResult.amountDue ?? 0
+  const { totalPaid: existingPaid, error: totalsError } =
+    category === 'legacy'
+      ? await getEntryPaymentTotals(input.entryId)
+      : await getEntryCategoryPaid(input.entryId, category)
 
-    amountDue = combinedOutstanding
-    projectedTotal = input.amountPaid
-    ;({ balance, paymentStatus } = calculateBalance(amountDue, projectedTotal))
-  } else {
-    const dueResult = await getEntryAmountDue(input.entryId, input.eventId, category)
-    if (dueResult.error) return { error: dueResult.error }
+  if (totalsError) return { error: totalsError }
 
-    amountDue = dueResult.amountDue ?? 0
-    const { totalPaid: existingPaid, error: totalsError } =
-      category === 'legacy'
-        ? await getEntryPaymentTotals(input.entryId)
-        : await getEntryCategoryPaid(input.entryId, category)
+  projectedTotal = existingPaid + input.amountPaid
+  ;({ balance, paymentStatus } = calculateBalance(amountDue, projectedTotal))
 
-    if (totalsError) return { error: totalsError }
-
-    projectedTotal = existingPaid + input.amountPaid
-    ;({ balance, paymentStatus } = calculateBalance(amountDue, projectedTotal))
-
-    if (projectedTotal > amountDue) {
-      return { error: 'Payment exceeds the amount due for this category' }
-    }
+  if (projectedTotal > amountDue) {
+    return { error: 'Payment exceeds the amount due for this category' }
   }
 
   const references = await listPaymentReferencesForEvent(input.eventId)
@@ -461,7 +454,163 @@ export async function recordPayment(
   const { promoteMatchesForEntry } = await import('@/features/matches/promotion')
   await promoteMatchesForEntry(input.eventId, input.entryId, actorId)
 
-  return { paymentId: data.id }
+  return { paymentId: data.id, paymentIds: [data.id], paymentCategories: [category] }
+}
+
+async function recordSplitEntryFeesPayment(
+  actorId: string,
+  input: RecordPaymentInput,
+  cashierSessionId: string
+): Promise<{ error?: string; paymentId?: string; paymentIds?: string[]; paymentCategories?: PaymentCategory[] }> {
+  const supabase = await createClient()
+
+  const { data: entry, error: entryError } = await supabase
+    .from('entries')
+    .select('id, event_id, entry_number, entry_name, registration_status, payment_status')
+    .eq('id', input.entryId)
+    .eq('event_id', input.eventId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (entryError) return { error: entryError.message }
+  if (!entry) return { error: 'Entry not found' }
+
+  const duesResult = await getEntryOutstandingDues(input.eventId, input.entryId)
+  if (duesResult.error || !duesResult.dues) {
+    return { error: duesResult.error ?? 'Could not load entry dues' }
+  }
+
+  const combinedOutstanding = getEntryFeesOutstanding(duesResult.dues.lines)
+  if (combinedOutstanding <= 0) {
+    return { error: 'No registration or entry fees are outstanding' }
+  }
+  if (input.amountPaid > combinedOutstanding) {
+    return { error: 'Payment exceeds the amount due for entry fees' }
+  }
+
+  const split = splitEntryFeesPayment(input.amountPaid, duesResult.dues.lines)
+  const portions: Array<{ category: 'registration' | 'rooster_entry'; amount: number }> = []
+  if (split.registration > 0) {
+    portions.push({ category: 'registration', amount: split.registration })
+  }
+  if (split.rooster_entry > 0) {
+    portions.push({ category: 'rooster_entry', amount: split.rooster_entry })
+  }
+  if (portions.length === 0) {
+    return { error: 'No entry fee amount to collect' }
+  }
+
+  let references = await listPaymentReferencesForEvent(input.eventId)
+  const paymentIds: string[] = []
+  const paidAt = new Date().toISOString()
+  const tenderByRow = allocateSplitPaymentTender(
+    portions.map((portion) => portion.amount),
+    input.amountTendered,
+    input.changeGiven
+  )
+
+  for (const [index, portion] of portions.entries()) {
+    const line = duesResult.dues.lines.find((item) => item.category === portion.category)
+    if (!line) continue
+
+    const { totalPaid: existingPaid, error: totalsError } = await getEntryCategoryPaid(
+      input.entryId,
+      portion.category
+    )
+    if (totalsError) return { error: totalsError }
+
+    const amountDue = line.amountDue
+    const projectedTotal = existingPaid + portion.amount
+    const { balance, paymentStatus } = calculateBalance(amountDue, projectedTotal)
+
+    if (projectedTotal > amountDue) {
+      return { error: 'Payment exceeds the amount due for this category' }
+    }
+
+    const paymentReference = getNextPaymentReference(input.eventId, references)
+    references = [...references, paymentReference]
+
+    const { amountTendered: rowTendered, changeGiven: rowChange } =
+      tenderByRow[index] ?? { amountTendered: null, changeGiven: null }
+
+    const { data, error } = await supabase
+      .from('payments')
+      .insert({
+        payment_reference: paymentReference,
+        entry_id: input.entryId,
+        event_id: input.eventId,
+        amount_due: amountDue,
+        amount_paid: portion.amount,
+        amount_tendered: rowTendered,
+        change_given: rowChange,
+        balance,
+        payment_method: input.paymentMethod,
+        receipt_number: input.receiptNumber ?? null,
+        payment_status: paymentStatus,
+        payment_category: portion.category,
+        received_by: actorId,
+        cashier_session_id: cashierSessionId,
+        paid_at: paidAt,
+        notes: input.notes ?? null,
+      })
+      .select('id')
+      .single()
+
+    if (error || !data) {
+      return { error: error?.message ?? 'Failed to record payment' }
+    }
+
+    paymentIds.push(data.id)
+
+    await writeAuditLog({
+      actorId,
+      action: 'payment.recorded',
+      entityType: 'payment',
+      entityId: data.id,
+      newValues: {
+        payment_reference: paymentReference,
+        entry_id: input.entryId,
+        entry_number: entry.entry_number,
+        entry_name: entry.entry_name,
+        amount_paid: portion.amount,
+        amount_tendered: rowTendered,
+        change_given: rowChange,
+        balance,
+        payment_status: paymentStatus,
+        payment_category: portion.category,
+        cashier_session_id: cashierSessionId,
+      },
+    })
+
+    const fundResult = await postRevolvingFundLedgerEntry({
+      eventId: input.eventId,
+      amount: portion.amount,
+      entryType: 'collection',
+      description: `Collection ${paymentReference} — ${entry.entry_name}`,
+      actorId,
+      sourcePaymentId: data.id,
+    })
+    if (fundResult.error) return { error: fundResult.error }
+  }
+
+  const statusResult = await updateEntryPaymentStatus(
+    input.entryId,
+    (await getEntryAmountDue(input.entryId, input.eventId, 'legacy')).amountDue ?? 0
+  )
+  if (statusResult.error) return { error: statusResult.error }
+
+  if (statusResult.paymentStatus) {
+    await syncRegistrationPaymentStatus(input.entryId, statusResult.paymentStatus)
+  }
+
+  const { promoteMatchesForEntry } = await import('@/features/matches/promotion')
+  await promoteMatchesForEntry(input.eventId, input.entryId, actorId)
+
+  return {
+    paymentId: paymentIds[0],
+    paymentIds,
+    paymentCategories: portions.map((portion) => portion.category),
+  }
 }
 
 export async function recordMatchBetPayment(
@@ -684,7 +833,7 @@ export async function refundPayment(
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
     .select(
-      'id, payment_reference, entry_id, event_id, amount_due, amount_paid, payment_status, amount_tendered, change_given, payment_category'
+      'id, payment_reference, entry_id, event_id, amount_due, amount_paid, payment_status, amount_tendered, change_given, payment_category, match_bet_id, match_id'
     )
     .eq('id', input.paymentId)
     .eq('event_id', input.eventId)
@@ -694,6 +843,22 @@ export async function refundPayment(
   if (!payment) return { error: 'Payment not found' }
   if (payment.payment_status === 'refunded') {
     return { error: 'Payment is already refunded' }
+  }
+
+  if (payment.payment_category === 'match_bet') {
+    const matchBetId = payment.match_bet_id as string | null
+    const matchId = payment.match_id as string | null
+    if (!matchBetId || !matchId) {
+      return { error: 'Palitada payment is missing match bet linkage' }
+    }
+
+    const { revertPalitadaPaymentSideEffects } = await import('@/features/matches/promotion')
+    const sideEffectResult = await revertPalitadaPaymentSideEffects(
+      matchBetId,
+      matchId,
+      actorId
+    )
+    if (sideEffectResult.error) return { error: sideEffectResult.error }
   }
 
   const { error } = await supabase

@@ -44,7 +44,7 @@ import {
   refundPaymentAction,
   type PaymentActionState,
 } from '@/features/payments/actions'
-import { getCashierPaymentCategoryOptions } from '@/features/payments/dues'
+import { getCashierPaymentCategoryOptions, getEntryFeesOutstanding } from '@/features/payments/dues'
 import { PAYMENT_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
 import type {
   CashierTargetMatch,
@@ -180,6 +180,21 @@ export function CashierClient({
     recordPaymentAction,
     initialState
   )
+  const [lastPaymentIds, setLastPaymentIds] = useState<
+    Array<{ id: string; category: PaymentCategory }>
+  >([])
+
+  useEffect(() => {
+    if (!recordState.paymentIds?.length) return
+    const categories = (recordState.paymentCategories ?? []) as PaymentCategory[]
+    setLastPaymentIds(
+      recordState.paymentIds.map((id, index) => ({
+        id,
+        category: categories[index] ?? 'registration',
+      }))
+    )
+  }, [recordState.paymentIds, recordState.paymentCategories])
+
   const [betRecordState, betRecordAction, betRecordPending] = useActionState(
     recordMatchBetPaymentAction,
     initialState
@@ -187,16 +202,12 @@ export function CashierClient({
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (recordState.paymentId) {
-      setLastPaymentId(recordState.paymentId)
-    }
-  }, [recordState.paymentId])
-  useEffect(() => {
     if (betRecordState.paymentId) {
       setLastPaymentId(betRecordState.paymentId)
     }
   }, [betRecordState.paymentId])
-  const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('entry_fees')
+
+  const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('cash_bond')
   const [collectAmount, setCollectAmount] = useState(0)
   const [amountTendered, setAmountTendered] = useState(0)
   const [paymentMethod, setPaymentMethod] = useState<
@@ -209,8 +220,15 @@ export function CashierClient({
     setActiveMatchBet(null)
     setMatches([])
     setScanError(null)
+    setLastPaymentIds([])
+    setLastPaymentId(null)
     const suggested = match.dues.suggestedCategory
-    if (suggested) setPaymentCategory(suggested)
+    if (suggested) {
+      setPaymentCategory(suggested)
+      return
+    }
+    const options = getCashierPaymentCategoryOptions(match.dues)
+    if (options[0]) setPaymentCategory(options[0].category)
   }, [])
 
   const applyMatchBet = useCallback((matchBet: MatchBetCashierTarget) => {
@@ -228,6 +246,8 @@ export function CashierClient({
     })
     setMatches([])
     setScanError(null)
+    setLastPaymentIds([])
+    setLastPaymentId(null)
     const suggested = matchBet.entryDues.suggestedCategory
     if (suggested) setPaymentCategory(suggested)
   }, [])
@@ -279,6 +299,13 @@ export function CashierClient({
     void resolveQuery(initialBarcode)
   }, [initialBarcode, resolveQuery])
 
+  const entryFeesOutstanding = useMemo(() => {
+    if (!activeMatch) return 0
+    return getEntryFeesOutstanding(activeMatch.dues.lines)
+  }, [activeMatch])
+
+  const collectEntryFees = entryFeesOutstanding > 0
+
   const paymentCategoryOptions = useMemo(() => {
     if (!activeMatch) return []
     return getCashierPaymentCategoryOptions(activeMatch.dues)
@@ -286,15 +313,22 @@ export function CashierClient({
 
   const suggestedAmount = useMemo(() => {
     if (!activeMatch) return 0
+    if (collectEntryFees) return entryFeesOutstanding
     const selected = paymentCategoryOptions.find(
       (option) => option.category === paymentCategory
     )
     if (selected) return selected.outstanding
     return activeMatch.dues.suggestedAmount
-  }, [activeMatch, paymentCategory, paymentCategoryOptions])
+  }, [
+    activeMatch,
+    collectEntryFees,
+    entryFeesOutstanding,
+    paymentCategory,
+    paymentCategoryOptions,
+  ])
 
   const collectInputKey = activeMatch
-    ? `${activeMatch.entryId}-${paymentCategory}-${suggestedAmount}`
+    ? `${activeMatch.entryId}-${collectEntryFees ? 'entry-fees' : paymentCategory}-${suggestedAmount}`
     : 'none'
 
   useEffect(() => {
@@ -657,23 +691,34 @@ export function CashierClient({
                   <input type="hidden" name="eventId" value={eventId} />
                   <input type="hidden" name="entryId" value={activeMatch.entryId} />
 
-                  <FormField label="Payment category" required>
-                    <NativeSelect.Root>
-                      <NativeSelect.Field
-                        name="paymentCategory"
-                        value={paymentCategory}
-                        onChange={(event) =>
-                          setPaymentCategory(event.currentTarget.value as PaymentCategory)
-                        }
-                      >
-                        {paymentCategoryOptions.map((option) => (
+                  {collectEntryFees ? (
+                    <input type="hidden" name="collectEntryFees" value="true" />
+                  ) : null}
+
+                  {collectEntryFees ? (
+                    <Text fontSize="sm" color="fg.muted">
+                      Collects registration and rooster entry fees in one payment. Separate
+                      receipts are printed per fee type.
+                    </Text>
+                  ) : paymentCategoryOptions.length > 0 ? (
+                    <FormField label="Payment category" required>
+                      <NativeSelect.Root>
+                        <NativeSelect.Field
+                          name="paymentCategory"
+                          value={paymentCategory}
+                          onChange={(event) =>
+                            setPaymentCategory(event.currentTarget.value as PaymentCategory)
+                          }
+                        >
+                          {paymentCategoryOptions.map((option) => (
                             <option key={option.category} value={option.category}>
                               {option.label}
                             </option>
                           ))}
-                      </NativeSelect.Field>
-                    </NativeSelect.Root>
-                  </FormField>
+                        </NativeSelect.Field>
+                      </NativeSelect.Root>
+                    </FormField>
+                  ) : null}
 
                   <CashierTenderFields
                     collectAmount={collectAmount}
@@ -725,20 +770,23 @@ export function CashierClient({
                           Change: {formatCurrency(recordState.changeGiven)}
                         </Text>
                       ) : null}
-                      {lastPaymentId ? (
+                      {lastPaymentIds.length > 0 ? (
                         <ButtonGroup>
-                          <Button asChild size="sm" variant="outline">
-                            <Link
-                              href={`/dashboard/events/${eventId}/payments/${lastPaymentId}/print`}
-                            >
-                              Print receipt
-                            </Link>
-                          </Button>
+                          {lastPaymentIds.map((payment) => (
+                            <Button key={payment.id} asChild size="sm" variant="outline">
+                              <Link
+                                href={`/dashboard/events/${eventId}/payments/${payment.id}/print`}
+                              >
+                                Print {PAYMENT_CATEGORY_LABELS[payment.category].toLowerCase()}{' '}
+                                receipt
+                              </Link>
+                            </Button>
+                          ))}
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              setLastPaymentId(null)
+                              setLastPaymentIds([])
                               setAmountTendered(0)
                             }}
                           >

@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-const { writeAuditLog, createClient, postRevolvingFundLedgerEntry } = vi.hoisted(() => ({
-  writeAuditLog: vi.fn(),
-  createClient: vi.fn(),
-  postRevolvingFundLedgerEntry: vi.fn(),
-}))
+const { writeAuditLog, createClient, postRevolvingFundLedgerEntry, revertPalitadaPaymentSideEffects } =
+  vi.hoisted(() => ({
+    writeAuditLog: vi.fn(),
+    createClient: vi.fn(),
+    postRevolvingFundLedgerEntry: vi.fn(),
+    revertPalitadaPaymentSideEffects: vi.fn(),
+  }))
 
 vi.mock('@/features/audit/service', () => ({ writeAuditLog }))
 vi.mock('@/features/inspection/service', () => ({
@@ -14,6 +16,9 @@ vi.mock('@/features/inspection/service', () => ({
 }))
 vi.mock('@/features/revolving-fund/service', () => ({
   postRevolvingFundLedgerEntry,
+}))
+vi.mock('@/features/matches/promotion', () => ({
+  revertPalitadaPaymentSideEffects,
 }))
 vi.mock('@/lib/supabase/server', () => ({ createClient }))
 
@@ -35,6 +40,8 @@ type PaymentRow = {
   amount_tendered: number | null
   change_given: number | null
   payment_category: string
+  match_bet_id?: string | null
+  match_id?: string | null
 }
 
 function setupSupabaseMock(paymentRow: PaymentRow) {
@@ -137,9 +144,12 @@ describe('refundPayment', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(postRevolvingFundLedgerEntry).mockResolvedValue({})
+    vi.mocked(revertPalitadaPaymentSideEffects).mockResolvedValue({ demoted: true })
   })
 
   it('clears tender fields when refunding a payment collected with cash change', async () => {
+    const matchBetId = '00000000-0000-4000-8000-000000000010'
+    const matchId = '00000000-0000-4000-8000-000000000011'
     const { getCapturedPaymentUpdate } = setupSupabaseMock({
       id: paymentId,
       payment_reference: 'PAY-0001',
@@ -151,6 +161,8 @@ describe('refundPayment', () => {
       amount_tendered: 15000,
       change_given: 5000,
       payment_category: 'match_bet',
+      match_bet_id: matchBetId,
+      match_id: matchId,
     })
 
     const result = await refundPayment(actorId, {
@@ -160,6 +172,7 @@ describe('refundPayment', () => {
     })
 
     expect(result.error).toBeUndefined()
+    expect(revertPalitadaPaymentSideEffects).toHaveBeenCalledWith(matchBetId, matchId, actorId)
     expect(getCapturedPaymentUpdate()).toEqual({
       payment_status: 'refunded',
       balance: 10000,
