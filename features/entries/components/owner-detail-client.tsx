@@ -11,6 +11,7 @@ import {
   PageStack,
   PanelCard,
 } from '@/components/dashboard'
+import { entryRegistrationStatusColorPalette } from '@/features/entries/display-utils'
 import {
   ENTRY_SOURCE_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -32,6 +33,10 @@ import {
   gramsToKg,
 } from '@/lib/derby/enums'
 import type { EligibilityStatus, RegistrationWorkflowStatus } from '@/lib/derby/enums'
+import {
+  eligibilityStatusColorPalette,
+  registrationWorkflowStatusColorPalette,
+} from '@/lib/derby/status-colors'
 
 type OwnerDetailClientProps = {
   eventId: string
@@ -150,7 +155,7 @@ export function OwnerDetailClient({
                 <Text>{ENTRY_SOURCE_LABELS[entry.entry_source]}</Text>
               </DetailRow>
               <DetailRow label="Registration status">
-                <Badge variant="subtle">
+                <Badge colorPalette={entryRegistrationStatusColorPalette(entry.registration_status)}>
                   {REGISTRATION_STATUS_LABELS[entry.registration_status]}
                 </Badge>
               </DetailRow>
@@ -259,14 +264,24 @@ export function OwnerDetailClient({
                   ) : null}
                 </Box>
                 <Flex gap={2} wrap="wrap" justify={{ base: 'flex-start', md: 'flex-end' }}>
-                  <Badge variant="subtle" size="sm">
+                  <Badge
+                    colorPalette={registrationWorkflowStatusColorPalette(
+                      registration.registration_status as RegistrationWorkflowStatus
+                    )}
+                    size="sm"
+                  >
                     {
                       ROOSTER_REGISTRATION_STATUS_LABELS[
                         registration.registration_status as RegistrationWorkflowStatus
                       ]
                     }
                   </Badge>
-                  <Badge variant="subtle" size="sm">
+                  <Badge
+                    colorPalette={eligibilityStatusColorPalette(
+                      registration.eligibility_status as EligibilityStatus
+                    )}
+                    size="sm"
+                  >
                     {ELIGIBILITY_STATUS_LABELS[registration.eligibility_status as EligibilityStatus]}
                   </Badge>
                 </Flex>

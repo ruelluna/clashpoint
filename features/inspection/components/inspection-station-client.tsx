@@ -26,7 +26,9 @@ import type { InspectionQueueItem } from '@/features/inspection/queries'
 import { InspectionRejectDialog } from '@/features/inspection/components/inspection-reject-dialog'
 import { RoosterBarcodeScanRow } from '@/features/inspection/components/rooster-barcode-scan-row'
 import { getRoosterEntryPaymentDisplay } from '@/features/payments/display-utils'
+import { formatWeightLimitsLabel } from '@/features/entries/weight-utils'
 import { evaluateWeightStatusGrams, WEIGHT_STATUS_LABELS } from '@/features/weighing/schema'
+import type { WeightStatus } from '@/features/weighing/types'
 import type { InspectionStatus } from '@/lib/derby/enums'
 import {
   ELIGIBILITY_STATUS_LABELS,
@@ -66,9 +68,10 @@ function statusColor(
   return 'gray'
 }
 
-function weightStatusColor(status: 'passed' | 'failed' | null): 'green' | 'red' | 'gray' {
+function weightStatusColor(status: WeightStatus | null): 'green' | 'red' | 'orange' | 'gray' {
   if (status === 'passed') return 'green'
   if (status === 'failed') return 'red'
+  if (status === 'for_review') return 'orange'
   return 'gray'
 }
 
@@ -137,16 +140,22 @@ function InspectionRow({
   )
 
   const paymentBadge = getRoosterEntryPaymentDisplay(item.regPaymentStatus, feeSettings)
+  const weightLimitsLabel = formatWeightLimitsLabel(minWeightGrams, maxWeightGrams)
+  const parsedWeightGrams = Number.parseInt(weightGramsInput, 10)
+  const isValidWeightInput =
+    weightGramsInput.trim() !== '' &&
+    Number.isFinite(parsedWeightGrams) &&
+    parsedWeightGrams >= 1 &&
+    parsedWeightGrams <= 10000 &&
+    String(parsedWeightGrams) === weightGramsInput.trim()
   const weightPassed =
     item.weightVerified && item.weightStatus === 'passed' && !!item.weightVerifiedAt
-  const previewWeightStatus =
-    weightGramsInput.trim() !== ''
-      ? evaluateWeightStatusGrams(
-          Number.parseInt(weightGramsInput, 10),
-          minWeightGrams,
-          maxWeightGrams
-        )
-      : null
+  const previewWeightStatus = isValidWeightInput
+    ? evaluateWeightStatusGrams(parsedWeightGrams, minWeightGrams, maxWeightGrams)
+    : null
+  const canRecordWeight = isValidWeightInput && previewWeightStatus === 'passed'
+  const showOutOfRangeReject =
+    isEditing && !item.weightVerifiedAt && previewWeightStatus === 'failed'
   const showPhysicalInspection = weightPassed || localWeightPassed
   const inspectButtonLabel = hasInspectionOutcome(item) ? 'Edit inspection' : 'Inspect'
   const formKey = `${item.registrationId}-${item.inspectedAt ?? 'new'}`
@@ -231,8 +240,12 @@ function InspectionRow({
               {INSPECTION_STATUS_LABELS[item.inspectionStatus]}
             </Badge>
             {item.weightStatus ? (
-              <Badge colorPalette={item.weightVerified ? 'green' : 'orange'}>
-                {item.weightVerified ? 'Weight verified' : WEIGHT_STATUS_LABELS[item.weightStatus]}
+              <Badge
+                colorPalette={
+                  item.weightVerified ? weightStatusColor(item.weightStatus) : 'orange'
+                }
+              >
+                {WEIGHT_STATUS_LABELS[item.weightStatus]}
               </Badge>
             ) : (
               <Badge colorPalette="gray">Weight pending</Badge>
@@ -296,6 +309,9 @@ function InspectionRow({
                   disabled={!!item.weightVerifiedAt}
                   data-testid="inspection-weight-input"
                 />
+                <Text fontSize="xs" color="fg.muted" mt={1}>
+                  {weightLimitsLabel}
+                </Text>
               </FormField>
               {previewWeightStatus && !item.weightVerifiedAt ? (
                 <Badge colorPalette={weightStatusColor(previewWeightStatus)} alignSelf="center">
@@ -307,6 +323,7 @@ function InspectionRow({
                   type="submit"
                   size="md"
                   loading={weightPending}
+                  disabled={!canRecordWeight}
                   alignSelf={{ base: 'stretch', sm: 'flex-end' }}
                   data-testid="inspection-weight-submit"
                 >
@@ -314,6 +331,25 @@ function InspectionRow({
                 </Button>
               ) : null}
             </Flex>
+            {!item.weightVerifiedAt && previewWeightStatus === 'failed' ? (
+              <Text fontSize="xs" color="fg.muted" mt={2}>
+                Weight must be within limits before recording. Use Reject to fail this rooster.
+              </Text>
+            ) : null}
+            {showOutOfRangeReject ? (
+              <ButtonGroup mt={2}>
+                <Button
+                  type="button"
+                  size="md"
+                  colorPalette="red"
+                  variant="outline"
+                  onClick={() => setRejectOpen(true)}
+                  data-testid="inspection-reject-weight-button"
+                >
+                  Reject
+                </Button>
+              </ButtonGroup>
+            ) : null}
             {weightState.error ? (
               <Text fontSize="sm" color="red.500" mt={2}>
                 {weightState.error}

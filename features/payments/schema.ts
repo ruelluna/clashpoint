@@ -23,7 +23,7 @@ export const recordPaymentSchema = z
     amountTendered: z.coerce.number().nonnegative().optional(),
     paymentMethod: paymentMethodSchema,
     paymentCategory: paymentCategorySchema.optional().default('legacy'),
-    collectEntryFees: z
+    collectRegistrationDues: z
       .union([z.boolean(), z.literal('true'), z.literal('false')])
       .optional()
       .transform((value) => value === true || value === 'true'),
@@ -72,7 +72,7 @@ export const recordPaymentSchema = z
       amountPaid: data.amountPaid,
       paymentMethod: data.paymentMethod,
       paymentCategory: data.paymentCategory,
-      collectEntryFees: data.collectEntryFees,
+      collectRegistrationDues: data.collectRegistrationDues,
       notes: data.notes,
       receiptNumber: data.paymentMethod === 'cash' ? undefined : data.receiptNumber,
       amountTendered: undefined as number | undefined,
@@ -99,6 +99,14 @@ export const refundPaymentSchema = z.object({
   paymentId: z.string().uuid(),
   eventId: z.string().uuid(),
   reason: z.string().min(3, 'Reason must be at least 3 characters').max(500),
+})
+
+export const refundSelectedPaymentsSchema = z.object({
+  eventId: z.string().uuid(),
+  reason: z.string().min(3, 'Reason must be at least 3 characters').max(500),
+  paymentIds: z
+    .array(z.string().uuid())
+    .min(1, 'Select at least one item to refund'),
 })
 
 export const recordMatchBetPaymentSchema = z
@@ -177,6 +185,7 @@ export const recordMatchBetPaymentSchema = z
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>
 export type RecordMatchBetPaymentInput = z.infer<typeof recordMatchBetPaymentSchema>
 export type RefundPaymentInput = z.infer<typeof refundPaymentSchema>
+export type RefundSelectedPaymentsInput = z.infer<typeof refundSelectedPaymentsSchema>
 
 export const PAYMENT_METHOD_LABELS: Record<
   z.infer<typeof paymentMethodSchema>,

@@ -26,6 +26,9 @@ import {
   COMMISSION_TYPE_LABELS,
   PROMOTER_STATUS_LABELS,
 } from '@/features/promoters/schema'
+import { eventStatusColorPalette } from '@/features/events/display-utils'
+import { EVENT_STATUS_LABELS } from '@/features/events/schema'
+import type { EventStatus } from '@/features/events/types'
 import type {
   CommissionType,
   Promoter,
@@ -365,7 +368,9 @@ export function PromoterFormClient(props: PromoterFormClientProps) {
                 </Text>
               </Box>
               <Box flex="1">
-                <Badge>{event.status}</Badge>
+                <Badge colorPalette={eventStatusColorPalette(event.status as EventStatus)}>
+                  {EVENT_STATUS_LABELS[event.status as EventStatus]}
+                </Badge>
               </Box>
             </Flex>
           ))}

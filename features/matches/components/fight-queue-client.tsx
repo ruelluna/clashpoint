@@ -15,6 +15,10 @@ import {
   type MatchActionState,
 } from '@/features/matches/actions'
 import {
+  fightQueueStatusColorPalette,
+  matchStatusColorPalette,
+} from '@/features/matches/display-utils'
+import {
   FIGHT_QUEUE_STATUS_LABELS,
   MATCH_STATUS_LABELS,
 } from '@/features/matches/schema'
@@ -29,23 +33,6 @@ type FightQueueClientProps = {
 }
 
 const initialState: MatchActionState = {}
-
-function queueColor(
-  status: MatchListItem['queue_status']
-): 'gray' | 'blue' | 'orange' | 'green' | 'purple' {
-  switch (status) {
-    case 'scheduled':
-      return 'gray'
-    case 'called':
-      return 'blue'
-    case 'ready':
-      return 'orange'
-    case 'ongoing':
-      return 'green'
-    default:
-      return 'purple'
-  }
-}
 
 function formatWeight(weight: number | null) {
   if (weight == null) return '—'
@@ -90,11 +77,11 @@ function FightQueueRow({
             #{match.fight_number}
           </Text>
           {match.queue_status ? (
-            <Badge colorPalette={queueColor(match.queue_status)} size="sm">
+            <Badge colorPalette={fightQueueStatusColorPalette(match.queue_status)} size="sm">
               {FIGHT_QUEUE_STATUS_LABELS[match.queue_status]}
             </Badge>
           ) : (
-            <Badge variant="subtle" size="sm">
+            <Badge colorPalette={matchStatusColorPalette(match.status)} size="sm">
               {MATCH_STATUS_LABELS[match.status]}
             </Badge>
           )}

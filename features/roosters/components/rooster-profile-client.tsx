@@ -22,29 +22,16 @@ import type {
   RegistrationWorkflowStatus,
   RoosterApprovalStatus,
 } from '@/lib/derby/enums'
+import {
+  eligibilityStatusColorPalette,
+  registrationWorkflowStatusColorPalette,
+} from '@/lib/derby/status-colors'
 
 type RoosterProfileClientProps = {
   rooster: RoosterWithBands
   participations: RoosterParticipationItem[]
   fightStats: { totalFights: number; wins: number }
   canUpdate: boolean
-}
-
-function eligibilityColor(
-  status: string
-): 'green' | 'orange' | 'yellow' | 'red' | 'gray' {
-  switch (status) {
-    case 'eligible':
-      return 'green'
-    case 'conditionally_eligible':
-      return 'orange'
-    case 'pending_review':
-      return 'yellow'
-    case 'ineligible':
-      return 'red'
-    default:
-      return 'gray'
-  }
 }
 
 export function RoosterProfileClient({
@@ -203,7 +190,12 @@ export function RoosterProfileClient({
                   <Text fontSize="sm">#{participation.cock_number}</Text>
                 </Box>
                 <Box flex="0.8">
-                  <Badge variant="subtle" size="sm">
+                  <Badge
+                    colorPalette={registrationWorkflowStatusColorPalette(
+                      participation.registration_status as RegistrationWorkflowStatus
+                    )}
+                    size="sm"
+                  >
                     {
                       REGISTRATION_STATUS_LABELS[
                         participation.registration_status as RegistrationWorkflowStatus
@@ -220,7 +212,9 @@ export function RoosterProfileClient({
                 </Box>
                 <Box flex="0.8">
                   <Badge
-                    colorPalette={eligibilityColor(participation.eligibility_status)}
+                    colorPalette={eligibilityStatusColorPalette(
+                      participation.eligibility_status as EligibilityStatus
+                    )}
                     size="sm"
                   >
                     {

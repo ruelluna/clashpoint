@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeCashChange, roundMoney, allocateSplitPaymentTender } from '@/features/payments/tender'
+import {
+  allocateSplitPaymentTender,
+  clearedTenderFieldsForRefund,
+  computeCashChange,
+  roundMoney,
+} from '@/features/payments/tender'
 
 describe('roundMoney', () => {
   it('rounds to two decimal places', () => {
@@ -28,6 +33,15 @@ describe('computeCashChange', () => {
     if (!result.ok) {
       expect(result.error).toMatch(/at least/)
     }
+  })
+})
+
+describe('clearedTenderFieldsForRefund', () => {
+  it('returns null tender fields for payments_tender_change_check', () => {
+    expect(clearedTenderFieldsForRefund()).toEqual({
+      amount_tendered: null,
+      change_given: null,
+    })
   })
 })
 

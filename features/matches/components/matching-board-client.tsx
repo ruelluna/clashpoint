@@ -37,6 +37,10 @@ import {
   MATCH_BET_PAYMENT_STATUS_LABELS,
   MATCH_STATUS_LABELS,
 } from '@/features/matches/schema'
+import {
+  fightQueueStatusColorPalette,
+  matchStatusColorPalette,
+} from '@/features/matches/display-utils'
 import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
 import { FIGHT_QUEUE_TRANSITIONS } from '@/features/matches/utils'
 import { COMPATIBILITY_STATUS_LABELS } from '@/lib/derby/enums'
@@ -257,7 +261,7 @@ function FightQueueRow({
             #{match.fight_number}
           </Text>
           {match.queue_status ? (
-            <Badge colorPalette={queueColor(match.queue_status)} size="sm">
+            <Badge colorPalette={fightQueueStatusColorPalette(match.queue_status)} size="sm">
               {FIGHT_QUEUE_STATUS_LABELS[match.queue_status]}
             </Badge>
           ) : null}

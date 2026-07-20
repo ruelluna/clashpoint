@@ -113,3 +113,123 @@ export async function promoteMatchesForEntry(
     await tryPromoteMatchToQueue(match.id as string, actorId)
   }
 }
+
+const BLOCKED_PALITADA_REFUND_QUEUE_STATUSES = new Set(['called', 'ready', 'ongoing'])
+
+export async function revertPalitadaPaymentSideEffects(
+  matchBetId: string,
+  matchId: string,
+  actorId: string
+): Promise<{ error?: string; demoted?: boolean }> {
+  const supabase = await createClient()
+
+  const { data: match, error: matchError } = await supabase
+    .from('matches')
+    .select('id, event_id, fight_number, status, queue_status, meron_entry_id, wala_entry_id')
+    .eq('id', matchId)
+    .maybeSingle()
+
+  if (matchError) return { error: matchError.message }
+  if (!match) return { error: 'Match not found' }
+  if (match.status === 'cancelled' || match.status === 'completed') {
+    return { error: 'Cannot refund palitada for a cancelled or completed match' }
+  }
+
+  const queueStatus = match.queue_status as string | null
+  if (queueStatus && BLOCKED_PALITADA_REFUND_QUEUE_STATUSES.has(queueStatus)) {
+    return {
+      error: `Cannot refund palitada after fight #${match.fight_number} has been ${queueStatus}`,
+    }
+  }
+
+  const { error: betUpdateError } = await supabase
+    .from('match_bets')
+    .update({
+      payment_status: 'unpaid',
+      payment_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', matchBetId)
+
+  if (betUpdateError) return { error: betUpdateError.message }
+
+  let demoted = false
+
+  if (queueStatus === 'scheduled' && match.status === 'locked') {
+    const { data: bets, error: betsError } = await supabase
+      .from('match_bets')
+      .select('side, payment_status')
+      .eq('match_id', matchId)
+
+    if (betsError) return { error: betsError.message }
+
+    const meronBetStatus =
+      (bets?.find((bet) => bet.side === 'meron')?.payment_status as
+        | MatchBetPaymentStatus
+        | undefined) ?? 'unpaid'
+    const walaBetStatus =
+      (bets?.find((bet) => bet.side === 'wala')?.payment_status as
+        | MatchBetPaymentStatus
+        | undefined) ?? 'unpaid'
+
+    const [meronDues, walaDues] = await Promise.all([
+      getEntryOutstandingDues(match.event_id, match.meron_entry_id),
+      getEntryOutstandingDues(match.event_id, match.wala_entry_id),
+    ])
+
+    if (meronDues.error) return { error: meronDues.error }
+    if (walaDues.error) return { error: walaDues.error }
+
+    const stillReady = isMatchQueueReady(
+      {
+        betPaymentStatus: meronBetStatus,
+        entryOutstanding: meronDues.dues?.totalOutstanding ?? 0,
+      },
+      {
+        betPaymentStatus: walaBetStatus,
+        entryOutstanding: walaDues.dues?.totalOutstanding ?? 0,
+      }
+    )
+
+    if (!stillReady) {
+      const { error: demoteError } = await supabase
+        .from('matches')
+        .update({
+          status: 'draft',
+          queue_status: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', matchId)
+
+      if (demoteError) return { error: demoteError.message }
+
+      demoted = true
+
+      await writeAuditLog({
+        actorId,
+        action: 'match.demoted_from_queue',
+        entityType: 'match',
+        entityId: matchId,
+        newValues: {
+          fightNumber: match.fight_number,
+          eventId: match.event_id,
+          reason: 'palitada_refund',
+        },
+      })
+    }
+  }
+
+  await writeAuditLog({
+    actorId,
+    action: 'match_bet.payment_reverted',
+    entityType: 'match_bet',
+    entityId: matchBetId,
+    newValues: {
+      matchId,
+      fightNumber: match.fight_number,
+      paymentStatus: 'unpaid',
+    },
+  })
+
+  return { demoted }
+}

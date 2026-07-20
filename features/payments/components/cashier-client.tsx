@@ -13,6 +13,7 @@ import {
   Textarea,
 } from '@chakra-ui/react'
 import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import {
   ButtonGroup,
@@ -23,7 +24,6 @@ import {
   PanelCard,
 } from '@/components/dashboard'
 import { OwnerBarcodeScannerDialog } from '@/features/entries/components/owner-barcode-scanner-dialog'
-import type { EntryListItem } from '@/features/entries/types'
 import { PAYMENT_STATUS_LABELS } from '@/features/entries/schema'
 import type { AdminHandoverCandidate, CashierSessionSummary } from '@/features/cashier-sessions/types'
 import type { EventFeeSettings } from '@/features/events/fee-utils'
@@ -31,6 +31,7 @@ import { CashierCloseSessionForm } from '@/features/payments/components/cashier-
 import { CashierHandoverForm } from '@/features/payments/components/cashier-handover-form'
 import { CashierOpenSessionForm } from '@/features/payments/components/cashier-open-session-form'
 import { CashierTerminalClock } from '@/features/payments/components/cashier-terminal-clock'
+import { CashBondRefundDialog } from '@/features/payments/components/cash-bond-refund-dialog'
 import {
   CashierTenderFields,
   isCashierTenderValid,
@@ -41,12 +42,13 @@ import {
   lookupCashierTargetAction,
   recordMatchBetPaymentAction,
   recordPaymentAction,
-  refundPaymentAction,
   type PaymentActionState,
 } from '@/features/payments/actions'
-import { getCashierPaymentCategoryOptions, getEntryFeesOutstanding } from '@/features/payments/dues'
-import { PAYMENT_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
+import { getCashierPaymentCategoryOptions, getRegistrationDuesOutstanding } from '@/features/payments/dues'
+import { groupPaymentsForLedger } from '@/features/payments/ledger-grouping'
+import { PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
 import type {
+  CashierSelectableEntry,
   CashierTargetMatch,
   MatchBetCashierTarget,
   PaymentLedgerItem,
@@ -58,7 +60,7 @@ type CashierClientProps = {
   eventId: string
   eventName: string
   feeSettings: EventFeeSettings
-  entries: EntryListItem[]
+  selectableEntries: CashierSelectableEntry[]
   payments: PaymentLedgerItem[]
   canOperate: boolean
   cashierDisplayName: string
@@ -99,66 +101,11 @@ function paymentStatusColor(
   }
 }
 
-function RefundForm({
-  payment,
-  eventId,
-  canOperate,
-}: {
-  payment: PaymentLedgerItem
-  eventId: string
-  canOperate: boolean
-}) {
-  const [showForm, setShowForm] = useState(false)
-  const [state, action, pending] = useActionState(refundPaymentAction, initialState)
-  if (payment.paymentStatus === 'refunded' || !canOperate) return null
-
-  return (
-    <Box mt={2}>
-      {!showForm ? (
-        <Button size="xs" variant="outline" onClick={() => setShowForm(true)}>
-          Refund
-        </Button>
-      ) : (
-        <form action={action}>
-          <input type="hidden" name="paymentId" value={payment.id} />
-          <input type="hidden" name="eventId" value={eventId} />
-          <Textarea
-            name="reason"
-            placeholder="Reason for refund"
-            rows={2}
-            size="sm"
-            required
-            minLength={3}
-          />
-          <ButtonGroup mt={2}>
-            <Button size="xs" type="submit" colorPalette="red" loading={pending}>
-              Confirm refund
-            </Button>
-            <Button size="xs" variant="ghost" onClick={() => setShowForm(false)}>
-              Cancel
-            </Button>
-          </ButtonGroup>
-          {state.error ? (
-            <Text fontSize="xs" color="red.500" mt={1}>
-              {state.error}
-            </Text>
-          ) : null}
-          {state.success ? (
-            <Text fontSize="xs" color="green.600" mt={1}>
-              {state.success}
-            </Text>
-          ) : null}
-        </form>
-      )}
-    </Box>
-  )
-}
-
 export function CashierClient({
   eventId,
   eventName,
   feeSettings,
-  entries,
+  selectableEntries,
   payments,
   canOperate,
   cashierDisplayName,
@@ -167,6 +114,7 @@ export function CashierClient({
   adminCandidates,
   initialBarcode,
 }: CashierClientProps) {
+  const router = useRouter()
   const scanInputRef = useRef<HTMLInputElement>(null)
   const [scanValue, setScanValue] = useState('')
   const [scanError, setScanError] = useState<string | null>(null)
@@ -180,20 +128,13 @@ export function CashierClient({
     recordPaymentAction,
     initialState
   )
-  const [lastPaymentIds, setLastPaymentIds] = useState<
-    Array<{ id: string; category: PaymentCategory }>
-  >([])
+  const [lastCollectionBatchId, setLastCollectionBatchId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!recordState.paymentIds?.length) return
-    const categories = (recordState.paymentCategories ?? []) as PaymentCategory[]
-    setLastPaymentIds(
-      recordState.paymentIds.map((id, index) => ({
-        id,
-        category: categories[index] ?? 'registration',
-      }))
-    )
-  }, [recordState.paymentIds, recordState.paymentCategories])
+    if (recordState.collectionBatchId) {
+      setLastCollectionBatchId(recordState.collectionBatchId)
+    }
+  }, [recordState.collectionBatchId])
 
   const [betRecordState, betRecordAction, betRecordPending] = useActionState(
     recordMatchBetPaymentAction,
@@ -220,7 +161,7 @@ export function CashierClient({
     setActiveMatchBet(null)
     setMatches([])
     setScanError(null)
-    setLastPaymentIds([])
+    setLastCollectionBatchId(null)
     setLastPaymentId(null)
     const suggested = match.dues.suggestedCategory
     if (suggested) {
@@ -246,7 +187,7 @@ export function CashierClient({
     })
     setMatches([])
     setScanError(null)
-    setLastPaymentIds([])
+    setLastCollectionBatchId(null)
     setLastPaymentId(null)
     const suggested = matchBet.entryDues.suggestedCategory
     if (suggested) setPaymentCategory(suggested)
@@ -299,12 +240,12 @@ export function CashierClient({
     void resolveQuery(initialBarcode)
   }, [initialBarcode, resolveQuery])
 
-  const entryFeesOutstanding = useMemo(() => {
+  const registrationDuesOutstanding = useMemo(() => {
     if (!activeMatch) return 0
-    return getEntryFeesOutstanding(activeMatch.dues.lines)
+    return getRegistrationDuesOutstanding(activeMatch.dues.lines)
   }, [activeMatch])
 
-  const collectEntryFees = entryFeesOutstanding > 0
+  const collectRegistrationDues = registrationDuesOutstanding > 0
 
   const paymentCategoryOptions = useMemo(() => {
     if (!activeMatch) return []
@@ -313,7 +254,7 @@ export function CashierClient({
 
   const suggestedAmount = useMemo(() => {
     if (!activeMatch) return 0
-    if (collectEntryFees) return entryFeesOutstanding
+    if (collectRegistrationDues) return registrationDuesOutstanding
     const selected = paymentCategoryOptions.find(
       (option) => option.category === paymentCategory
     )
@@ -321,14 +262,14 @@ export function CashierClient({
     return activeMatch.dues.suggestedAmount
   }, [
     activeMatch,
-    collectEntryFees,
-    entryFeesOutstanding,
+    collectRegistrationDues,
+    registrationDuesOutstanding,
     paymentCategory,
     paymentCategoryOptions,
   ])
 
   const collectInputKey = activeMatch
-    ? `${activeMatch.entryId}-${collectEntryFees ? 'entry-fees' : paymentCategory}-${suggestedAmount}`
+    ? `${activeMatch.entryId}-${collectRegistrationDues ? 'registration-dues' : paymentCategory}-${suggestedAmount}`
     : 'none'
 
   useEffect(() => {
@@ -374,7 +315,16 @@ export function CashierClient({
     applyMatch(result.match)
   }
 
+  async function refreshActiveMatch(entryId: string) {
+    const result = await getCashierDuesAction(eventId, entryId)
+    if (result.match) {
+      applyMatch(result.match)
+    }
+  }
+
   const terminalReady = canOperate && session != null
+
+  const ledgerRows = useMemo(() => groupPaymentsForLedger(payments), [payments])
 
   return (
     <PageStack>
@@ -489,17 +439,29 @@ export function CashierClient({
           </Flex>
 
           <Box maxW="2xl">
-            <FormField label="Or select entry">
+            <FormField
+              label="Or select entry"
+              helpText={
+                selectableEntries.length === 0
+                  ? 'All entries are fully paid. Use scan/search to look up an owner or collect palitada via BET- barcode.'
+                  : 'Only entries with outstanding dues appear here.'
+              }
+            >
               <NativeSelect.Root>
                 <NativeSelect.Field
                   value={activeMatch?.entryId ?? ''}
                   onChange={(event) => void selectEntryFromDropdown(event.currentTarget.value)}
                   data-testid="cashier-entry-select"
                 >
-                  <option value="">Select entry</option>
-                  {entries.map((entry) => (
+                  <option value="">
+                    {selectableEntries.length === 0
+                      ? 'No entries with outstanding dues'
+                      : 'Select entry'}
+                  </option>
+                  {selectableEntries.map((entry) => (
                     <option key={entry.id} value={entry.id}>
-                      #{entry.entry_number} {entry.entry_name} · {entry.owner_name}
+                      #{entry.entryNumber} {entry.entryName} · {entry.ownerName} ·{' '}
+                      {formatCurrency(entry.totalOutstanding)} due
                     </option>
                   ))}
                 </NativeSelect.Field>
@@ -666,7 +628,9 @@ export function CashierClient({
                     fontSize="sm"
                     wrap="wrap"
                   >
-                    <Text>{line.label}</Text>
+                    <Text flex="1" minW="12rem">
+                      {line.displayLabel ?? line.label}
+                    </Text>
                     <Text color={line.outstanding > 0 ? 'fg' : 'fg.muted'}>
                       {formatCurrency(line.outstanding)} outstanding
                       <Text as="span" color="fg.muted">
@@ -685,20 +649,32 @@ export function CashierClient({
               </Stack>
             )}
 
+            {activeMatch.cashBondRefund && terminalReady ? (
+              <CashBondRefundDialog
+                eventId={eventId}
+                cashBondRefund={activeMatch.cashBondRefund}
+                canOperate={terminalReady}
+                onSuccess={() => {
+                  router.refresh()
+                  void refreshActiveMatch(activeMatch.entryId)
+                }}
+              />
+            ) : null}
+
             {activeMatch.dues.totalOutstanding > 0 && terminalReady ? (
               <form action={recordAction}>
                 <Stack gap={LAYOUT_GAP.form} maxW="xl">
                   <input type="hidden" name="eventId" value={eventId} />
                   <input type="hidden" name="entryId" value={activeMatch.entryId} />
 
-                  {collectEntryFees ? (
-                    <input type="hidden" name="collectEntryFees" value="true" />
+                  {collectRegistrationDues ? (
+                    <input type="hidden" name="collectRegistrationDues" value="true" />
                   ) : null}
 
-                  {collectEntryFees ? (
+                  {collectRegistrationDues ? (
                     <Text fontSize="sm" color="fg.muted">
-                      Collects registration and rooster entry fees in one payment. Separate
-                      receipts are printed per fee type.
+                      Collects registration, rooster entry, and cash bond in one payment
+                      (registration first). One itemized receipt is printed.
                     </Text>
                   ) : paymentCategoryOptions.length > 0 ? (
                     <FormField label="Payment category" required>
@@ -770,23 +746,39 @@ export function CashierClient({
                           Change: {formatCurrency(recordState.changeGiven)}
                         </Text>
                       ) : null}
-                      {lastPaymentIds.length > 0 ? (
+                      {lastCollectionBatchId ? (
                         <ButtonGroup>
-                          {lastPaymentIds.map((payment) => (
-                            <Button key={payment.id} asChild size="sm" variant="outline">
-                              <Link
-                                href={`/dashboard/events/${eventId}/payments/${payment.id}/print`}
-                              >
-                                Print {PAYMENT_CATEGORY_LABELS[payment.category].toLowerCase()}{' '}
-                                receipt
-                              </Link>
-                            </Button>
-                          ))}
+                          <Button asChild size="sm" variant="outline">
+                            <Link
+                              href={`/dashboard/events/${eventId}/payments/batch/${lastCollectionBatchId}/print`}
+                            >
+                              Print receipt
+                            </Link>
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              setLastPaymentIds([])
+                              setLastCollectionBatchId(null)
+                              setAmountTendered(0)
+                            }}
+                          >
+                            Continue
+                          </Button>
+                        </ButtonGroup>
+                      ) : recordState.paymentId ? (
+                        <ButtonGroup>
+                          <Button asChild size="sm" variant="outline">
+                            <Link
+                              href={`/dashboard/events/${eventId}/payments/${recordState.paymentId}/print`}
+                            >
+                              Print receipt
+                            </Link>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
                               setAmountTendered(0)
                             }}
                           >
@@ -833,22 +825,23 @@ export function CashierClient({
           fontSize="sm"
           display={{ base: 'none', lg: 'flex' }}
         >
-          <Box flex="1.2">Reference</Box>
+          <Box flex="1">Reference</Box>
+          <Box flex="1.2">Items</Box>
           <Box flex="1.2">Entry</Box>
-          <Box flex="0.8">Paid</Box>
-          <Box flex="0.8">Balance</Box>
-          <Box flex="0.8">Status</Box>
+          <Box flex="0.7">Paid</Box>
+          <Box flex="0.7">Balance</Box>
+          <Box flex="0.7">Status</Box>
           <Box flex="1">Paid at</Box>
         </Flex>
 
-        {payments.length === 0 ? (
+        {ledgerRows.length === 0 ? (
           <Box px={4} py={8} textAlign="center">
             <Text color="fg.muted">No payments recorded yet.</Text>
           </Box>
         ) : (
-          payments.map((payment) => (
+          ledgerRows.map((row) => (
             <Box
-              key={payment.id}
+              key={row.id}
               px={4}
               py={4}
               borderBottomWidth="1px"
@@ -859,56 +852,87 @@ export function CashierClient({
                 gap={3}
                 align={{ lg: 'center' }}
               >
-                <Box flex="1.2">
+                <Box flex="1">
                   <Text fontWeight="medium" fontSize="sm">
-                    {payment.paymentReference}
+                    {row.paymentReference}
                   </Text>
-                  {payment.receiptNumber ? (
+                  {row.receiptNumber ? (
                     <Text fontSize="xs" color="fg.muted">
-                      Receipt {payment.receiptNumber}
+                      Receipt {row.receiptNumber}
                     </Text>
                   ) : null}
-                  <Text fontSize="xs" color="fg.muted">
-                    {PAYMENT_CATEGORY_LABELS[payment.paymentCategory]}
-                  </Text>
+                </Box>
+                <Box flex="1.2">
+                  <Stack gap={0.5}>
+                    {row.itemsPaid.map((item) => (
+                      <Text key={item} fontSize="xs">
+                        {item}
+                      </Text>
+                    ))}
+                  </Stack>
                 </Box>
                 <Box flex="1.2">
                   <Text fontSize="sm">
-                    #{payment.entryNumber} {payment.entryName}
+                    #{row.entryNumber} {row.entryName}
                   </Text>
                   <Text fontSize="xs" color="fg.muted">
-                    {payment.ownerName}
+                    {row.ownerName}
                   </Text>
                 </Box>
-                <Box flex="0.8">
-                  <Text fontSize="sm">{formatCurrency(payment.amountPaid)}</Text>
-                  {payment.amountTendered != null && payment.changeGiven != null ? (
-                    <Text fontSize="xs" color="fg.muted">
-                      Tender {formatCurrency(payment.amountTendered)} · Change{' '}
-                      {formatCurrency(payment.changeGiven)}
+                <Box flex="0.7">
+                  {row.rowKind === 'refund' ? (
+                    <Text fontSize="sm" color="orange.600">
+                      −{formatCurrency(row.amountRefunded ?? 0)}
                     </Text>
-                  ) : null}
+                  ) : (
+                    <>
+                      <Text fontSize="sm">{formatCurrency(row.amountPaid)}</Text>
+                      {row.amountTendered != null && row.changeGiven != null ? (
+                        <Text fontSize="xs" color="fg.muted">
+                          Tender {formatCurrency(row.amountTendered)} · Change{' '}
+                          {formatCurrency(row.changeGiven)}
+                        </Text>
+                      ) : null}
+                    </>
+                  )}
                 </Box>
-                <Box flex="0.8">
-                  <Text fontSize="sm">{formatCurrency(payment.balance)}</Text>
+                <Box flex="0.7">
+                  <Text fontSize="sm">
+                    {row.rowKind === 'refund' ? '—' : formatCurrency(row.balance)}
+                  </Text>
                 </Box>
-                <Box flex="0.8">
-                  <Badge colorPalette={paymentStatusColor(payment.paymentStatus)}>
-                    {PAYMENT_STATUS_LABELS[payment.paymentStatus]}
+                <Box flex="0.7">
+                  <Badge colorPalette={paymentStatusColor(row.paymentStatus)}>
+                    {PAYMENT_STATUS_LABELS[row.paymentStatus]}
                   </Badge>
                 </Box>
                 <Box flex="1">
-                  <Text fontSize="sm">{formatDate(payment.paidAt)}</Text>
-                  <Link
-                    href={`/dashboard/events/${eventId}/payments/${payment.id}/print`}
-                    fontSize="xs"
-                    color="blue.600"
-                  >
-                    Print receipt
-                  </Link>
+                  <Text fontSize="sm">{formatDate(row.paidAt)}</Text>
+                  {row.rowKind === 'collection' ? (
+                    <Link
+                      href={
+                        row.isBatch && row.collectionBatchId
+                          ? `/dashboard/events/${eventId}/payments/batch/${row.collectionBatchId}/print`
+                          : `/dashboard/events/${eventId}/payments/${row.childPayments[0]?.id}/print`
+                      }
+                      fontSize="xs"
+                      color="blue.600"
+                    >
+                      Print receipt
+                    </Link>
+                  ) : null}
+                  {row.rowKind === 'refund' && row.refundBatchId ? (
+                    <Link
+                      href={`/dashboard/events/${eventId}/payments/refund-batch/${row.refundBatchId}/print`}
+                      fontSize="xs"
+                      color="blue.600"
+                      display="block"
+                    >
+                      Print refund receipt
+                    </Link>
+                  ) : null}
                 </Box>
               </Flex>
-              <RefundForm payment={payment} eventId={eventId} canOperate={terminalReady} />
             </Box>
           ))
         )}

@@ -2,27 +2,11 @@
 
 import { Badge, Flex, type FlexProps } from '@chakra-ui/react'
 
+import { eventStatusColorPalette } from '@/features/events/display-utils'
 import { EVENT_STATUS_LABELS } from '@/features/events/schema'
 import type { EventStatus } from '@/features/events/types'
 
-export function eventStatusColorPalette(status: EventStatus) {
-  switch (status) {
-    case 'draft':
-      return 'gray'
-    case 'open':
-      return 'green'
-    case 'in_progress':
-      return 'blue'
-    case 'completed':
-      return 'purple'
-    case 'cancelled':
-      return 'red'
-    case 'archived':
-      return 'orange'
-    default:
-      return 'yellow'
-  }
-}
+export { eventStatusColorPalette }
 
 type EventStatusBadgesProps = FlexProps & {
   status: EventStatus
@@ -47,7 +31,7 @@ export function EventStatusBadges({
         </Badge>
       ) : null}
       {isPublic ? (
-        <Badge variant="subtle" size="sm">
+        <Badge colorPalette="teal" size="sm">
           Public
         </Badge>
       ) : null}

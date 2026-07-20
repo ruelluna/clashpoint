@@ -36,6 +36,7 @@ import {
     type ActionState,
 } from '@/features/users/actions'
 import { ROLE_LABELS, type UsersManageableRole } from '@/features/users/schema'
+import { roleColorPalette } from '@/features/users/display-utils'
 import type { AccessModuleId } from '@/lib/auth/modules'
 import {
     getEventTabAccessModules,
@@ -324,7 +325,9 @@ export function UsersPageClient({ users }: { users: UserRow[] }) {
                                     </Box>
 
                                     <Box>
-                                        <Badge size="sm">{ROLE_LABELS[user.role]}</Badge>
+                                        <Badge size="sm" colorPalette={roleColorPalette(user.role)}>
+                                            {ROLE_LABELS[user.role]}
+                                        </Badge>
                                     </Box>
 
                                     <Box>

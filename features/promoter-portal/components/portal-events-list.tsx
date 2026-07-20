@@ -3,6 +3,7 @@
 import { Badge, Box, Flex, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
+import { eventStatusColorPalette } from '@/features/events/display-utils'
 import { EVENT_STATUS_LABELS, EVENT_TYPE_LABELS } from '@/features/events/schema'
 import type { PromoterAssignedEvent } from '@/features/promoter-portal/types'
 
@@ -58,7 +59,9 @@ export function PortalEventsList({ events }: { events: PromoterAssignedEvent[] }
                   <Text fontSize="sm">{EVENT_TYPE_LABELS[event.event_type]}</Text>
                 </Box>
                 <Box flex="1">
-                  <Badge variant="subtle">{EVENT_STATUS_LABELS[event.status]}</Badge>
+                  <Badge colorPalette={eventStatusColorPalette(event.status)}>
+                    {EVENT_STATUS_LABELS[event.status]}
+                  </Badge>
                 </Box>
                 <Box flex="1">
                   <Text fontSize="sm">{event.referred_entries_count} referred</Text>
