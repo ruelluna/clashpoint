@@ -712,7 +712,7 @@ const DEFAULT_MERON_BET = 500
 const DEFAULT_WALA_BET = 750
 
 /**
- * Seeds Fight #1 (draft, awaiting pledge) and Fight #2 (scheduled queue).
+ * Seeds Fight #1 (draft, awaiting pledge) and Fight #2 (waiting queue).
  * @param {'classic'|'derby'} options.demoKind
  */
 export async function seedSampleMatches({
@@ -771,8 +771,8 @@ export async function seedSampleMatches({
       meronRooster: pickRooster(paidEntries[2], 1),
       walaEntry: paidEntries[3],
       walaRooster: pickRooster(paidEntries[3], 1),
-      status: 'locked',
-      queueStatus: 'scheduled',
+      status: 'queued',
+      queueStatus: 'waiting',
       meronBet,
       walaBet,
     })
@@ -831,8 +831,8 @@ export async function seedSampleMatches({
       meronRooster: pickRooster(paidEntries[0], 2),
       walaEntry: paidEntries[1],
       walaRooster: pickRooster(paidEntries[1], 2),
-      status: 'locked',
-      queueStatus: 'scheduled',
+      status: 'queued',
+      queueStatus: 'waiting',
       meronBet,
       walaBet,
     })
@@ -1224,7 +1224,7 @@ export function printSeedSummary({
   }
   if (matchSummary?.queuedMatch) {
     console.log(
-      `  Fight #${matchSummary.queuedMatch.fightNumber} (scheduled fight queue): ` +
+      `  Fight #${matchSummary.queuedMatch.fightNumber} (waiting fight queue): ` +
         `${matchSummary.queuedMatch.meronBarcode}, ${matchSummary.queuedMatch.walaBarcode}`
     )
   }

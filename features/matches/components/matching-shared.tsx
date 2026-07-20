@@ -5,13 +5,12 @@ import {
   Box,
   Button,
   Flex,
-  Input,
   Stack,
   Text,
 } from '@chakra-ui/react'
 import { useActionState } from 'react'
 
-import { FormField } from '@/components/dashboard'
+import { FormField, DecimalInput } from '@/components/dashboard'
 import {
   cancelMatchAction,
   updateFightQueueStatusAction,
@@ -153,9 +152,8 @@ export function AdjustPledgeForm({
         </Text>
         <Flex direction={{ base: 'column', sm: 'row' }} gap={2}>
           <FormField label="Meron (₱)">
-            <Input
+            <DecimalInput
               name="meronBet"
-              type="number"
               min="0"
               step="0.01"
               defaultValue={String(match.meron.bet_amount)}
@@ -163,9 +161,8 @@ export function AdjustPledgeForm({
             />
           </FormField>
           <FormField label="Wala (₱)">
-            <Input
+            <DecimalInput
               name="walaBet"
-              type="number"
               min="0"
               step="0.01"
               defaultValue={String(match.wala.bet_amount)}

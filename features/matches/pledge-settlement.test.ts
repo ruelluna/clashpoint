@@ -235,6 +235,40 @@ describe('validatePalitadaContribution', () => {
       })
     ).toBeNull()
   })
+
+  it('accepts incremental palitada up to the remaining balance gap', () => {
+    const settlement = calculatePledgeSettlement({
+      meronBasePledge: 50000,
+      walaBasePledge: 5000,
+      walaPalitadaContributors: [
+        {
+          contributorName: 'VIP Guest',
+          contributorType: 'vip',
+          amount: 40500,
+        },
+      ],
+      commissionRatePercent: 10,
+      taxAmount: 100,
+    })
+
+    expect(settlement.amountNeededToBalance).toBe(4500)
+
+    expect(
+      validatePalitadaContribution({
+        settlement,
+        side: 'wala',
+        amount: 500,
+      })
+    ).toBeNull()
+
+    expect(
+      validatePalitadaContribution({
+        settlement,
+        side: 'wala',
+        amount: 4501,
+      })
+    ).toMatch(/cannot exceed/)
+  })
 })
 
 describe('getPledgeBaseAmount', () => {

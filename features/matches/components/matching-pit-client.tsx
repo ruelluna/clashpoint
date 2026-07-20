@@ -9,7 +9,7 @@ import {
   calculatePledgeSettlement,
   getPledgeBaseAmount,
 } from '@/features/matches/bet-balancing'
-import { MatchBetBalancingPanel } from '@/features/matches/components/match-bet-balancing-panel'
+import { MatchBetBalancingSummaryPanel } from '@/features/matches/components/match-bet-balancing-panel'
 import { MatchPalitadaRecordForm } from '@/features/matches/components/match-palitada-record-form'
 import { MatchingLiveSyncProvider, useMatchingLiveSync } from '@/features/matches/components/matching-live-sync-provider'
 import { formatCurrency } from '@/features/matches/components/matching-shared'
@@ -93,6 +93,13 @@ function MatchingPitContent({
         </PanelCard>
       ) : (
         <Stack gap={LAYOUT_GAP.section}>
+          <MatchBetBalancingSummaryPanel
+            match={targetMatch}
+            fightNumber={targetMatch.fight_number}
+            taxPerFight={taxPerFight}
+            taxCommissionRate={taxCommissionRate}
+          />
+
           <PanelCard title={`Fight #${targetMatch.fight_number}`}>
             <Flex gap={2} wrap="wrap" mb={3}>
               {targetMatch.queue_status ? (
@@ -121,7 +128,7 @@ function MatchingPitContent({
               <MatchPalitadaRecordForm
                 eventId={eventId}
                 match={targetMatch}
-                defaultSide={settlement?.underdogSide ?? 'meron'}
+                underdogSide={settlement?.underdogSide ?? null}
                 disabled={targetMatch.queue_status === 'fighting'}
               />
             </Box>
@@ -130,13 +137,6 @@ function MatchingPitContent({
               Meron: {targetMatch.meron.entry_name} · Wala: {targetMatch.wala.entry_name}
             </Text>
           </PanelCard>
-
-          <MatchBetBalancingPanel
-            match={targetMatch}
-            fightNumber={targetMatch.fight_number}
-            taxPerFight={taxPerFight}
-            taxCommissionRate={taxCommissionRate}
-          />
         </Stack>
       )}
     </PageStack>

@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Flex,
-  Input,
   NativeSelect,
   Stack,
   Text,
@@ -13,7 +12,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { useActionState, useEffect, useMemo, useState } from 'react'
 
-import { FormField, LAYOUT_GAP, PanelCard } from '@/components/dashboard'
+import { FormField, LAYOUT_GAP, PanelCard, DecimalInput } from '@/components/dashboard'
 import { evaluateMatchCompatibilityAction } from '@/features/eligibility/actions'
 import type { MatchCompatibilityEvaluation } from '@/features/compatibility/types'
 import { createMatchAction } from '@/features/matches/actions'
@@ -215,9 +214,8 @@ export function MatchingDeskPanel({
               onClear={() => setMeronRooster(null)}
             />
             <FormField label="Meron pledge (₱)" required>
-              <Input
+              <DecimalInput
                 name="meronBet"
-                type="number"
                 min={0.01}
                 step="0.01"
                 placeholder="Amount"
@@ -255,9 +253,8 @@ export function MatchingDeskPanel({
               onClear={() => setWalaRooster(null)}
             />
             <FormField label="Wala pledge (₱)" required>
-              <Input
+              <DecimalInput
                 name="walaBet"
-                type="number"
                 min={0.01}
                 step="0.01"
                 placeholder="Amount"

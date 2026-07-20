@@ -36,7 +36,12 @@ import {
   requirePermission,
 } from '@/lib/auth/permissions'
 
-export type MatchActionState = { error?: string; success?: string; matchId?: string }
+export type MatchActionState = {
+  error?: string
+  success?: string
+  matchId?: string
+  contributionId?: string
+}
 
 export async function createMatchAction(
   _prev: MatchActionState,
@@ -209,7 +214,6 @@ export async function addPalitadaContributionAction(
   const result = await addPalitadaContribution(profile.id, parsed.data)
   if (result.error) return { error: result.error }
 
-  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching/pit`)
   revalidatePath('/dashboard/fights')
   revalidatePath('/dashboard/audit')
@@ -235,11 +239,10 @@ export async function deletePalitadaContributionAction(
   const result = await deletePalitadaContribution(profile.id, parsed.data)
   if (result.error) return { error: result.error }
 
-  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching/pit`)
   revalidatePath('/dashboard/fights')
   revalidatePath('/dashboard/audit')
-  return { success: 'Palitada removed' }
+  return { success: 'Palitada removed', contributionId: parsed.data.contributionId }
 }
 
 export async function postMatchSettlementObligationAction(

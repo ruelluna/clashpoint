@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Badge, Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
 import Link from 'next/link'
 
@@ -11,10 +12,12 @@ import { FightQueueAdvanceForm } from '@/features/matches/components/matching-sh
 import { FIGHT_QUEUE_STATUS_LABELS } from '@/features/matches/schema'
 import { fightQueueStatusColorPalette } from '@/features/matches/display-utils'
 import type { MatchListItem } from '@/features/matches/types'
+import { palitadaContributionFingerprint } from '@/features/matches/utils'
 
 type MatchingActiveMatchPanelProps = {
   eventId: string
   activeMatch: MatchListItem | null
+  betBalancingMatch: MatchListItem | null
   palitadaTargetMatch: MatchListItem | null
   taxPerFight: number
   taxCommissionRate: number
@@ -29,6 +32,7 @@ type MatchingActiveMatchPanelProps = {
 export function MatchingActiveMatchPanel({
   eventId,
   activeMatch,
+  betBalancingMatch,
   palitadaTargetMatch,
   taxPerFight,
   taxCommissionRate,
@@ -39,6 +43,12 @@ export function MatchingActiveMatchPanel({
   hasVerifiedResult,
   onOpenFightQueue,
 }: MatchingActiveMatchPanelProps) {
+  const [clientReady, setClientReady] = useState(false)
+
+  useEffect(() => {
+    setClientReady(true)
+  }, [])
+
   if (!activeMatch) {
     return (
       <PanelCard title="Active match">
@@ -97,7 +107,7 @@ export function MatchingActiveMatchPanel({
           </Stack>
         ) : null}
 
-        {canManagePalitada && palitadaTargetMatch ? (
+        {clientReady && canManagePalitada && palitadaTargetMatch ? (
           <Box mb={4} borderWidth="1px" borderColor="border" rounded="md" p={3}>
             <Text fontSize="sm" mb={2}>
               Record Palitada on the pit screen while the fight is waiting or at the pit — before it
@@ -117,12 +127,15 @@ export function MatchingActiveMatchPanel({
         </Flex>
       </PanelCard>
 
-      <MatchBetBalancingPanel
-        match={activeMatch}
-        fightNumber={activeMatch.fight_number}
-        taxPerFight={taxPerFight}
-        taxCommissionRate={taxCommissionRate}
-      />
+      {betBalancingMatch ? (
+        <MatchBetBalancingPanel
+          key={`${betBalancingMatch.id}-${palitadaContributionFingerprint(betBalancingMatch)}`}
+          match={betBalancingMatch}
+          fightNumber={betBalancingMatch.fight_number}
+          taxPerFight={taxPerFight}
+          taxCommissionRate={taxCommissionRate}
+        />
+      ) : null}
     </Stack>
   )
 }

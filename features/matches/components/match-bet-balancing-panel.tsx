@@ -6,10 +6,51 @@ import { LAYOUT_GAP, PanelCard } from '@/components/dashboard'
 import {
   calculatePledgeSettlement,
   getPledgeBaseAmount,
+  type PledgeSettlementResult,
   type SideSettlementBreakdown,
 } from '@/features/matches/bet-balancing'
 import { formatCurrency } from '@/features/matches/components/matching-shared'
 import type { MatchListItem } from '@/features/matches/types'
+
+type BetBalancingPanelProps = {
+  match: MatchListItem
+  taxPerFight: number
+  taxCommissionRate: number
+  fightNumber?: number
+}
+
+function useMatchPledgeSettlement(
+  match: MatchListItem,
+  taxPerFight: number,
+  taxCommissionRate: number
+): PledgeSettlementResult {
+  return calculatePledgeSettlement({
+    meronBasePledge: getPledgeBaseAmount(
+      match.meron.bet_amount,
+      match.meron.bet_collected_amount,
+      match.meron.bet_payment_status
+    ),
+    walaBasePledge: getPledgeBaseAmount(
+      match.wala.bet_amount,
+      match.wala.bet_collected_amount,
+      match.wala.bet_payment_status
+    ),
+    meronPalitadaContributors: match.meron_palitada.map((contributor) => ({
+      id: contributor.id,
+      contributorName: contributor.contributor_name,
+      contributorType: contributor.contributor_type,
+      amount: contributor.amount,
+    })),
+    walaPalitadaContributors: match.wala_palitada.map((contributor) => ({
+      id: contributor.id,
+      contributorName: contributor.contributor_name,
+      contributorType: contributor.contributor_type,
+      amount: contributor.amount,
+    })),
+    commissionRatePercent: taxCommissionRate,
+    taxAmount: taxPerFight,
+  })
+}
 
 function formatPalitadaFooter(contributors: MatchListItem['meron_palitada']): string {
   if (contributors.length === 0) return 'Palitada: none'
@@ -77,7 +118,10 @@ function SideSettlementPanel({
           size="compact"
         />
         {side.contributors.length > 0 ? (
-          <Stack gap={2}>
+          <Stack
+            gap={2}
+            key={side.contributors.map((contributor) => contributor.id ?? contributor.contributorName).join('|')}
+          >
             <Text fontSize="xs" color="fg.muted">
               Palitada payouts ({formatCurrency(palitadaPayoutTotal)} of side win total)
             </Text>
@@ -133,45 +177,64 @@ function StatCard({
   )
 }
 
-type MatchBetBalancingPanelProps = {
-  match: MatchListItem
-  taxPerFight: number
-  taxCommissionRate: number
-  fightNumber?: number
+/** Pit screen: four headline totals only, shown first on the Bet Balancing page. */
+export function MatchBetBalancingSummaryPanel({
+  match,
+  taxPerFight,
+  taxCommissionRate,
+  fightNumber,
+}: BetBalancingPanelProps) {
+  const settlement = useMatchPledgeSettlement(match, taxPerFight, taxCommissionRate)
+
+  const imbalanceLabel = settlement.isBalanced
+    ? 'Sides are balanced'
+    : settlement.underdogSide === 'meron'
+      ? `Meron needs ${formatCurrency(settlement.amountNeededToBalance)} Palitada`
+      : `Wala needs ${formatCurrency(settlement.amountNeededToBalance)} Palitada`
+
+  const panelTitle = fightNumber ? `Bet Balancing · Fight #${fightNumber}` : 'Bet Balancing'
+
+  return (
+    <PanelCard title={panelTitle}>
+      <Flex justify="flex-end" mb={3}>
+        <Badge colorPalette={settlement.isBalanced ? 'green' : 'orange'} size="sm">
+          {settlement.isBalanced ? 'Balanced' : 'Imbalanced'}
+        </Badge>
+      </Flex>
+      <Grid
+        templateColumns={{ base: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }}
+        gap={3}
+      >
+        <StatCard
+          label="Meron Total"
+          value={formatCurrency(settlement.meronTotal)}
+          colorPalette="blue"
+        />
+        <StatCard
+          label="Wala Total"
+          value={formatCurrency(settlement.walaTotal)}
+          colorPalette="red"
+        />
+        <StatCard label="Total Pool" value={formatCurrency(settlement.totalPool)} />
+        <StatCard
+          label="Difference"
+          value={formatCurrency(settlement.imbalance)}
+          footer={imbalanceLabel}
+          colorPalette="yellow"
+        />
+      </Grid>
+    </PanelCard>
+  )
 }
 
+/** Active Match tab: full settlement breakdown. */
 export function MatchBetBalancingPanel({
   match,
   taxPerFight,
   taxCommissionRate,
   fightNumber,
-}: MatchBetBalancingPanelProps) {
-  const settlement = calculatePledgeSettlement({
-    meronBasePledge: getPledgeBaseAmount(
-      match.meron.bet_amount,
-      match.meron.bet_collected_amount,
-      match.meron.bet_payment_status
-    ),
-    walaBasePledge: getPledgeBaseAmount(
-      match.wala.bet_amount,
-      match.wala.bet_collected_amount,
-      match.wala.bet_payment_status
-    ),
-    meronPalitadaContributors: match.meron_palitada.map((contributor) => ({
-      id: contributor.id,
-      contributorName: contributor.contributor_name,
-      contributorType: contributor.contributor_type,
-      amount: contributor.amount,
-    })),
-    walaPalitadaContributors: match.wala_palitada.map((contributor) => ({
-      id: contributor.id,
-      contributorName: contributor.contributor_name,
-      contributorType: contributor.contributor_type,
-      amount: contributor.amount,
-    })),
-    commissionRatePercent: taxCommissionRate,
-    taxAmount: taxPerFight,
-  })
+}: BetBalancingPanelProps) {
+  const settlement = useMatchPledgeSettlement(match, taxPerFight, taxCommissionRate)
 
   const imbalanceLabel = settlement.isBalanced
     ? 'Sides are balanced'

@@ -50,16 +50,26 @@ function MatchingBoardContent(props: MatchingBoardClientProps) {
         </Box>
       ) : null}
 
-      <MatchingSubTabs
-        {...props}
-        onFeedback={(message, isError) => {
-          if (!message) {
-            setFeedback(null)
-            return
-          }
-          setFeedback({ message, isError })
-        }}
-      />
+      <Suspense
+        fallback={
+          <Text fontSize="sm" color="fg.muted">
+            Loading matching tabs…
+          </Text>
+        }
+      >
+        <MatchingSubTabs
+          {...props}
+          onFeedback={(message, isError) => {
+            window.setTimeout(() => {
+              if (!message) {
+                setFeedback(null)
+                return
+              }
+              setFeedback({ message, isError })
+            }, 0)
+          }}
+        />
+      </Suspense>
     </PageStack>
   )
 }
@@ -72,18 +82,7 @@ export function MatchingBoardClient(props: MatchingBoardClientProps) {
       initialAwaitingPaymentMatches={props.awaitingPaymentMatches}
       initialSettlingMatches={props.settlingMatches}
     >
-      <Suspense
-        fallback={
-          <PageStack>
-            <PageHeader title="Matching" description="Loading matching board…" />
-            <Text fontSize="sm" color="fg.muted">
-              Loading…
-            </Text>
-          </PageStack>
-        }
-      >
-        <MatchingBoardContent {...props} />
-      </Suspense>
+      <MatchingBoardContent {...props} />
     </MatchingLiveSyncProvider>
   )
 }

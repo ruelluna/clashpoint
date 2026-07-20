@@ -1,9 +1,9 @@
 'use client'
 
-import { Button, Flex, Input, Stack, Text } from '@chakra-ui/react'
+import { Button, Flex, Stack, Text } from '@chakra-ui/react'
 import { useMemo } from 'react'
 
-import { ButtonGroup, FormField } from '@/components/dashboard'
+import { ButtonGroup, DecimalInput, FormField } from '@/components/dashboard'
 import {
   CASH_DENOMINATIONS,
   computeCashChange,
@@ -43,10 +43,9 @@ export function CashierTenderFields({
     <Stack gap={3}>
       <Flex gap={4} direction={{ base: 'column', sm: 'row' }}>
         <FormField label="Amount to collect" required flex="1">
-          <Input
+          <DecimalInput
             key={collectInputKey}
             name="amountPaid"
-            type="number"
             min="0.01"
             step="0.01"
             required
@@ -59,9 +58,8 @@ export function CashierTenderFields({
           />
         </FormField>
         <FormField label="Cash tendered" required flex="1">
-          <Input
+          <DecimalInput
             name="amountTendered"
-            type="number"
             min="0"
             step="0.01"
             required

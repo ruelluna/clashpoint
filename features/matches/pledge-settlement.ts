@@ -308,7 +308,6 @@ export type ValidatePalitadaContributionInput = {
   settlement: PledgeSettlementResult
   side: PledgeSettlementSide
   amount: number
-  existingSideTotal?: number
 }
 
 export function validatePalitadaContribution(
@@ -329,11 +328,7 @@ export function validatePalitadaContribution(
     return 'Palitada may only be recorded on the underdog side'
   }
 
-  const currentPalitadaTotal =
-    side === 'meron' ? settlement.meronPalitadaTotal : settlement.walaPalitadaTotal
-  const nextSidePalitadaTotal = roundMatchMoney(currentPalitadaTotal + normalizedAmount)
-
-  if (nextSidePalitadaTotal - settlement.amountNeededToBalance > BALANCE_EPSILON) {
+  if (normalizedAmount - settlement.amountNeededToBalance > BALANCE_EPSILON) {
     return `Palitada cannot exceed ${settlement.amountNeededToBalance.toFixed(2)} needed to balance`
   }
 

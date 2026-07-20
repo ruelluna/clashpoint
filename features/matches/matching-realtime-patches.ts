@@ -19,6 +19,26 @@ export function removeMatchFromList(matches: MatchListItem[], matchId: string): 
   return matches.filter((match) => match.id !== matchId)
 }
 
+export function removePalitadaContributionFromMatch(
+  matches: MatchListItem[],
+  matchId: string,
+  contributionId: string
+): MatchListItem[] {
+  return matches.map((match) => {
+    if (match.id !== matchId) return match
+
+    return {
+      ...match,
+      meron_palitada: match.meron_palitada.filter(
+        (contributor) => contributor.id !== contributionId
+      ),
+      wala_palitada: match.wala_palitada.filter(
+        (contributor) => contributor.id !== contributionId
+      ),
+    }
+  })
+}
+
 export function patchSettlingMatchObligations(
   settlingMatches: SettlingMatchListItem[],
   matchId: string,

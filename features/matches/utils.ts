@@ -285,6 +285,15 @@ const BET_BALANCING_QUEUE_PRIORITY: Record<FightQueueStatus, number> = {
   fighting: 0,
 }
 
+export function palitadaContributionFingerprint(
+  match: Pick<MatchListItem, 'meron_palitada' | 'wala_palitada'>
+): string {
+  return [...match.meron_palitada, ...match.wala_palitada]
+    .map((contributor) => contributor.id)
+    .sort()
+    .join('|')
+}
+
 export function resolveBetBalancingTargetMatch(
   queueMatches: MatchListItem[]
 ): MatchListItem | null {
