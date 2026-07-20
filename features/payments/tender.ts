@@ -24,3 +24,7 @@ export function computeCashChange(
 }
 
 export const CASH_DENOMINATIONS = [100, 500, 1000] as const
+
+export function clearedTenderFieldsForRefund() {
+  return { amount_tendered: null, change_given: null } as const
+}

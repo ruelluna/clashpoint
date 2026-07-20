@@ -22,6 +22,7 @@ import {
   type RecordPaymentInput,
   type RefundPaymentInput,
 } from '@/features/payments/schema'
+import { clearedTenderFieldsForRefund } from '@/features/payments/tender'
 import type { PaymentStatus } from '@/features/entries/types'
 import type { MatchBetPaymentStatus } from '@/features/matches/types'
 import type {
@@ -683,7 +684,7 @@ export async function refundPayment(
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
     .select(
-      'id, payment_reference, entry_id, event_id, amount_due, amount_paid, payment_status'
+      'id, payment_reference, entry_id, event_id, amount_due, amount_paid, payment_status, amount_tendered, change_given, payment_category'
     )
     .eq('id', input.paymentId)
     .eq('event_id', input.eventId)
@@ -701,6 +702,7 @@ export async function refundPayment(
       payment_status: 'refunded',
       balance: Number(payment.amount_due),
       amount_paid: 0,
+      ...clearedTenderFieldsForRefund(),
     })
     .eq('id', input.paymentId)
 
@@ -724,7 +726,10 @@ export async function refundPayment(
     oldValues: {
       payment_reference: payment.payment_reference,
       payment_status: payment.payment_status,
+      payment_category: payment.payment_category,
       amount_paid: payment.amount_paid,
+      amount_tendered: payment.amount_tendered,
+      change_given: payment.change_given,
     },
     newValues: {
       payment_status: 'refunded',
