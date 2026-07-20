@@ -33,6 +33,7 @@ export async function recordResultAction(
   if (result.error) return { error: result.error }
 
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/results`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/standings`)
   return { success: 'Result recorded and submitted for verification' }
 }

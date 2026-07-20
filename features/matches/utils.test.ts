@@ -11,10 +11,12 @@ import {
   isMatchQueueReady,
   isRoosterEligibleForMatching,
   isValidFightQueueTransition,
+  resolveActiveMatch,
   validateCockUsedOnce,
   validateNoSelfMatch,
   validateRoosterEligibility,
 } from '@/features/matches/utils'
+import type { MatchListItem } from '@/features/matches/types'
 
 describe('validateNoSelfMatch', () => {
   it('rejects matching a rooster against itself', () => {
@@ -223,5 +225,61 @@ describe('canEditMatchBets', () => {
     expect(canEditMatchBets('queued', ['paid', 'paid'], 'waiting')).toBe(true)
     expect(canEditMatchBetAmounts('queued', 'handlers_called')).toBe(false)
     expect(canEditMatchBets('queued', ['paid', 'paid'], 'handlers_called')).toBe(false)
+  })
+})
+
+function buildMatchListItem(
+  overrides: Partial<MatchListItem> & Pick<MatchListItem, 'id' | 'fight_number' | 'queue_status'>
+): MatchListItem {
+  const side = {
+    entry_id: 'entry',
+    entry_number: '1',
+    entry_name: 'Entry',
+    owner_name: 'Owner',
+    rooster_id: 'rooster',
+    cock_number: 1,
+    band_number: 'B1',
+    weight: 2,
+    bet_amount: 500,
+    bet_collected_amount: 500,
+    bet_barcode: null,
+    bet_payment_status: 'paid' as const,
+  }
+
+  return {
+    event_id: 'event',
+    status: 'queued',
+    round_number: null,
+    meron: side,
+    wala: { ...side, rooster_id: 'rooster-2', cock_number: 2 },
+    ...overrides,
+  }
+}
+
+describe('resolveActiveMatch', () => {
+  it('returns null when no called or in-progress matches exist', () => {
+    expect(
+      resolveActiveMatch([
+        buildMatchListItem({ id: '1', fight_number: 1, queue_status: 'waiting' }),
+      ])
+    ).toBeNull()
+  })
+
+  it('prefers fighting over handlers_called', () => {
+    const active = resolveActiveMatch([
+      buildMatchListItem({ id: '1', fight_number: 2, queue_status: 'handlers_called' }),
+      buildMatchListItem({ id: '2', fight_number: 1, queue_status: 'fighting' }),
+    ])
+
+    expect(active?.id).toBe('2')
+  })
+
+  it('uses lowest fight number as tie-breaker at same queue status', () => {
+    const active = resolveActiveMatch([
+      buildMatchListItem({ id: '1', fight_number: 3, queue_status: 'birds_at_pit' }),
+      buildMatchListItem({ id: '2', fight_number: 2, queue_status: 'birds_at_pit' }),
+    ])
+
+    expect(active?.id).toBe('2')
   })
 })

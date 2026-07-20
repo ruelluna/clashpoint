@@ -1,5 +1,10 @@
-import type { FightQueueStatus, MatchStatus, RoosterEligibilityContext } from '@/features/matches/types'
-import type { MatchBetPaymentStatus } from '@/features/matches/types'
+import type {
+  FightQueueStatus,
+  MatchBetPaymentStatus,
+  MatchListItem,
+  MatchStatus,
+  RoosterEligibilityContext,
+} from '@/features/matches/types'
 
 const ACTIVE_MATCH_STATUSES: MatchStatus[] = [
   'draft',
@@ -206,4 +211,35 @@ export function canEditMatchBets(
   if (!canEditMatchBetAmounts(matchStatus, queueStatus)) return false
   if (betPaymentStatuses.every((status) => status === 'unpaid')) return true
   return canEditMatchBetAmounts(matchStatus, queueStatus)
+}
+
+export const ACTIVE_CALLED_QUEUE_STATUSES: FightQueueStatus[] = [
+  'handlers_called',
+  'birds_at_pit',
+  'fighting',
+]
+
+const QUEUE_STATUS_PRIORITY: Record<FightQueueStatus, number> = {
+  fighting: 3,
+  birds_at_pit: 2,
+  handlers_called: 1,
+  waiting: 0,
+}
+
+export function resolveActiveMatch(queueMatches: MatchListItem[]): MatchListItem | null {
+  const candidates = queueMatches.filter(
+    (match) =>
+      match.queue_status != null &&
+      ACTIVE_CALLED_QUEUE_STATUSES.includes(match.queue_status)
+  )
+
+  if (candidates.length === 0) return null
+
+  return [...candidates].sort((left, right) => {
+    const priorityDiff =
+      QUEUE_STATUS_PRIORITY[right.queue_status!] -
+      QUEUE_STATUS_PRIORITY[left.queue_status!]
+    if (priorityDiff !== 0) return priorityDiff
+    return left.fight_number - right.fight_number
+  })[0]
 }

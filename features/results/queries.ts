@@ -149,3 +149,19 @@ export async function listMatchesPendingResults(
 
   return matches.filter((match) => !verifiedMatchIds.has(match.id))
 }
+
+export async function listVerifiedResultMatchIds(eventId: string): Promise<string[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('fight_results')
+    .select('match_id, result_status')
+    .eq('event_id', eventId)
+
+  if (error) throw error
+
+  return ((data ?? []) as Array<{ match_id: string; result_status: string }>)
+    .filter(
+      (row) => row.result_status === 'verified' || row.result_status === 'final'
+    )
+    .map((row) => row.match_id)
+}

@@ -8,6 +8,7 @@ import {
   listAwaitingPaymentMatches,
   listFightQueueByEvent,
 } from '@/features/matches/queries'
+import { listVerifiedResultMatchIds } from '@/features/results/queries'
 import { getUser } from '@/lib/auth/session'
 import { canOperateAsStaff } from '@/lib/auth/operational-access'
 import { getProfile } from '@/lib/auth/queries'
@@ -24,18 +25,21 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
 
   if (!event) notFound()
 
-  const [awaitingPaymentMatches, queueMatches, eligibleRoosters] = await Promise.all([
-    listAwaitingPaymentMatches(id),
-    listFightQueueByEvent(id),
-    getEligibleRoostersForMatching(id),
-  ])
+  const [awaitingPaymentMatches, queueMatches, eligibleRoosters, verifiedResultMatchIds, user] =
+    await Promise.all([
+      listAwaitingPaymentMatches(id),
+      listFightQueueByEvent(id),
+      getEligibleRoostersForMatching(id),
+      listVerifiedResultMatchIds(id),
+      getUser(),
+    ])
 
-  const user = await getUser()
   const profile = user ? await getProfile(user.id) : null
   const canManage =
     Boolean(user && profile) &&
     canOperateAsStaff(profile!) &&
     (await hasPermission(user!.id, 'matches.manage'))
+  const canRecordResult = user ? await hasPermission(user.id, 'results.manage') : false
 
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>
@@ -45,7 +49,11 @@ export default async function MatchingPage({ params }: MatchingPageProps) {
         awaitingPaymentMatches={awaitingPaymentMatches}
         queueMatches={queueMatches}
         eligibleRoosters={eligibleRoosters}
+        verifiedResultMatchIds={verifiedResultMatchIds}
+        taxPerFight={event.tax_per_fight}
+        taxCommissionRate={event.tax_commission}
         canManage={canManage}
+        canRecordResult={canRecordResult}
       />
     </EventPageLayout>
   )

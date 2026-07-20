@@ -10,6 +10,7 @@ test.describe('Matching pledges flow @auth', () => {
     await page.getByRole('link', { name: /matching/i }).first().click()
     await expect(page.getByRole('heading', { name: 'Matching' })).toBeVisible()
 
+    await page.getByRole('tab', { name: 'Matching Desk' }).click()
     await page.getByTestId('matching-meron-scan-input').fill('COCK-00000000-0001')
     await page.getByRole('button', { name: 'Look up barcode' }).first().click()
 
@@ -43,6 +44,7 @@ test.describe('Matching pledges flow @auth', () => {
   }) => {
     await page.goto('/dashboard/events')
     await page.getByRole('link', { name: /matching/i }).first().click()
+    await page.getByRole('tab', { name: 'Pending Payments' }).click()
     await page.getByRole('button', { name: 'Save pledge changes' }).first().click()
 
     await page.goto('/dashboard/events')
@@ -50,5 +52,21 @@ test.describe('Matching pledges flow @auth', () => {
     await page.getByTestId('cashier-scan-input').fill('BET-00000000-0001-M')
     await page.getByRole('button', { name: 'Look up' }).click()
     await expect(page.getByTestId('cashier-pledge-adjustment-due')).toBeVisible()
+  })
+
+  test('matching sub-tabs expose active match and pending payments views', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/events')
+    await page.getByRole('link', { name: /matching/i }).first().click()
+    await expect(page.getByRole('tab', { name: 'Active Match' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Fight Queue' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Pending Payments' })).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Active Match' }).click()
+    await expect(page.getByText(/No match is being called|Active match:/)).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Pending Payments' }).click()
+    await expect(page.getByText('Awaiting cashier payment')).toBeVisible()
   })
 })
