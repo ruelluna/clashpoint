@@ -1766,7 +1766,17 @@ export async function resolveMatchBetCashierTarget(
   if (betError) return { error: betError.message }
   if (!bet) return { error: `No palitada slip found for barcode ${barcode}` }
 
-  const matchRow = bet.matches as {
+  return buildMatchBetCashierTarget(eventId, bet as MatchBetWithMatchJoin)
+}
+
+type MatchBetWithMatchJoin = {
+  id: string
+  match_id: string
+  side: string
+  amount: number | string
+  barcode: string
+  payment_status: string
+  matches: {
     fight_number: number
     status: string
     meron_entry_id: string
@@ -1774,6 +1784,14 @@ export async function resolveMatchBetCashierTarget(
     meron_rooster_id: string
     wala_rooster_id: string
   }
+}
+
+async function buildMatchBetCashierTarget(
+  eventId: string,
+  bet: MatchBetWithMatchJoin
+): Promise<{ error?: string; matchBet?: MatchBetCashierTarget }> {
+  const supabase = await createClient()
+  const matchRow = bet.matches
 
   if (matchRow.status === 'cancelled') {
     return { error: 'This match has been cancelled' }
@@ -1804,12 +1822,12 @@ export async function resolveMatchBetCashierTarget(
 
   return {
     matchBet: {
-      matchBetId: bet.id as string,
-      matchId: bet.match_id as string,
+      matchBetId: bet.id,
+      matchId: bet.match_id,
       eventId,
       fightNumber: Number(matchRow.fight_number),
       side: bet.side as 'meron' | 'wala',
-      betBarcode: bet.barcode as string,
+      betBarcode: bet.barcode,
       betAmount: Number(bet.amount),
       betPaymentStatus: bet.payment_status as MatchBetPaymentStatus,
       entryId,
@@ -1821,6 +1839,57 @@ export async function resolveMatchBetCashierTarget(
       entryDues: duesResult.dues,
     },
   }
+}
+
+export async function resolveMatchBetByRoosterRegistrationId(
+  eventId: string,
+  registrationId: string
+): Promise<{ error?: string; matchBet?: MatchBetCashierTarget }> {
+  const supabase = await createClient()
+
+  const { data: match, error: matchError } = await supabase
+    .from('matches')
+    .select(
+      'id, fight_number, status, meron_entry_id, wala_entry_id, meron_rooster_id, wala_rooster_id'
+    )
+    .eq('event_id', eventId)
+    .eq('status', 'draft')
+    .is('queue_status', null)
+    .or(`meron_rooster_id.eq.${registrationId},wala_rooster_id.eq.${registrationId}`)
+    .order('fight_number', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (matchError) return { error: matchError.message }
+  if (!match) return {}
+
+  const side =
+    match.meron_rooster_id === registrationId
+      ? ('meron' as const)
+      : ('wala' as const)
+
+  const { data: bet, error: betError } = await supabase
+    .from('match_bets')
+    .select('id, match_id, side, amount, barcode, payment_status')
+    .eq('match_id', match.id)
+    .eq('side', side)
+    .eq('payment_status', 'unpaid')
+    .maybeSingle()
+
+  if (betError) return { error: betError.message }
+  if (!bet) return {}
+
+  return buildMatchBetCashierTarget(eventId, {
+    ...bet,
+    matches: {
+      fight_number: match.fight_number,
+      status: match.status,
+      meron_entry_id: match.meron_entry_id,
+      wala_entry_id: match.wala_entry_id,
+      meron_rooster_id: match.meron_rooster_id,
+      wala_rooster_id: match.wala_rooster_id,
+    },
+  })
 }
 
 export async function resolveCashierTarget(
@@ -1865,7 +1934,7 @@ export async function resolveCashierTarget(
   if (classified.kind === 'cock_barcode') {
     const { data: registration, error: regError } = await supabase
       .from('rooster_event_registrations')
-      .select('entry_id')
+      .select('id, entry_id')
       .eq('event_id', eventId)
       .eq('cock_entry_barcode', classified.value)
       .maybeSingle()
@@ -1873,6 +1942,15 @@ export async function resolveCashierTarget(
     if (regError) return { error: regError.message }
     if (!registration) {
       return { error: `No rooster found for barcode ${classified.value}` }
+    }
+
+    const unpaidPalitada = await resolveMatchBetByRoosterRegistrationId(
+      eventId,
+      registration.id
+    )
+    if (unpaidPalitada.error) return { error: unpaidPalitada.error }
+    if (unpaidPalitada.matchBet) {
+      return { matchBet: unpaidPalitada.matchBet }
     }
 
     const entryResult = await loadEntryCashierRow(eventId, registration.entry_id)

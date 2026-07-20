@@ -4,7 +4,6 @@ import {
   createMatchSchema,
   formatMatchBetBarcode,
   parseMatchBetBarcode,
-  updateMatchBetSchema,
 } from '@/features/matches/schema'
 
 const eventId = '00000000-0000-4000-8000-000000000001'
@@ -88,29 +87,5 @@ describe('match bet barcode helpers', () => {
       fightNumber: 42,
       side: 'meron',
     })
-  })
-})
-
-describe('updateMatchBetSchema', () => {
-  it('accepts valid bet update', () => {
-    const result = updateMatchBetSchema.safeParse({
-      eventId,
-      matchId,
-      side: 'meron',
-      amount: 1000,
-    })
-
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects negative amounts', () => {
-    const result = updateMatchBetSchema.safeParse({
-      eventId,
-      matchId,
-      side: 'wala',
-      amount: -1,
-    })
-
-    expect(result.success).toBe(false)
   })
 })

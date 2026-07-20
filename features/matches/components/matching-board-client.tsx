@@ -28,7 +28,6 @@ import {
   cancelMatchAction,
   createMatchAction,
   updateFightQueueStatusAction,
-  updateMatchBetAction,
   type MatchActionState,
 } from '@/features/matches/actions'
 import { MatchingRoosterScanRow } from '@/features/matches/components/matching-rooster-scan-row'
@@ -160,52 +159,6 @@ function SidePaymentBadges({ side }: { side: MatchListItem['meron'] }) {
         </Text>
       ) : null}
     </Flex>
-  )
-}
-
-function BetEditForm({
-  eventId,
-  match,
-  side,
-  amount,
-}: {
-  eventId: string
-  match: MatchListItem
-  side: 'meron' | 'wala'
-  amount: number
-}) {
-  const [state, action, pending] = useActionState(updateMatchBetAction, initialState)
-  const betsUnpaid =
-    match.meron.bet_payment_status === 'unpaid' &&
-    match.wala.bet_payment_status === 'unpaid'
-
-  if (!betsUnpaid) return null
-
-  return (
-    <form action={action} className="mt-1">
-      <input type="hidden" name="eventId" value={eventId} />
-      <input type="hidden" name="matchId" value={match.id} />
-      <input type="hidden" name="side" value={side} />
-      <Flex gap={2} align="center">
-        <Input
-          name="amount"
-          type="number"
-          min={0.01}
-          step="0.01"
-          size="xs"
-          width="24"
-          defaultValue={String(amount)}
-        />
-        <Button type="submit" size="xs" variant="outline" loading={pending}>
-          Save
-        </Button>
-      </Flex>
-      {state.error ? (
-        <Text fontSize="xs" color="red.500" mt={1}>
-          {state.error}
-        </Text>
-      ) : null}
-    </form>
   )
 }
 
@@ -423,7 +376,7 @@ export function MatchingBoardClient({
     <PageStack>
       <PageHeader
         title="Matching"
-        description={`Pair roosters at the desk, record palitada, and collect payment before fights enter the queue for ${eventName}.`}
+        description={`Pair roosters and record palitada amounts for ${eventName}. Handlers pay at Cashier Terminal — matching staff do not collect payments.`}
       />
 
       {feedback ? (
@@ -594,14 +547,26 @@ export function MatchingBoardClient({
         </PanelCard>
       ) : null}
 
-      <PanelCard title="Awaiting payment">
-        <Text fontSize="sm" color="fg.muted" mb={3}>
-          Matches enter the fight queue automatically after both sides pay palitada and any
-          enabled entry fees.
-        </Text>
+      <PanelCard title="Awaiting cashier payment">
+        <Stack gap={2} mb={3}>
+          <Text fontSize="sm" color="fg.muted">
+            Matching staff do not collect payments. Direct each handler to{' '}
+            <Text as="span" fontWeight="medium">
+              Cashier Terminal
+            </Text>{' '}
+            with their rooster COCK- barcode or printed BET- palitada slip.
+          </Text>
+          <Text fontSize="sm" color="fg.muted">
+            Matches enter the fight queue automatically after both sides pay palitada and any
+            enabled entry fees are cleared.
+          </Text>
+          <Button asChild size="sm" variant="outline" alignSelf="flex-start">
+            <Link href={`/dashboard/events/${eventId}/payments`}>Open Cashier Terminal</Link>
+          </Button>
+        </Stack>
         {awaitingPaymentMatches.length === 0 ? (
           <Text color="fg.muted" fontSize="sm">
-            No matches awaiting payment.
+            No matches awaiting cashier payment.
           </Text>
         ) : (
           awaitingPaymentMatches.map((match) => (
@@ -622,14 +587,6 @@ export function MatchingBoardClient({
                       Cock #{match.meron.cock_number} · Bet {formatCurrency(match.meron.bet_amount)}
                     </Text>
                     <SidePaymentBadges side={match.meron} />
-                    {canManage ? (
-                      <BetEditForm
-                        eventId={eventId}
-                        match={match}
-                        side="meron"
-                        amount={match.meron.bet_amount}
-                      />
-                    ) : null}
                   </Box>
                   <Box flex="1">
                     <Text fontWeight="medium">{match.wala.entry_name}</Text>
@@ -637,14 +594,6 @@ export function MatchingBoardClient({
                       Cock #{match.wala.cock_number} · Bet {formatCurrency(match.wala.bet_amount)}
                     </Text>
                     <SidePaymentBadges side={match.wala} />
-                    {canManage ? (
-                      <BetEditForm
-                        eventId={eventId}
-                        match={match}
-                        side="wala"
-                        amount={match.wala.bet_amount}
-                      />
-                    ) : null}
                   </Box>
                   <Stack gap={2} align={{ base: 'flex-start', md: 'flex-end' }}>
                     <Badge colorPalette={statusColor(match.status)} size="sm">

@@ -63,13 +63,6 @@ export const updateMatchStatusSchema = z.object({
   status: matchStatusSchema,
 })
 
-export const updateMatchBetSchema = z.object({
-  eventId: z.string().uuid(),
-  matchId: z.string().uuid(),
-  side: z.enum(['meron', 'wala']),
-  amount: z.coerce.number().positive('Bet amount must be greater than zero'),
-})
-
 export const cancelMatchSchema = z.object({
   eventId: z.string().uuid(),
   matchId: z.string().uuid(),
@@ -84,7 +77,6 @@ export type CreateMatchInput = z.infer<typeof createMatchSchema>
 export type LockMatchListInput = z.infer<typeof lockMatchListSchema>
 export type UpdateFightQueueStatusInput = z.infer<typeof updateFightQueueStatusSchema>
 export type UpdateMatchStatusInput = z.infer<typeof updateMatchStatusSchema>
-export type UpdateMatchBetInput = z.infer<typeof updateMatchBetSchema>
 export type CancelMatchInput = z.infer<typeof cancelMatchSchema>
 export type LookupRoosterForMatchingInput = z.infer<
   typeof lookupRoosterForMatchingSchema

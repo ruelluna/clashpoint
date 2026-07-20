@@ -9,7 +9,6 @@ import type {
   LockMatchListInput,
   LookupRoosterForMatchingInput,
   UpdateFightQueueStatusInput,
-  UpdateMatchBetInput,
 } from '@/features/matches/schema'
 import { formatMatchBetBarcode } from '@/features/matches/schema'
 import { tryPromoteMatchToQueue } from '@/features/matches/promotion'
@@ -21,7 +20,6 @@ import type {
   RoosterEligibilityContext,
 } from '@/features/matches/types'
 import {
-  canEditMatchBets,
   canLockMatchList,
   collectUsedRoosterIds,
   isValidFightQueueTransition,
@@ -264,66 +262,6 @@ export async function lookupEligibleRoosterByBarcode(
       category: rooster.category,
     },
   }
-}
-
-export async function updateMatchBet(
-  actorId: string,
-  input: UpdateMatchBetInput
-): Promise<{ error?: string }> {
-  const supabase = await createClient()
-
-  const { data: match, error: fetchError } = await supabase
-    .from('matches')
-    .select('id, event_id, fight_number, status')
-    .eq('id', input.matchId)
-    .eq('event_id', input.eventId)
-    .maybeSingle()
-
-  if (fetchError) return { error: fetchError.message }
-  if (!match) return { error: 'Match not found' }
-
-  const status = match.status as MatchStatus
-
-  const { data: bets, error: betsError } = await supabase
-    .from('match_bets')
-    .select('payment_status')
-    .eq('match_id', input.matchId)
-
-  if (betsError) return { error: betsError.message }
-
-  const paymentStatuses = (bets ?? []).map(
-    (bet) => bet.payment_status as MatchBetPaymentStatus
-  )
-
-  if (!canEditMatchBets(status, paymentStatuses)) {
-    return { error: 'Bets cannot be updated after payment or once the match is queued' }
-  }
-
-  const { error } = await supabase
-    .from('match_bets')
-    .update({
-      amount: input.amount,
-      recorded_by: actorId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('match_id', input.matchId)
-    .eq('side', input.side)
-
-  if (error) return { error: error.message }
-
-  await writeAuditLog({
-    actorId,
-    action: 'match.bet.updated',
-    entityType: 'match',
-    entityId: input.matchId,
-    newValues: {
-      fight_number: match.fight_number,
-      side: input.side,
-      amount: input.amount,
-    },
-  })
-
-  return {}
 }
 
 export async function createMatch(

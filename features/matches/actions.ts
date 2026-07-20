@@ -8,7 +8,6 @@ import {
   lockMatchListSchema,
   lookupRoosterForMatchingSchema,
   updateFightQueueStatusSchema,
-  updateMatchBetSchema,
 } from '@/features/matches/schema'
 import {
   cancelUnpaidMatch,
@@ -16,7 +15,6 @@ import {
   lockMatchList,
   lookupEligibleRoosterByBarcode,
   updateFightQueueStatus,
-  updateMatchBet,
 } from '@/features/matches/service'
 import { requirePermission } from '@/lib/auth/permissions'
 
@@ -90,31 +88,6 @@ export async function cancelMatchAction(
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
   revalidatePath('/dashboard/fights')
   return { success: 'Match cancelled' }
-}
-
-export async function updateMatchBetAction(
-  _prev: MatchActionState,
-  formData: FormData
-): Promise<MatchActionState> {
-  const profile = await requirePermission('matches.manage')
-
-  const parsed = updateMatchBetSchema.safeParse({
-    eventId: formData.get('eventId'),
-    matchId: formData.get('matchId'),
-    side: formData.get('side'),
-    amount: formData.get('amount'),
-  })
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Invalid bet amount' }
-  }
-
-  const result = await updateMatchBet(profile.id, parsed.data)
-  if (result.error) return { error: result.error }
-
-  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
-  revalidatePath('/dashboard/audit')
-  return { success: 'Bet updated' }
 }
 
 export async function lockMatchListAction(
