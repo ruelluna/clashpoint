@@ -185,20 +185,6 @@ export function CashierClient({
   >([])
 
   useEffect(() => {
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    if (recordState.paymentId) {
-      setLastPaymentId(recordState.paymentId)
-    }
-  }, [recordState.paymentId])
-  const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('entry_fees')
-<<<<<<< HEAD
-  const [collectAmount, setCollectAmount] = useState(0)
-  const [amountTendered, setAmountTendered] = useState(0)
-=======
-=======
-=======
->>>>>>> main
     if (!recordState.paymentIds?.length) return
     const categories = (recordState.paymentCategories ?? []) as PaymentCategory[]
     setLastPaymentIds(
@@ -222,13 +208,8 @@ export function CashierClient({
   }, [betRecordState.paymentId])
 
   const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('cash_bond')
-<<<<<<< HEAD
->>>>>>> Stashed changes
->>>>>>> cashier-payment-category-updated
-=======
   const [collectAmount, setCollectAmount] = useState(0)
   const [amountTendered, setAmountTendered] = useState(0)
->>>>>>> main
   const [paymentMethod, setPaymentMethod] = useState<
     keyof typeof PAYMENT_METHOD_LABELS
   >('cash')
@@ -739,10 +720,6 @@ export function CashierClient({
                     </FormField>
                   ) : null}
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> main
                   <CashierTenderFields
                     collectAmount={collectAmount}
                     onCollectAmountChange={(value) => {
@@ -773,48 +750,6 @@ export function CashierClient({
                       </NativeSelect.Field>
                     </NativeSelect.Root>
                   </FormField>
-<<<<<<< HEAD
-=======
-                  <Flex gap={LAYOUT_GAP.form} direction={{ base: 'column', sm: 'row' }}>
-                    <FormField label="Amount paid" required flex="1">
-                      <Input
-                        name="amountPaid"
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        required
-<<<<<<< Updated upstream
-                        key={`${activeMatch.entryId}-${paymentCategory}-${suggestedAmount}`}
-=======
-                        key={`${activeMatch.entryId}-${collectEntryFees ? 'entry-fees' : paymentCategory}-${suggestedAmount}`}
->>>>>>> Stashed changes
-                        defaultValue={suggestedAmount || undefined}
-                        data-testid="cashier-amount-paid"
-                      />
-                    </FormField>
-                    <FormField label="Payment method" flex="1">
-                      <NativeSelect.Root>
-                        <NativeSelect.Field
-                          name="paymentMethod"
-                          value={paymentMethod}
-                          onChange={(event) =>
-                            setPaymentMethod(
-                              event.currentTarget.value as keyof typeof PAYMENT_METHOD_LABELS
-                            )
-                          }
-                        >
-                          {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
-                            <option key={value} value={value} disabled={value !== 'cash'}>
-                              {label}
-                            </option>
-                          ))}
-                        </NativeSelect.Field>
-                      </NativeSelect.Root>
-                    </FormField>
-                  </Flex>
->>>>>>> cashier-payment-category-updated
-=======
->>>>>>> main
 
                   <FormField label="Notes">
                     <Textarea name="notes" rows={2} maxLength={2000} />
@@ -830,23 +765,11 @@ export function CashierClient({
                       <Text fontSize="sm" color="green.600">
                         {recordState.success}
                       </Text>
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> main
                       {recordState.changeGiven != null && recordState.changeGiven > 0 ? (
                         <Text fontSize="sm" fontWeight="medium" data-testid="cashier-change-success">
                           Change: {formatCurrency(recordState.changeGiven)}
                         </Text>
                       ) : null}
-<<<<<<< HEAD
-=======
-<<<<<<< Updated upstream
->>>>>>> cashier-payment-category-updated
-                      {lastPaymentId ? (
-=======
-=======
->>>>>>> main
                       {lastPaymentIds.length > 0 ? (
                         <ButtonGroup>
                           {lastPaymentIds.map((payment) => (
@@ -862,24 +785,10 @@ export function CashierClient({
                           <Button
                             size="sm"
                             variant="ghost"
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> main
                             onClick={() => {
                               setLastPaymentIds([])
                               setAmountTendered(0)
                             }}
-<<<<<<< HEAD
-=======
-<<<<<<< Updated upstream
-                            onClick={() => setLastPaymentId(null)}
-=======
-                            onClick={() => setLastPaymentIds([])}
->>>>>>> Stashed changes
->>>>>>> cashier-payment-category-updated
-=======
->>>>>>> main
                           >
                             Continue
                           </Button>

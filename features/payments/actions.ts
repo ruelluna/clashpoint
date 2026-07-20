@@ -22,22 +22,9 @@ export type PaymentActionState = {
   error?: string
   success?: string
   paymentId?: string
-<<<<<<< HEAD
-<<<<<<< HEAD
-  changeGiven?: number
-=======
-<<<<<<< Updated upstream
-=======
   paymentIds?: string[]
   paymentCategories?: string[]
   changeGiven?: number
->>>>>>> Stashed changes
->>>>>>> cashier-payment-category-updated
-=======
-  paymentIds?: string[]
-  paymentCategories?: string[]
-  changeGiven?: number
->>>>>>> main
 }
 
 export type CashierLookupActionResult = CashierLookupResult
@@ -104,17 +91,6 @@ export async function recordPaymentAction(
   return {
     success: 'Payment recorded',
     paymentId: result.paymentId,
-<<<<<<< HEAD
-<<<<<<< HEAD
-    changeGiven: parsed.data.changeGiven,
-=======
-<<<<<<< Updated upstream
-=======
-    paymentIds: result.paymentIds,
-    paymentCategories: result.paymentCategories,
->>>>>>> Stashed changes
->>>>>>> cashier-payment-category-updated
-=======
     paymentIds: result.paymentIds,
     paymentCategories: result.paymentCategories,
     changeGiven: parsed.data.changeGiven,
@@ -158,7 +134,6 @@ export async function recordMatchBetPaymentAction(
     success: 'Palitada payment recorded',
     paymentId: result.paymentId,
     changeGiven: parsed.data.changeGiven,
->>>>>>> main
   }
 }
 

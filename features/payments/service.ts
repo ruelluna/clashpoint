@@ -80,21 +80,8 @@ function mapPaymentLedgerRow(row: PaymentLedgerRow) {
     ownerName: row.entries?.owner_name ?? '—',
     amountDue: Number(row.amount_due),
     amountPaid: Number(row.amount_paid),
-<<<<<<< HEAD
-<<<<<<< HEAD
     amountTendered: row.amount_tendered != null ? Number(row.amount_tendered) : null,
     changeGiven: row.change_given != null ? Number(row.change_given) : null,
-=======
-<<<<<<< Updated upstream
-=======
-    amountTendered: null,
-    changeGiven: null,
->>>>>>> Stashed changes
->>>>>>> cashier-payment-category-updated
-=======
-    amountTendered: row.amount_tendered != null ? Number(row.amount_tendered) : null,
-    changeGiven: row.change_given != null ? Number(row.change_given) : null,
->>>>>>> main
     balance: Number(row.balance),
     paymentMethod: row.payment_method,
     receiptNumber: row.receipt_number,
