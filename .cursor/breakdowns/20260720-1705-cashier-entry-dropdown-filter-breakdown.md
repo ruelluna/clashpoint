@@ -21,7 +21,7 @@ The Cashier Terminal **Or select entry** dropdown now lists only entries with **
 ### features/
 
 - `features/payments/cashier-selectable.ts` (new)
-- `features/payments/cashier-selectable.test.ts` (new)
+- `features/payments/cashier-selectable.tesnpm run t.ts` (new)
 - `features/payments/service.ts` — `listCashierSelectableEntries`
 - `features/payments/types.ts` — `CashierSelectableEntry`
 - `features/payments/components/cashier-client.tsx`

@@ -3,40 +3,22 @@
 import {
   Badge,
   Box,
-  Button,
   Flex,
   Input,
   Stack,
   Text,
-  Textarea,
 } from '@chakra-ui/react'
-import { useActionState, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import {
-  ButtonGroup,
-  FormField,
-  LAYOUT_GAP,
-  PageHeader,
-  PageStack,
-  PanelCard,
-} from '@/components/dashboard'
-import {
-  recordRevolvingFundAdjustmentAction,
-  type RevolvingFundActionState,
-} from '@/features/revolving-fund/actions'
-import { revolvingFundEntryTypeColorPalette } from '@/features/revolving-fund/display-utils'
+import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import type { RevolvingFundLedgerEntry } from '@/features/revolving-fund/types'
 
 type RevolvingFundClientProps = {
-  eventId: string
   eventName: string
   initialBalance: number
   revolvingFundInitial: number
   entries: RevolvingFundLedgerEntry[]
-  canManage: boolean
 }
-
-const initialState: RevolvingFundActionState = {}
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat(undefined, {
@@ -67,17 +49,11 @@ function entryTypeLabel(entryType: RevolvingFundLedgerEntry['entryType']) {
 }
 
 export function RevolvingFundClient({
-  eventId,
   eventName,
   initialBalance,
   revolvingFundInitial,
   entries,
-  canManage,
 }: RevolvingFundClientProps) {
-  const [formState, formAction, pending] = useActionState(
-    recordRevolvingFundAdjustmentAction,
-    initialState
-  )
   const [ledgerSearch, setLedgerSearch] = useState('')
 
   const filteredEntries = useMemo(() => {
@@ -122,47 +98,6 @@ export function RevolvingFundClient({
           </Text>
         </Stack>
       </PanelCard>
-
-      {canManage ? (
-        <PanelCard title="Record adjustment">
-          <form action={formAction}>
-            <Stack gap={LAYOUT_GAP.form}>
-              <input type="hidden" name="eventId" value={eventId} />
-              <FormField
-                label="Amount"
-                helpText="Use a positive value to add funds or negative to deduct."
-                required
-              >
-                <Input
-                  name="amount"
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="e.g. 500 or -200"
-                />
-              </FormField>
-              <FormField label="Description" required>
-                <Textarea name="description" rows={2} required />
-              </FormField>
-              <ButtonGroup>
-                <Button type="submit" loading={pending}>
-                  Record adjustment
-                </Button>
-              </ButtonGroup>
-              {formState.error ? (
-                <Text color="fg.error" fontSize="sm">
-                  {formState.error}
-                </Text>
-              ) : null}
-              {formState.success ? (
-                <Text color="fg.success" fontSize="sm">
-                  {formState.success}
-                </Text>
-              ) : null}
-            </Stack>
-          </form>
-        </PanelCard>
-      ) : null}
 
       <PanelCard title="Ledger">
         {entries.length === 0 ? (
