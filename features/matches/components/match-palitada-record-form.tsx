@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useEffect, useRef } from 'react'
+import { useFormStatus } from 'react-dom'
 import { Box, Button, Flex, Input, NativeSelect, Stack, Text } from '@chakra-ui/react'
 
 import { DecimalInput, FormField } from '@/components/dashboard'
@@ -20,6 +21,23 @@ import { FIGHT_SIDE_LABELS } from '@/features/matches/schema'
 import type { MatchListItem } from '@/features/matches/types'
 
 const initialState: MatchActionState = {}
+
+function RemovePalitadaButton({ disabled }: { disabled?: boolean }) {
+  const { pending } = useFormStatus()
+
+  return (
+    <Button
+      type="submit"
+      size="sm"
+      variant="outline"
+      colorPalette="red"
+      loading={pending}
+      disabled={disabled}
+    >
+      Remove
+    </Button>
+  )
+}
 
 type MatchPalitadaRecordFormProps = {
   eventId: string
@@ -45,6 +63,7 @@ export function MatchPalitadaRecordForm({
   )
   const wasAddPending = useRef(false)
   const wasDeletePending = useRef(false)
+  const pendingDeleteContributionIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const addCompleted = wasAddPending.current && !addPending && Boolean(addState.success)
@@ -67,15 +86,20 @@ export function MatchPalitadaRecordForm({
     wasDeletePending.current = deletePending
     if (!deleteCompleted) return
 
-    broadcastMatchingRefresh(eventId, match.id, {
-      action: 'palitada_removed',
-      fightNumber: match.fight_number,
-      contributionId: deleteState.contributionId,
-    })
+    const contributionId =
+      deleteState.contributionId ?? pendingDeleteContributionIdRef.current
+    if (contributionId) {
+      broadcastMatchingRefresh(eventId, match.id, {
+        action: 'palitada_removed',
+        fightNumber: match.fight_number,
+        contributionId,
+      })
+    }
     showPalitadaRemovedToast(
       match.fight_number != null ? `Fight #${match.fight_number}` : 'The open fight'
     )
     void refreshMatch(match.id)
+    pendingDeleteContributionIdRef.current = null
   }, [deletePending, deleteState.contributionId, deleteState.success, eventId, match.fight_number, match.id, refreshMatch])
 
   const actionMessage =
@@ -174,20 +198,16 @@ export function MatchPalitadaRecordForm({
                   {formatCurrency(contributor.amount)}
                 </Text>
               </Box>
-              <form action={deleteAction}>
+              <form
+                action={deleteAction}
+                onSubmit={() => {
+                  pendingDeleteContributionIdRef.current = contributor.id
+                }}
+              >
                 <input type="hidden" name="eventId" value={eventId} />
                 <input type="hidden" name="matchId" value={match.id} />
                 <input type="hidden" name="contributionId" value={contributor.id} />
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="outline"
-                  colorPalette="red"
-                  loading={deletePending}
-                  disabled={disabled}
-                >
-                  Remove
-                </Button>
+                <RemovePalitadaButton disabled={disabled} />
               </form>
             </Flex>
           ))

@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 
 import type { MatchListItem, SettlingMatchListItem } from '@/features/matches/types'
 import { useEventMatchingRealtime } from '@/features/matches/hooks/use-event-matching-realtime'
+import type { MatchingSyncMessage } from '@/features/matches/matching-cross-tab-sync'
 
 type MatchingLiveSyncContextValue = {
   queueMatches: MatchListItem[]
@@ -19,6 +20,7 @@ type MatchingLiveSyncProviderProps = {
   initialQueueMatches: MatchListItem[]
   initialAwaitingPaymentMatches: MatchListItem[]
   initialSettlingMatches: SettlingMatchListItem[]
+  onPalitadaPitSync?: (message: MatchingSyncMessage) => void
   children: ReactNode
 }
 
@@ -27,6 +29,7 @@ export function MatchingLiveSyncProvider({
   initialQueueMatches,
   initialAwaitingPaymentMatches,
   initialSettlingMatches,
+  onPalitadaPitSync,
   children,
 }: MatchingLiveSyncProviderProps) {
   const [queueMatches, setQueueMatches] = useState(initialQueueMatches)
@@ -40,6 +43,7 @@ export function MatchingLiveSyncProvider({
     setQueueMatches,
     setAwaitingPaymentMatches,
     setSettlingMatches,
+    onPalitadaPitSync,
   })
 
   const value = useMemo(

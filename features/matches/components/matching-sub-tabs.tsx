@@ -1,8 +1,8 @@
 'use client'
 
 import { Badge, Box, Tabs } from '@chakra-ui/react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useMemo } from 'react'
 
 import { MatchingActiveMatchPanel } from '@/features/matches/components/matching-active-match-panel'
 import { MatchingDeskPanel } from '@/features/matches/components/matching-desk-panel'
@@ -10,11 +10,6 @@ import { MatchingFightQueuePanel } from '@/features/matches/components/matching-
 import { useMatchingLiveSync } from '@/features/matches/components/matching-live-sync-provider'
 import { MatchingPendingPaymentsPanel } from '@/features/matches/components/matching-pending-payments-panel'
 import { MatchingSettlingPanel } from '@/features/matches/components/matching-settling-panel'
-import { subscribeMatchingCrossTabMessages } from '@/features/matches/matching-cross-tab-sync'
-import {
-  showPalitadaRecordedToast,
-  showPalitadaRemovedToast,
-} from '@/features/matches/palitada-sync-toast'
 import type { EligibleRooster } from '@/features/matches/types'
 import { resolveActiveMatch, resolveBetBalancingTargetMatch } from '@/features/matches/utils'
 
@@ -64,54 +59,10 @@ export function MatchingSubTabs({
   canRecordResult,
   onFeedback,
 }: MatchingSubTabsProps) {
-  const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
   const activeView = parseMatchingView(searchParams.get('view'))
   const { queueMatches, awaitingPaymentMatches, settlingMatches } = useMatchingLiveSync()
-  const pathnameRef = useRef(pathname)
-  const onFeedbackRef = useRef(onFeedback)
-
-  useEffect(() => {
-    pathnameRef.current = pathname
-  }, [pathname])
-
-  useEffect(() => {
-    onFeedbackRef.current = onFeedback
-  }, [onFeedback])
-
-  useEffect(() => {
-    return subscribeMatchingCrossTabMessages({
-      eventId,
-      pollOnMount: true,
-      onMessage: (message) => {
-        const currentPath = pathnameRef.current
-        const isMatchingBoard =
-          currentPath.includes('/matching') && !currentPath.endsWith('/matching/pit')
-
-        if (message.eventId !== eventId || !isMatchingBoard) return
-        if (message.action !== 'palitada_added' && message.action !== 'palitada_removed') return
-
-        const fightLabel =
-          message.fightNumber != null ? `Fight #${message.fightNumber}` : 'the open fight'
-        const bannerMessage =
-          message.action === 'palitada_added'
-            ? `Palitada recorded on ${fightLabel} from Bet Balancing pit.`
-            : `Palitada removed on ${fightLabel} from Bet Balancing pit.`
-
-        onFeedbackRef.current?.(bannerMessage, false)
-
-        window.setTimeout(() => {
-          if (message.action === 'palitada_added') {
-            showPalitadaRecordedToast(fightLabel)
-            return
-          }
-
-          showPalitadaRemovedToast(fightLabel)
-        }, 0)
-      },
-    })
-  }, [eventId])
 
   const visibleViews = useMemo(() => {
     const views: MatchingView[] = ['active', 'queue', 'pending']

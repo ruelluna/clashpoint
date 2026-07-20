@@ -15,6 +15,10 @@ import {
   subscribeMatchingCrossTabMessages,
   type MatchingSyncMessage,
 } from '@/features/matches/matching-cross-tab-sync'
+import {
+  showPalitadaRecordedToast,
+  showPalitadaRemovedToast,
+} from '@/features/matches/palitada-sync-toast'
 import { createClient } from '@/lib/supabase/client'
 
 type UseEventMatchingRealtimeOptions = {
@@ -22,6 +26,7 @@ type UseEventMatchingRealtimeOptions = {
   setQueueMatches: React.Dispatch<React.SetStateAction<MatchListItem[]>>
   setAwaitingPaymentMatches: React.Dispatch<React.SetStateAction<MatchListItem[]>>
   setSettlingMatches: React.Dispatch<React.SetStateAction<SettlingMatchListItem[]>>
+  onPalitadaPitSync?: (message: MatchingSyncMessage) => void
 }
 
 const QUEUE_MATCH_STATUSES: MatchListItem['status'][] = [
@@ -43,16 +48,26 @@ function warnMatchingRealtime(message: string) {
   }
 }
 
+function isMatchingBoardPath(pathname: string): boolean {
+  return pathname.includes('/matching') && !pathname.endsWith('/matching/pit')
+}
+
+const DEFAULT_REFRESH_DEBOUNCE_MS = 150
+const REMOVE_REFRESH_DEBOUNCE_MS = 300
+
 export function useEventMatchingRealtime({
   eventId,
   setQueueMatches,
   setAwaitingPaymentMatches,
   setSettlingMatches,
+  onPalitadaPitSync,
 }: UseEventMatchingRealtimeOptions) {
   const refreshGenerationRef = useRef(0)
   const refreshTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const recentlyRemovedContributionsRef = useRef(new Set<string>())
   const isMountedRef = useRef(false)
+  const onPalitadaPitSyncRef = useRef(onPalitadaPitSync)
+  const recentPalitadaNotificationsRef = useRef(new Map<string, number>())
 
   const setQueueMatchesRef = useRef(setQueueMatches)
   const setAwaitingPaymentMatchesRef = useRef(setAwaitingPaymentMatches)
@@ -64,6 +79,7 @@ export function useEventMatchingRealtime({
     setAwaitingPaymentMatchesRef.current = setAwaitingPaymentMatches
     setSettlingMatchesRef.current = setSettlingMatches
     eventIdRef.current = eventId
+    onPalitadaPitSyncRef.current = onPalitadaPitSync
   })
 
   const markContributionRemoved = useCallback((contributionId: string) => {
@@ -71,6 +87,38 @@ export function useEventMatchingRealtime({
     window.setTimeout(() => {
       recentlyRemovedContributionsRef.current.delete(contributionId)
     }, 5000)
+  }, [])
+
+  const notifyPalitadaSync = useCallback((message: MatchingSyncMessage) => {
+    if (message.action !== 'palitada_added' && message.action !== 'palitada_removed') {
+      return
+    }
+
+    if (typeof window === 'undefined' || !isMatchingBoardPath(window.location.pathname)) {
+      return
+    }
+
+    const dedupeKey = `${message.matchId}:${message.action}:${message.contributionId ?? 'none'}`
+    const now = Date.now()
+    const lastNotifiedAt = recentPalitadaNotificationsRef.current.get(dedupeKey)
+    if (lastNotifiedAt != null && now - lastNotifiedAt < 500) {
+      return
+    }
+    recentPalitadaNotificationsRef.current.set(dedupeKey, now)
+
+    onPalitadaPitSyncRef.current?.(message)
+
+    const fightLabel =
+      message.fightNumber != null ? `Fight #${message.fightNumber}` : 'the open fight'
+
+    window.setTimeout(() => {
+      if (message.action === 'palitada_added') {
+        showPalitadaRecordedToast(fightLabel)
+        return
+      }
+
+      showPalitadaRemovedToast(fightLabel)
+    }, 0)
   }, [])
 
   const applyMatchRefresh = useCallback((match: MatchListItem, matchId: string) => {
@@ -110,11 +158,12 @@ export function useEventMatchingRealtime({
   }, [])
 
   const refreshMatchRef = useRef<
-    (matchId: string, source?: 'broadcast' | 'realtime' | 'local') => void
+    (matchId: string, options?: { debounceMs?: number }) => void
   >(() => undefined)
 
   useLayoutEffect(() => {
-    refreshMatchRef.current = (matchId: string) => {
+    refreshMatchRef.current = (matchId: string, options?: { debounceMs?: number }) => {
+      const debounceMs = options?.debounceMs ?? DEFAULT_REFRESH_DEBOUNCE_MS
       const existingTimer = refreshTimersRef.current.get(matchId)
       if (existingTimer) clearTimeout(existingTimer)
 
@@ -138,14 +187,18 @@ export function useEventMatchingRealtime({
           }
 
           applyMatchRefresh(match, matchId)
-        }, 150)
+        }, debounceMs)
       )
     }
   })
 
   const refreshMatch = useCallback(
-    async (matchId: string, _source: 'broadcast' | 'realtime' | 'local' = 'local') => {
-      refreshMatchRef.current(matchId, _source)
+    async (
+      matchId: string,
+      _source: 'broadcast' | 'realtime' | 'local' = 'local',
+      debounceMs = DEFAULT_REFRESH_DEBOUNCE_MS
+    ) => {
+      refreshMatchRef.current(matchId, { debounceMs })
     },
     []
   )
@@ -175,9 +228,17 @@ export function useEventMatchingRealtime({
         )
       }
 
-      void refreshMatch(message.matchId, 'broadcast')
+      if (message.action === 'palitada_added' || message.action === 'palitada_removed') {
+        notifyPalitadaSync(message)
+      }
+
+      const debounceMs =
+        message.action === 'palitada_removed'
+          ? REMOVE_REFRESH_DEBOUNCE_MS
+          : DEFAULT_REFRESH_DEBOUNCE_MS
+      void refreshMatch(message.matchId, 'broadcast', debounceMs)
     },
-    [eventId, markContributionRemoved, refreshMatch]
+    [eventId, markContributionRemoved, notifyPalitadaSync, refreshMatch]
   )
 
   useLayoutEffect(() => {
@@ -236,7 +297,7 @@ export function useEventMatchingRealtime({
             const matchId =
               (payload.new as { id?: string } | null)?.id ??
               (payload.old as { id?: string } | null)?.id
-            if (matchId) void refreshMatchRef.current(matchId, 'realtime')
+            if (matchId) void refreshMatchRef.current(matchId)
           }
         )
         .on(
@@ -253,7 +314,7 @@ export function useEventMatchingRealtime({
             const matchId =
               (payload.new as { match_id?: string } | null)?.match_id ??
               (payload.old as { match_id?: string } | null)?.match_id
-            if (matchId) void refreshMatchRef.current(matchId, 'realtime')
+            if (matchId) void refreshMatchRef.current(matchId)
           }
         )
         .on(
@@ -281,10 +342,30 @@ export function useEventMatchingRealtime({
                 setAwaitingPaymentMatchesRef.current((current) =>
                   removePalitadaContributionFromMatch(current, matchId, deletedId)
                 )
+                notifyPalitadaSync({
+                  eventId,
+                  matchId,
+                  action: 'palitada_removed',
+                  contributionId: deletedId,
+                })
               }
             }
 
-            if (matchId) void refreshMatchRef.current(matchId, 'realtime')
+            if (payload.eventType === 'INSERT' && matchId) {
+              notifyPalitadaSync({
+                eventId,
+                matchId,
+                action: 'palitada_added',
+              })
+            }
+
+            if (matchId) {
+              const debounceMs =
+                payload.eventType === 'DELETE'
+                  ? REMOVE_REFRESH_DEBOUNCE_MS
+                  : DEFAULT_REFRESH_DEBOUNCE_MS
+              refreshMatchRef.current(matchId, { debounceMs })
+            }
           }
         )
         .on(
@@ -331,7 +412,7 @@ export function useEventMatchingRealtime({
         if (channel) void supabase.removeChannel(channel)
       })
     }
-  }, [eventId, markContributionRemoved])
+  }, [eventId, markContributionRemoved, notifyPalitadaSync])
 
   return { refreshMatch }
 }

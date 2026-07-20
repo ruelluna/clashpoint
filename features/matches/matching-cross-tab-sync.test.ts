@@ -186,6 +186,43 @@ describe('matching-cross-tab-sync', () => {
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
+  it('delivers palitada_removed with contributionId to cross-tab listener', () => {
+    const handler = vi.fn()
+    const browser = stubBrowserWindow()
+
+    vi.stubGlobal('BroadcastChannel', class {
+      set onmessage(_listenerFn: ((event: MessageEvent) => void) | undefined) {}
+      postMessage = vi.fn()
+      close = vi.fn()
+    })
+
+    subscribeMatchingCrossTabMessages({
+      eventId: 'event-1',
+      pollOnMount: false,
+      onMessage: handler,
+    })
+
+    browser.emitStorage(
+      JSON.stringify({
+        eventId: 'event-1',
+        matchId: 'match-1',
+        action: 'palitada_removed',
+        contributionId: 'contrib-42',
+        sentAt: Date.now(),
+      })
+    )
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'event-1',
+        matchId: 'match-1',
+        action: 'palitada_removed',
+        contributionId: 'contrib-42',
+      }),
+      'storage'
+    )
+  })
+
   it('replays stored messages after listener remount', () => {
     const handler = vi.fn()
     const browser = stubBrowserWindow()
