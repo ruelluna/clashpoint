@@ -61,17 +61,17 @@ export function DashboardShell({
   }
 
   return (
-    <Flex minH="100vh" bg="bg">
+    <Flex h="100dvh" overflow="hidden" bg="bg">
       <Box
         as="aside"
         display={{ base: 'none', lg: 'block' }}
         width={collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH}
         flexShrink={0}
+        h="full"
         borderRightWidth="1px"
         borderColor="border"
         transition="width 0.2s"
-        overflowX="hidden"
-        overflowY="auto"
+        overflow="hidden"
       >
         <AppSidebar
           displayName={displayName}
@@ -105,7 +105,7 @@ export function DashboardShell({
         </Drawer.Positioner>
       </Drawer.Root>
 
-      <Flex direction="column" flex="1" minW={0}>
+      <Flex direction="column" flex="1" minW={0} minH={0} overflow="hidden">
         <Flex
           as="header"
           align="center"
@@ -147,7 +147,7 @@ export function DashboardShell({
           </Box>
         </Flex>
 
-        <Box as="main" flex="1" p={LAYOUT_GAP.pagePadding}>
+        <Box as="main" flex="1" minH={0} overflowY="auto" p={LAYOUT_GAP.pagePadding}>
           {children}
         </Box>
       </Flex>
