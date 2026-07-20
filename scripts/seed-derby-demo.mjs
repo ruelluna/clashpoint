@@ -19,6 +19,7 @@ import {
   resolveSeedActor,
   resolveVenue,
   seedOwnersEntriesAndRoosters,
+  seedSampleMatches,
 } from './lib/seed-demo-shared.mjs'
 
 const EVENT_NAME = '[SEED] Derby Cashier Matching'
@@ -88,7 +89,8 @@ async function main() {
     ],
   })
 
-  const tallies = await seedOwnersEntriesAndRoosters({
+  const { tallies, entries, ledgerBalanceRef, nextPaymentSeq } =
+    await seedOwnersEntriesAndRoosters({
     supabase,
     eventId: event.id,
     actorId: actor.userId,
@@ -99,6 +101,17 @@ async function main() {
     revolvingFundInitial: event.revolvingFundInitial,
   })
 
+  const matchSummary = await seedSampleMatches({
+    supabase,
+    eventId: event.id,
+    actorId: actor.userId,
+    paidEntries: entries.filter((entry) => entry.tier === 'paid'),
+    demoKind: 'derby',
+    ledgerBalanceRef,
+    tallies,
+    paymentSeq: nextPaymentSeq,
+  })
+
   await activateSeedEvent(supabase, event.id)
   printSeedSummary({
     eventId: event.id,
@@ -107,6 +120,7 @@ async function main() {
     tallies,
     kind: 'Derby',
     revolvingFundInitial: event.revolvingFundInitial,
+    matchSummary,
   })
 }
 

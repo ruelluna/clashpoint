@@ -18,6 +18,7 @@ import {
   resolveSeedActor,
   resolveVenue,
   seedOwnersEntriesAndRoosters,
+  seedSampleMatches,
 } from './lib/seed-demo-shared.mjs'
 
 const EVENT_NAME = '[SEED] Classic Cashier Matching'
@@ -81,15 +82,27 @@ async function main() {
     },
   })
 
-  const tallies = await seedOwnersEntriesAndRoosters({
+  const { tallies, entries, ledgerBalanceRef, nextPaymentSeq } =
+    await seedOwnersEntriesAndRoosters({
     supabase,
     eventId: event.id,
     actorId: actor.userId,
     ownerNames: OWNER_NAMES,
     cocksPerEntry: 1,
     fees: FEES,
-    includeFeeSnapshot: false,
+    includeFeeSnapshot: true,
     revolvingFundInitial: event.revolvingFundInitial,
+  })
+
+  const matchSummary = await seedSampleMatches({
+    supabase,
+    eventId: event.id,
+    actorId: actor.userId,
+    paidEntries: entries.filter((entry) => entry.tier === 'paid'),
+    demoKind: 'classic',
+    ledgerBalanceRef,
+    tallies,
+    paymentSeq: nextPaymentSeq,
   })
 
   await activateSeedEvent(supabase, event.id)
@@ -100,6 +113,7 @@ async function main() {
     tallies,
     kind: 'Classic',
     revolvingFundInitial: event.revolvingFundInitial,
+    matchSummary,
   })
 }
 

@@ -304,6 +304,28 @@ export function formatPaymentReference(eventId, sequence) {
   return `PAY-${eventIdPrefix(eventId)}-${String(sequence).padStart(4, '0')}`
 }
 
+export function formatMatchBetBarcode(eventId, fightNumber, side) {
+  const prefix = eventIdPrefix(eventId)
+  const sideCode = side === 'meron' ? 'M' : 'W'
+  return `BET-${prefix}-${String(fightNumber).padStart(4, '0')}-${sideCode}`
+}
+
+function feesRequiredForRegPayment(fees) {
+  return (
+    (fees.registrationFeeEnabled && fees.registrationFeeAmount > 0) ||
+    (fees.roosterEntryFeeEnabled && fees.roosterEntryFeeAmount > 0) ||
+    (fees.cashBondEnabled && fees.cashBondAmount > 0)
+  )
+}
+
+/** Mirrors syncRegistrationPaymentStatus tier mapping in features/payments/service.ts */
+export function deriveRegPaymentStatus(tier, fees) {
+  if (!feesRequiredForRegPayment(fees)) return 'not_required'
+  if (tier === 'paid') return 'paid'
+  if (tier === 'partial') return 'partial'
+  return 'unpaid'
+}
+
 /** Default lifecycle status for cashier + matching demo seeds. */
 export const DEMO_EVENT_STATUS = 'in_progress'
 
@@ -525,6 +547,329 @@ async function insertSeedPaymentWithCollection(
   tallies.collectedAmount = Number((tallies.collectedAmount + amountPaid).toFixed(2))
 }
 
+async function insertSeedMatchBetPayment(
+  supabase,
+  {
+    eventId,
+    actorId,
+    matchId,
+    matchBetId,
+    entryId,
+    entryName,
+    fightNumber,
+    side,
+    amountDue,
+    paymentSeq,
+    paidAt,
+    ledgerBalanceRef,
+    tallies,
+  }
+) {
+  const paymentReference = formatPaymentReference(eventId, paymentSeq)
+  const amountPaid = Number(amountDue.toFixed(2))
+
+  const { data: payment, error: payError } = await supabase
+    .from('payments')
+    .insert({
+      payment_reference: paymentReference,
+      entry_id: entryId,
+      event_id: eventId,
+      amount_due: amountPaid,
+      amount_paid: amountPaid,
+      balance: 0,
+      payment_method: 'cash',
+      payment_status: 'paid',
+      payment_category: 'match_bet',
+      match_bet_id: matchBetId,
+      match_id: matchId,
+      fight_side: side,
+      received_by: actorId,
+      paid_at: paidAt,
+      notes: 'Seed palitada payment',
+    })
+    .select('id')
+    .single()
+
+  if (payError) throw payError
+
+  const { error: betUpdateError } = await supabase
+    .from('match_bets')
+    .update({
+      payment_status: 'paid',
+      payment_id: payment.id,
+      updated_at: paidAt,
+    })
+    .eq('id', matchBetId)
+
+  if (betUpdateError) throw betUpdateError
+
+  await postSeedCollectionLedgerEntry(supabase, {
+    eventId,
+    actorId,
+    paymentId: payment.id,
+    paymentReference,
+    entryName: `${entryName} — Fight #${fightNumber} ${side}`,
+    amountPaid,
+    ledgerBalanceRef,
+  })
+
+  tallies.collections += 1
+  tallies.collectedAmount = Number((tallies.collectedAmount + amountPaid).toFixed(2))
+
+  return payment.id
+}
+
+async function markSeedRoostersMatched(supabase, roosterIds) {
+  const { error } = await supabase
+    .from('rooster_event_registrations')
+    .update({ registration_status: 'matched' })
+    .in('id', roosterIds)
+
+  if (error) throw error
+}
+
+function pickRooster(entry, cockNumber) {
+  const rooster = entry.roosters.find((row) => row.cockNumber === cockNumber)
+  if (!rooster) {
+    throw new Error(
+      `Seed match setup: entry "${entry.entryName}" has no cock #${cockNumber}`
+    )
+  }
+  return rooster
+}
+
+async function insertSeedMatchWithBets(
+  supabase,
+  {
+    eventId,
+    actorId,
+    fightNumber,
+    meronEntry,
+    meronRooster,
+    walaEntry,
+    walaRooster,
+    status,
+    queueStatus,
+    meronBet,
+    walaBet,
+  }
+) {
+  const { data: match, error: matchError } = await supabase
+    .from('matches')
+    .insert({
+      event_id: eventId,
+      fight_number: fightNumber,
+      round_number: 1,
+      meron_entry_id: meronEntry.entryId,
+      meron_rooster_id: meronRooster.id,
+      meron_weight: meronRooster.weightGrams / 1000,
+      wala_entry_id: walaEntry.entryId,
+      wala_rooster_id: walaRooster.id,
+      wala_weight: walaRooster.weightGrams / 1000,
+      status,
+      queue_status: queueStatus,
+      created_by: actorId,
+    })
+    .select('id')
+    .single()
+
+  if (matchError) throw matchError
+
+  const betRows = [
+    {
+      match_id: match.id,
+      event_id: eventId,
+      side: 'meron',
+      amount: meronBet,
+      barcode: formatMatchBetBarcode(eventId, fightNumber, 'meron'),
+      payment_status: 'unpaid',
+      recorded_by: actorId,
+    },
+    {
+      match_id: match.id,
+      event_id: eventId,
+      side: 'wala',
+      amount: walaBet,
+      barcode: formatMatchBetBarcode(eventId, fightNumber, 'wala'),
+      payment_status: 'unpaid',
+      recorded_by: actorId,
+    },
+  ]
+
+  const { data: bets, error: betsError } = await supabase
+    .from('match_bets')
+    .insert(betRows)
+    .select('id, side, amount, barcode, payment_status')
+
+  if (betsError) throw betsError
+
+  await markSeedRoostersMatched(supabase, [meronRooster.id, walaRooster.id])
+
+  return { matchId: match.id, fightNumber, bets: bets ?? [] }
+}
+
+const DEFAULT_MERON_BET = 500
+const DEFAULT_WALA_BET = 750
+
+/**
+ * Seeds Fight #1 (draft, awaiting palitada) and Fight #2 (scheduled queue).
+ * @param {'classic'|'derby'} options.demoKind
+ */
+export async function seedSampleMatches({
+  supabase,
+  eventId,
+  actorId,
+  paidEntries,
+  demoKind,
+  ledgerBalanceRef,
+  tallies,
+  paymentSeq = 0,
+  meronBet = DEFAULT_MERON_BET,
+  walaBet = DEFAULT_WALA_BET,
+}) {
+  if (paidEntries.length < 2) {
+    throw new Error('Seed matches require at least two paid-tier entries.')
+  }
+
+  const now = new Date().toISOString()
+  let seq = paymentSeq
+  const summary = {
+    draftMatch: null,
+    queuedMatch: null,
+  }
+
+  if (demoKind === 'classic') {
+    if (paidEntries.length < 4) {
+      throw new Error('Classic seed matches require four paid-tier entries.')
+    }
+
+    const draft = await insertSeedMatchWithBets(supabase, {
+      eventId,
+      actorId,
+      fightNumber: 1,
+      meronEntry: paidEntries[0],
+      meronRooster: pickRooster(paidEntries[0], 1),
+      walaEntry: paidEntries[1],
+      walaRooster: pickRooster(paidEntries[1], 1),
+      status: 'draft',
+      queueStatus: null,
+      meronBet,
+      walaBet,
+    })
+
+    summary.draftMatch = {
+      fightNumber: draft.fightNumber,
+      meronBarcode: draft.bets.find((bet) => bet.side === 'meron')?.barcode,
+      walaBarcode: draft.bets.find((bet) => bet.side === 'wala')?.barcode,
+    }
+
+    const queued = await insertSeedMatchWithBets(supabase, {
+      eventId,
+      actorId,
+      fightNumber: 2,
+      meronEntry: paidEntries[2],
+      meronRooster: pickRooster(paidEntries[2], 1),
+      walaEntry: paidEntries[3],
+      walaRooster: pickRooster(paidEntries[3], 1),
+      status: 'locked',
+      queueStatus: 'scheduled',
+      meronBet,
+      walaBet,
+    })
+
+    for (const bet of queued.bets) {
+      const entry = bet.side === 'meron' ? paidEntries[2] : paidEntries[3]
+      seq += 1
+      await insertSeedMatchBetPayment(supabase, {
+        eventId,
+        actorId,
+        matchId: queued.matchId,
+        matchBetId: bet.id,
+        entryId: entry.entryId,
+        entryName: entry.entryName,
+        fightNumber: queued.fightNumber,
+        side: bet.side,
+        amountDue: Number(bet.amount),
+        paymentSeq: seq,
+        paidAt: now,
+        ledgerBalanceRef,
+        tallies,
+      })
+    }
+
+    summary.queuedMatch = {
+      fightNumber: queued.fightNumber,
+      meronBarcode: queued.bets.find((bet) => bet.side === 'meron')?.barcode,
+      walaBarcode: queued.bets.find((bet) => bet.side === 'wala')?.barcode,
+    }
+  } else {
+    const draft = await insertSeedMatchWithBets(supabase, {
+      eventId,
+      actorId,
+      fightNumber: 1,
+      meronEntry: paidEntries[0],
+      meronRooster: pickRooster(paidEntries[0], 1),
+      walaEntry: paidEntries[1],
+      walaRooster: pickRooster(paidEntries[1], 1),
+      status: 'draft',
+      queueStatus: null,
+      meronBet,
+      walaBet,
+    })
+
+    summary.draftMatch = {
+      fightNumber: draft.fightNumber,
+      meronBarcode: draft.bets.find((bet) => bet.side === 'meron')?.barcode,
+      walaBarcode: draft.bets.find((bet) => bet.side === 'wala')?.barcode,
+    }
+
+    const queued = await insertSeedMatchWithBets(supabase, {
+      eventId,
+      actorId,
+      fightNumber: 2,
+      meronEntry: paidEntries[0],
+      meronRooster: pickRooster(paidEntries[0], 2),
+      walaEntry: paidEntries[1],
+      walaRooster: pickRooster(paidEntries[1], 2),
+      status: 'locked',
+      queueStatus: 'scheduled',
+      meronBet,
+      walaBet,
+    })
+
+    for (const bet of queued.bets) {
+      const entry = bet.side === 'meron' ? paidEntries[0] : paidEntries[1]
+      seq += 1
+      await insertSeedMatchBetPayment(supabase, {
+        eventId,
+        actorId,
+        matchId: queued.matchId,
+        matchBetId: bet.id,
+        entryId: entry.entryId,
+        entryName: entry.entryName,
+        fightNumber: queued.fightNumber,
+        side: bet.side,
+        amountDue: Number(bet.amount),
+        paymentSeq: seq,
+        paidAt: now,
+        ledgerBalanceRef,
+        tallies,
+      })
+    }
+
+    summary.queuedMatch = {
+      fightNumber: queued.fightNumber,
+      meronBarcode: queued.bets.find((bet) => bet.side === 'meron')?.barcode,
+      walaBarcode: queued.bets.find((bet) => bet.side === 'wala')?.barcode,
+    }
+  }
+
+  tallies.revolvingFundFinalBalance = ledgerBalanceRef.current
+  tallies.matchSummary = summary
+
+  return summary
+}
+
 export async function insertDemoEvent(supabase, { actorId, venue, event }) {
   const today = new Date()
   const eventDate = today.toISOString()
@@ -558,6 +903,7 @@ export async function insertDemoEvent(supabase, { actorId, venue, event }) {
     eligibility_enforcement_enabled: false,
     classification_matching_enabled: false,
     revolving_fund_initial: revolvingFundInitial,
+    cashier_opening_float_default: revolvingFundInitial,
     scoring_system: 'points',
     draw_rule: '0.5 points',
     tie_breaker_rule: 'shared_championship',
@@ -669,6 +1015,8 @@ export async function seedOwnersEntriesAndRoosters({
     revolvingFundFinalBalance: ledgerBalanceRef.current,
   }
 
+  const entries = []
+
   const colors = ['Red', 'White', 'Grey', 'Black', 'Hennie', 'Lemon', 'Bulik', 'Sweater']
   const baseWeights = [1950, 1980, 2000, 2020, 2050, 2080, 2100, 2120, 2150, 2180]
 
@@ -680,12 +1028,7 @@ export async function seedOwnersEntriesAndRoosters({
     const entryNumber = formatEntryNumber(i + 1)
     const ownerBarcode = formatOwnerBarcode(eventId, i + 1)
     const paymentStatus = tier === 'unpaid' ? 'unpaid' : tier === 'partial' ? 'partial' : 'paid'
-    const regPaymentStatus =
-      !fees.roosterEntryFeeEnabled
-        ? 'not_required'
-        : tier === 'paid'
-          ? 'paid'
-          : 'unpaid'
+    const regPaymentStatus = deriveRegPaymentStatus(tier, fees)
 
     const contactFullName = `${ownerName} Contact`
     const contactNumber = `+63917${String(1000000 + i).slice(0, 7)}`
@@ -719,6 +1062,8 @@ export async function seedOwnersEntriesAndRoosters({
       .single()
 
     if (entryError) throw entryError
+
+    const entryRoosters = []
 
     for (let cock = 1; cock <= cocksPerEntry; cock++) {
       cockSeq += 1
@@ -775,7 +1120,21 @@ export async function seedOwnersEntriesAndRoosters({
 
       if (weighError) throw weighError
       tallies.roosters += 1
+
+      entryRoosters.push({
+        id: registration.id,
+        cockNumber: cock,
+        barcode: cockBarcode,
+        weightGrams,
+      })
     }
+
+    entries.push({
+      entryId: entry.id,
+      entryName: ownerName,
+      tier,
+      roosters: entryRoosters,
+    })
 
     const roosterCount = cocksPerEntry
     const categories = ['registration', 'rooster_entry', 'cash_bond']
@@ -821,7 +1180,7 @@ export async function seedOwnersEntriesAndRoosters({
   }
 
   tallies.revolvingFundFinalBalance = ledgerBalanceRef.current
-  return tallies
+  return { tallies, entries, ledgerBalanceRef, nextPaymentSeq: paymentSeq }
 }
 
 export function printSeedSummary({
@@ -831,6 +1190,7 @@ export function printSeedSummary({
   tallies,
   kind,
   revolvingFundInitial,
+  matchSummary,
 }) {
   console.log('')
   console.log(`=== ${kind} demo seed complete ===`)
@@ -853,6 +1213,20 @@ export function printSeedSummary({
   }
   if (tallies.revolvingFundFinalBalance != null) {
     console.log(`Revolving fund balance: ${tallies.revolvingFundFinalBalance}`)
+  }
+  if (matchSummary?.draftMatch) {
+    console.log('')
+    console.log('Sample matches:')
+    console.log(
+      `  Fight #${matchSummary.draftMatch.fightNumber} (draft, awaiting palitada): ` +
+        `${matchSummary.draftMatch.meronBarcode}, ${matchSummary.draftMatch.walaBarcode}`
+    )
+  }
+  if (matchSummary?.queuedMatch) {
+    console.log(
+      `  Fight #${matchSummary.queuedMatch.fightNumber} (scheduled fight queue): ` +
+        `${matchSummary.queuedMatch.meronBarcode}, ${matchSummary.queuedMatch.walaBarcode}`
+    )
   }
   console.log('')
   console.log('Dashboard:')
