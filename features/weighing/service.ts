@@ -18,7 +18,7 @@ import {
   validateCockCount,
 } from '@/features/weighing/schema'
 import type { WeightStatus } from '@/features/weighing/types'
-import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
+import { resolveEffectiveWeightLimitsForLoadedEvent } from '@/features/entries/weight-limits'
 import {
   ReferenceValueNotInCatalogError,
   resolveEntryReferenceValues,
@@ -346,7 +346,8 @@ export async function recordWeight(
   if (!event) return { error: 'Event not found' }
 
   const weightGrams = input.officialWeight
-  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+  const { minWeightGrams, maxWeightGrams } =
+    await resolveEffectiveWeightLimitsForLoadedEvent(event, input.eventId)
   const weightStatus = evaluateWeightStatusGrams(
     weightGrams,
     minWeightGrams,
@@ -436,7 +437,8 @@ export async function recordAndVerifyWeightFromGrams(
   const event = await getEvent(input.eventId)
   if (!event) return { error: 'Event not found' }
 
-  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+  const { minWeightGrams, maxWeightGrams } =
+    await resolveEffectiveWeightLimitsForLoadedEvent(event, input.eventId)
   const weightStatus = evaluateWeightStatusGrams(
     input.officialWeightGrams,
     minWeightGrams,
@@ -561,7 +563,8 @@ export async function verifyWeight(
   const event = await getEvent(input.eventId)
   if (!event) return { error: 'Event not found' }
 
-  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+  const { minWeightGrams, maxWeightGrams } =
+    await resolveEffectiveWeightLimitsForLoadedEvent(event, input.eventId)
   const weightStatus = evaluateWeightStatusGrams(
     weightGrams,
     minWeightGrams,

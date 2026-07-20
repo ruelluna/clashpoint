@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 
 import { InspectionStationClient } from '@/features/inspection/components/inspection-station-client'
 import { getRegistrationIdByCockEntryBarcode, listInspectionQueue } from '@/features/inspection/queries'
-import { resolveEventWeightLimitsGrams } from '@/features/entries/weight-utils'
+import { getEffectiveWeightLimitsForEvent } from '@/features/entries/weight-limits'
 import { getEvent } from '@/features/events/queries'
 import { eventFeeSettingsFromRow } from '@/features/events/fee-utils'
 import {
@@ -50,7 +50,9 @@ export default async function InspectionPage({ params, searchParams }: Inspectio
     hasPermission(profile.id, 'events.manage'),
   ])
 
-  const { minWeightGrams, maxWeightGrams } = resolveEventWeightLimitsGrams(event)
+  const weightLimits = await getEffectiveWeightLimitsForEvent(id)
+  const minWeightGrams = weightLimits?.minWeightGrams ?? null
+  const maxWeightGrams = weightLimits?.maxWeightGrams ?? null
 
   return (
     <EventPageLayout eventId={event.id} eventName={event.name}>
