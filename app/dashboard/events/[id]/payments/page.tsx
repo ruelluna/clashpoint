@@ -5,11 +5,10 @@ import {
   getOpenCashierSessionForStaff,
   listAdminHandoverCandidates,
 } from '@/features/cashier-sessions/queries'
-import { listEntriesByEvent } from '@/features/entries/queries'
 import { eventFeeSettingsFromRow } from '@/features/events/fee-utils'
 import { getEvent } from '@/features/events/queries'
 import { CashierClient } from '@/features/payments/components/cashier-client'
-import { listPaymentsByEvent } from '@/features/payments/service'
+import { listCashierSelectableEntries, listPaymentsByEvent } from '@/features/payments/service'
 import { canOperateAsStaff } from '@/lib/auth/operational-access'
 import { getUser } from '@/lib/auth/session'
 import { hasPermission, requirePermission } from '@/lib/auth/permissions'
@@ -32,8 +31,8 @@ export default async function PaymentsPage({ params, searchParams }: PaymentsPag
     canOperateAsStaff(profile) &&
     (await hasPermission(user!.id, 'payments.manage'))
 
-  const [entries, payments, session, adminCandidates] = await Promise.all([
-    listEntriesByEvent(id, event.cocks_per_entry),
+  const [selectableEntries, payments, session, adminCandidates] = await Promise.all([
+    listCashierSelectableEntries(id),
     listPaymentsByEvent(id),
     canOperate && user ? getOpenCashierSessionForStaff(id, user.id) : Promise.resolve(null),
     canOperate ? listAdminHandoverCandidates() : Promise.resolve([]),
@@ -47,7 +46,7 @@ export default async function PaymentsPage({ params, searchParams }: PaymentsPag
         eventId={event.id}
         eventName={event.name}
         feeSettings={feeSettings}
-        entries={entries}
+        selectableEntries={selectableEntries}
         payments={payments}
         canOperate={canOperate}
         cashierDisplayName={profile.display_name ?? 'Staff'}

@@ -23,7 +23,6 @@ import {
   PanelCard,
 } from '@/components/dashboard'
 import { OwnerBarcodeScannerDialog } from '@/features/entries/components/owner-barcode-scanner-dialog'
-import type { EntryListItem } from '@/features/entries/types'
 import { PAYMENT_STATUS_LABELS } from '@/features/entries/schema'
 import type { AdminHandoverCandidate, CashierSessionSummary } from '@/features/cashier-sessions/types'
 import type { EventFeeSettings } from '@/features/events/fee-utils'
@@ -47,6 +46,7 @@ import {
 import { getCashierPaymentCategoryOptions, getEntryFeesOutstanding } from '@/features/payments/dues'
 import { PAYMENT_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/features/payments/schema'
 import type {
+  CashierSelectableEntry,
   CashierTargetMatch,
   MatchBetCashierTarget,
   PaymentLedgerItem,
@@ -58,7 +58,7 @@ type CashierClientProps = {
   eventId: string
   eventName: string
   feeSettings: EventFeeSettings
-  entries: EntryListItem[]
+  selectableEntries: CashierSelectableEntry[]
   payments: PaymentLedgerItem[]
   canOperate: boolean
   cashierDisplayName: string
@@ -158,7 +158,7 @@ export function CashierClient({
   eventId,
   eventName,
   feeSettings,
-  entries,
+  selectableEntries,
   payments,
   canOperate,
   cashierDisplayName,
@@ -489,17 +489,29 @@ export function CashierClient({
           </Flex>
 
           <Box maxW="2xl">
-            <FormField label="Or select entry">
+            <FormField
+              label="Or select entry"
+              helpText={
+                selectableEntries.length === 0
+                  ? 'All entries are fully paid. Use scan/search to look up an owner or collect palitada via BET- barcode.'
+                  : 'Only entries with outstanding dues appear here.'
+              }
+            >
               <NativeSelect.Root>
                 <NativeSelect.Field
                   value={activeMatch?.entryId ?? ''}
                   onChange={(event) => void selectEntryFromDropdown(event.currentTarget.value)}
                   data-testid="cashier-entry-select"
                 >
-                  <option value="">Select entry</option>
-                  {entries.map((entry) => (
+                  <option value="">
+                    {selectableEntries.length === 0
+                      ? 'No entries with outstanding dues'
+                      : 'Select entry'}
+                  </option>
+                  {selectableEntries.map((entry) => (
                     <option key={entry.id} value={entry.id}>
-                      #{entry.entry_number} {entry.entry_name} · {entry.owner_name}
+                      #{entry.entryNumber} {entry.entryName} · {entry.ownerName} ·{' '}
+                      {formatCurrency(entry.totalOutstanding)} due
                     </option>
                   ))}
                 </NativeSelect.Field>

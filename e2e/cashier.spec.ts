@@ -109,6 +109,9 @@ test.describe('Cashier Terminal @auth', () => {
 
     await openCashierSession(page)
 
+    const entrySelect = page.getByTestId('cashier-entry-select')
+    await expect(entrySelect.locator('option', { hasText: ownerName })).toHaveCount(1)
+
     await page.getByTestId('cashier-scan-input').fill(ownerName)
     await page.getByRole('button', { name: 'Look up' }).click()
 
@@ -134,6 +137,14 @@ test.describe('Cashier Terminal @auth', () => {
         page.getByRole('link', { name: /Print registration fee receipt/i })
       ).toBeVisible()
       await expect(page.getByText('Registration fee')).toBeVisible()
+
+      await page.goto(`/dashboard/events/${eventId}/payments`)
+      await openCashierSession(page)
+      await expect(entrySelect.locator('option', { hasText: ownerName })).toHaveCount(0)
+
+      await page.getByTestId('cashier-scan-input').fill(ownerName)
+      await page.getByRole('button', { name: 'Look up' }).click()
+      await expect(page.getByText(/fully paid/i)).toBeVisible({ timeout: 15_000 })
     } else {
       await page.getByTestId('cashier-scan-input').fill('OWN-ABCDEF12-0001')
       await page.getByRole('button', { name: 'Look up' }).click()

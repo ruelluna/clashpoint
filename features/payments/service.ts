@@ -31,15 +31,23 @@ import type { PaymentStatus } from '@/features/entries/types'
 import type { MatchBetPaymentStatus } from '@/features/matches/types'
 import type {
   CashierLookupResult,
+  CashierSelectableEntry,
   CashierTargetMatch,
   MatchBetCashierTarget,
   PaymentLedgerItem,
 } from '@/features/payments/types'
 import { postRevolvingFundLedgerEntry } from '@/features/revolving-fund/service'
 import { createClient } from '@/lib/supabase/server'
+import {
+  aggregateAdjustmentCollectDue,
+  aggregatePaidByCategoryForEntries,
+  aggregateRoosterCounts,
+  buildCashierSelectableEntry,
+} from '@/features/payments/cashier-selectable'
 
 export { calculateBalance } from '@/features/payments/schema'
 export type { EntryOutstandingDues } from '@/features/payments/dues'
+export type { CashierSelectableEntry } from '@/features/payments/types'
 
 type PaymentLedgerRow = {
   id: string
@@ -1041,6 +1049,87 @@ export async function getEntryOutstandingDues(
       adjustment.paid
     ),
   }
+}
+
+export async function listCashierSelectableEntries(
+  eventId: string
+): Promise<CashierSelectableEntry[]> {
+  const supabase = await createClient()
+
+  const { data: event, error: eventError } = await supabase
+    .from('events')
+    .select(
+      'entry_fee, registration_fee_enabled, registration_fee_amount, rooster_entry_fee_enabled, rooster_entry_fee_amount, cash_bond_enabled, cash_bond_amount'
+    )
+    .eq('id', eventId)
+    .maybeSingle()
+
+  if (eventError) throw eventError
+  if (!event) return []
+
+  const { data: entries, error: entriesError } = await supabase
+    .from('entries')
+    .select('id, entry_number, entry_name, owner_name, fee_snapshot')
+    .eq('event_id', eventId)
+    .is('deleted_at', null)
+    .order('entry_number', { ascending: true })
+
+  if (entriesError) throw entriesError
+  if (!entries?.length) return []
+
+  const entryIds = entries.map((entry) => entry.id as string)
+
+  const [roostersResult, paymentsResult, adjustmentResult] = await Promise.all([
+    supabase.from('rooster_event_registrations').select('entry_id').in('entry_id', entryIds),
+    supabase
+      .from('payments')
+      .select('entry_id, payment_category, amount_paid, payment_status')
+      .eq('event_id', eventId)
+      .neq('payment_status', 'refunded'),
+    supabase.from('entry_fee_adjustment_lines').select('entry_id, delta').in('entry_id', entryIds),
+  ])
+
+  if (roostersResult.error) throw roostersResult.error
+  if (paymentsResult.error) throw paymentsResult.error
+  if (adjustmentResult.error) throw adjustmentResult.error
+
+  const roosterCounts = aggregateRoosterCounts(
+    (roostersResult.data ?? []) as Array<{ entry_id: string }>
+  )
+  const paidByEntry = aggregatePaidByCategoryForEntries(
+    (paymentsResult.data ?? []) as Array<{
+      entry_id: string
+      payment_category: string
+      amount_paid: number
+    }>
+  )
+  const adjustmentDueByEntry = aggregateAdjustmentCollectDue(
+    (adjustmentResult.data ?? []) as Array<{ entry_id: string; delta: number }>
+  )
+
+  const selectable: CashierSelectableEntry[] = []
+
+  for (const entry of entries) {
+    const entryId = entry.id as string
+    const paidByCategory = paidByEntry.get(entryId) ?? {}
+    const item = buildCashierSelectableEntry(event, {
+      id: entryId,
+      entryNumber: entry.entry_number as string,
+      entryName: entry.entry_name as string,
+      ownerName: entry.owner_name as string,
+      feeSnapshot: entry.fee_snapshot as EntryFeeSnapshot | null,
+      roosterCount: roosterCounts.get(entryId) ?? 0,
+      paidByCategory,
+      adjustmentCollectDue: adjustmentDueByEntry.get(entryId) ?? 0,
+      adjustmentPaid: paidByCategory.adjustment ?? 0,
+    })
+
+    if (item) {
+      selectable.push(item)
+    }
+  }
+
+  return selectable
 }
 
 async function buildCashierMatch(

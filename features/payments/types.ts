@@ -70,3 +70,11 @@ export type CashierLookupResult = {
   matches?: CashierTargetMatch[]
   matchBet?: MatchBetCashierTarget
 }
+
+export type CashierSelectableEntry = {
+  id: string
+  entryNumber: string
+  entryName: string
+  ownerName: string
+  totalOutstanding: number
+}
