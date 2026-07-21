@@ -267,12 +267,15 @@ export async function updateEntryPaymentStatus(
 
   const { paymentStatus } = calculateBalance(amountDue, totalPaid)
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('entries')
     .update({ payment_status: paymentStatus })
     .eq('id', entryId)
+    .select('id')
+    .maybeSingle()
 
   if (error) return { error: error.message }
+  if (!updated) return { error: 'Failed to update entry payment status' }
 
   return { paymentStatus }
 }
@@ -280,7 +283,7 @@ export async function updateEntryPaymentStatus(
 async function syncRegistrationPaymentStatus(
   entryId: string,
   paymentStatus: PaymentStatus
-): Promise<void> {
+): Promise<{ error?: string }> {
   const supabase = await createClient()
   const regPaymentStatus =
     paymentStatus === 'paid'
@@ -291,14 +294,18 @@ async function syncRegistrationPaymentStatus(
           ? 'refunded'
           : 'unpaid'
 
-  await supabase
+  const { error } = await supabase
     .from('rooster_event_registrations')
     .update({ reg_payment_status: regPaymentStatus })
     .eq('entry_id', entryId)
 
+  if (error) return { error: error.message }
+
   if (regPaymentStatus === 'paid') {
     await promoteInspectionClearedAfterPayment(entryId)
   }
+
+  return {}
 }
 
 async function getEntryAmountDue(
@@ -476,7 +483,11 @@ export async function recordPayment(
   if (statusResult.error) return { error: statusResult.error }
 
   if (statusResult.paymentStatus) {
-    await syncRegistrationPaymentStatus(input.entryId, statusResult.paymentStatus)
+    const syncResult = await syncRegistrationPaymentStatus(
+      input.entryId,
+      statusResult.paymentStatus
+    )
+    if (syncResult.error) return { error: syncResult.error }
   }
 
   await writeAuditLog({
@@ -669,7 +680,11 @@ async function recordSplitRegistrationDuesPayment(
   if (statusResult.error) return { error: statusResult.error }
 
   if (statusResult.paymentStatus) {
-    await syncRegistrationPaymentStatus(input.entryId, statusResult.paymentStatus)
+    const syncResult = await syncRegistrationPaymentStatus(
+      input.entryId,
+      statusResult.paymentStatus
+    )
+    if (syncResult.error) return { error: syncResult.error }
   }
 
   const { promoteMatchesForEntry } = await import('@/features/matches/promotion')
@@ -777,7 +792,7 @@ export async function recordMatchBetPayment(
     return { error: paymentError?.message ?? 'Failed to record pledge payment' }
   }
 
-  const { error: betUpdateError } = await supabase
+  const { data: updatedBet, error: betUpdateError } = await supabase
     .from('match_bets')
     .update({
       payment_status: 'paid',
@@ -786,8 +801,16 @@ export async function recordMatchBetPayment(
       updated_at: new Date().toISOString(),
     })
     .eq('id', bet.id)
+    .select('id')
+    .maybeSingle()
 
   if (betUpdateError) return { error: betUpdateError.message }
+  if (!updatedBet) {
+    return {
+      error:
+        'Payment was recorded but pledge status could not be updated. Contact an organizer to reconcile.',
+    }
+  }
 
   await writeAuditLog({
     actorId,
@@ -964,15 +987,20 @@ export async function recordMatchBetTopUp(
   }
 
   const nextCollected = roundMatchMoney(collectedAmount + input.amount)
-  const { error: betUpdateError } = await supabase
+  const { data: updatedBet, error: betUpdateError } = await supabase
     .from('match_bets')
     .update({
       collected_amount: nextCollected,
       updated_at: new Date().toISOString(),
     })
     .eq('id', bet.id)
+    .select('id')
+    .maybeSingle()
 
   if (betUpdateError) return { error: betUpdateError.message }
+  if (!updatedBet) {
+    return { error: 'Failed to update pledge collected amount' }
+  }
 
   await writeAuditLog({
     actorId,
@@ -1139,15 +1167,20 @@ export async function recordMatchBetPartialRefund(
   }
 
   const nextCollected = roundMatchMoney(collectedAmount - refundDue)
-  const { error: betUpdateError } = await supabase
+  const { data: updatedBet, error: betUpdateError } = await supabase
     .from('match_bets')
     .update({
       collected_amount: nextCollected,
       updated_at: new Date().toISOString(),
     })
     .eq('id', bet.id)
+    .select('id')
+    .maybeSingle()
 
   if (betUpdateError) return { error: betUpdateError.message }
+  if (!updatedBet) {
+    return { error: 'Failed to update pledge collected amount after refund' }
+  }
 
   if (
     isMatchBetSideSettled(agreedAmount, nextCollected, bet.payment_status as MatchBetPaymentStatus)
@@ -1470,7 +1503,11 @@ export async function refundPayment(
   if (statusResult.error) return { error: statusResult.error }
 
   if (statusResult.paymentStatus) {
-    await syncRegistrationPaymentStatus(payment.entry_id, statusResult.paymentStatus)
+    const syncResult = await syncRegistrationPaymentStatus(
+      payment.entry_id,
+      statusResult.paymentStatus
+    )
+    if (syncResult.error) return { error: syncResult.error }
   }
 
   await writeAuditLog({

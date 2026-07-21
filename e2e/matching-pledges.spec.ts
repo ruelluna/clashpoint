@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('Matching pledges flow @auth', () => {
-  test.skip(true, 'Requires seeded matchmaker + cashier auth and in-progress event with verified roosters')
+  test.skip(
+    true,
+    'Requires seeded matchmaker + cashier-only staff + in-progress event; verify manually after migration 202607211700_cashier_payment_settlement_rls (cashier collects pledge → matching shows Palitada Paid)'
+  )
 
   test('matchmaker creates match and cashier collects pledge via cock scan', async ({
     page,
