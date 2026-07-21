@@ -7,6 +7,7 @@ const baseMatch: MatchListItem = {
   id: 'match-1',
   event_id: 'event-1',
   fight_number: 1,
+  matching_number: 'ABCD-0001',
   round_number: 1,
   status: 'fighting',
   queue_status: 'fighting',

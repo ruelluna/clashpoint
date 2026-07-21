@@ -190,6 +190,55 @@ export const FIGHT_SIDE_LABELS = {
   wala: 'Wala',
 } as const
 
+export function formatMatchingNumberSuffix(sequence: number): string {
+  return `-${String(sequence).padStart(4, '0')}`
+}
+
+const MATCHING_NUMBER_PATTERN = /^[A-Z]{4}-(\d{4})$/
+
+export function parseMatchingNumberSequence(matchingNumber: string): number | null {
+  const match = matchingNumber.trim().toUpperCase().match(MATCHING_NUMBER_PATTERN)
+  if (!match) return null
+  return Number.parseInt(match[1]!, 10)
+}
+
+export function nextMatchingNumberSequence(existing: (string | null)[]): number {
+  let maxSequence = 0
+  for (const matchingNumber of existing) {
+    if (matchingNumber == null) continue
+    const sequence = parseMatchingNumberSequence(matchingNumber)
+    if (sequence != null && sequence > maxSequence) {
+      maxSequence = sequence
+    }
+  }
+  return maxSequence + 1
+}
+
+function randomMatchingLetters(): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  let letters = ''
+  const bytes = new Uint8Array(4)
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes)
+    for (let index = 0; index < 4; index += 1) {
+      letters += alphabet[bytes[index]! % 26]!
+    }
+  } else {
+    for (let index = 0; index < 4; index += 1) {
+      letters += alphabet[Math.floor(Math.random() * 26)]!
+    }
+  }
+  return letters
+}
+
+export function formatMatchingNumber(letters: string, sequence: number): string {
+  return `${letters}${formatMatchingNumberSuffix(sequence)}`
+}
+
+export function generateMatchingNumber(sequence: number): string {
+  return formatMatchingNumber(randomMatchingLetters(), sequence)
+}
+
 export function formatMatchBetBarcode(
   eventId: string,
   fightNumber: number,

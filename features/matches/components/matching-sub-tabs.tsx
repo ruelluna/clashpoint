@@ -142,6 +142,7 @@ export function MatchingSubTabs({
         <MatchingActiveMatchPanel
           eventId={eventId}
           activeMatch={activeMatch}
+          queueMatches={queueMatches}
           betBalancingMatch={betBalancingMatch}
           palitadaTargetMatch={palitadaTargetMatch}
           taxPerFight={taxPerFight}

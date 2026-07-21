@@ -10,6 +10,7 @@ import { usePrintFormat } from '@/features/printing/print-format-context'
 type MatchBetBarcodeSlipProps = {
   eventName: string
   fightNumber: number
+  matchingNumber?: string | null
   side: 'meron' | 'wala'
   entryNumber: string
   entryName: string
@@ -40,6 +41,11 @@ function MatchBetSlipContent(props: MatchBetBarcodeSlipProps) {
         <Text fontSize="sm" textAlign="center" fontWeight="semibold">
           Fight #{props.fightNumber} · {FIGHT_SIDE_LABELS[props.side]}
         </Text>
+        {props.matchingNumber ? (
+          <Text fontSize="xs" textAlign="center" color="fg.muted">
+            {props.matchingNumber}
+          </Text>
+        ) : null}
         <Text fontSize="sm">
           Entry #{props.entryNumber} · {props.ownerName}
         </Text>
@@ -56,6 +62,9 @@ function MatchBetSlipContent(props: MatchBetBarcodeSlipProps) {
         <Text className="print-sticker-line" fontWeight="semibold">
           #{props.fightNumber} {FIGHT_SIDE_LABELS[props.side]}
         </Text>
+        {props.matchingNumber ? (
+          <Text className="print-sticker-line">{props.matchingNumber}</Text>
+        ) : null}
         <Text className="print-sticker-line">{formatCurrency(props.betAmount)}</Text>
       </Stack>
 

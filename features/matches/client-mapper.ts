@@ -9,6 +9,7 @@ export type ClientMatchQueryRow = {
   id: string
   event_id: string
   fight_number: number
+  matching_number: string | null
   round_number: number | null
   status: MatchStatus
   queue_status: MatchListItem['queue_status']
@@ -98,6 +99,7 @@ export function mapMatchListItemFromQueryRow(
     id: row.id,
     event_id: row.event_id,
     fight_number: Number(row.fight_number),
+    matching_number: row.matching_number,
     round_number: row.round_number != null ? Number(row.round_number) : null,
     status: row.status,
     queue_status: row.queue_status,
