@@ -30,6 +30,7 @@ import type { EventFeeSettings } from '@/features/events/fee-utils'
 import { CashierCloseSessionForm } from '@/features/payments/components/cashier-close-session-form'
 import { CashierHandoverForm } from '@/features/payments/components/cashier-handover-form'
 import { CashierOpenSessionForm } from '@/features/payments/components/cashier-open-session-form'
+import { CashierLedgerRow } from '@/features/payments/components/cashier-ledger-row'
 import { CashierTerminalClock } from '@/features/payments/components/cashier-terminal-clock'
 import { CashBondRefundDialog } from '@/features/payments/components/cash-bond-refund-dialog'
 import {
@@ -951,7 +952,7 @@ export function CashierClient({
         </>
       ) : null}
 
-      <PanelCard flush>
+      <PanelCard flush title="Payment history">
         <Flex
           px={4}
           py={4}
@@ -976,100 +977,14 @@ export function CashierClient({
           </Box>
         ) : (
           ledgerRows.map((row) => (
-            <Box
+            <CashierLedgerRow
               key={row.id}
-              px={4}
-              py={4}
-              borderBottomWidth="1px"
-              borderColor="border"
-            >
-              <Flex
-                direction={{ base: 'column', lg: 'row' }}
-                gap={3}
-                align={{ lg: 'center' }}
-              >
-                <Box flex="1">
-                  <Text fontWeight="medium" fontSize="sm">
-                    {row.paymentReference}
-                  </Text>
-                  {row.receiptNumber ? (
-                    <Text fontSize="xs" color="fg.muted">
-                      Receipt {row.receiptNumber}
-                    </Text>
-                  ) : null}
-                </Box>
-                <Box flex="1.2">
-                  <Stack gap={0.5}>
-                    {row.itemsPaid.map((item) => (
-                      <Text key={item} fontSize="xs">
-                        {item}
-                      </Text>
-                    ))}
-                  </Stack>
-                </Box>
-                <Box flex="1.2">
-                  <Text fontSize="sm">
-                    #{row.entryNumber} {row.entryName}
-                  </Text>
-                  <Text fontSize="xs" color="fg.muted">
-                    {row.ownerName}
-                  </Text>
-                </Box>
-                <Box flex="0.7">
-                  {row.rowKind === 'refund' ? (
-                    <Text fontSize="sm" color="orange.600">
-                      −{formatCurrency(row.amountRefunded ?? 0)}
-                    </Text>
-                  ) : (
-                    <>
-                      <Text fontSize="sm">{formatCurrency(row.amountPaid)}</Text>
-                      {row.amountTendered != null && row.changeGiven != null ? (
-                        <Text fontSize="xs" color="fg.muted">
-                          Tender {formatCurrency(row.amountTendered)} · Change{' '}
-                          {formatCurrency(row.changeGiven)}
-                        </Text>
-                      ) : null}
-                    </>
-                  )}
-                </Box>
-                <Box flex="0.7">
-                  <Text fontSize="sm">
-                    {row.rowKind === 'refund' ? '—' : formatCurrency(row.balance)}
-                  </Text>
-                </Box>
-                <Box flex="0.7">
-                  <Badge colorPalette={paymentStatusColor(row.paymentStatus)}>
-                    {PAYMENT_STATUS_LABELS[row.paymentStatus]}
-                  </Badge>
-                </Box>
-                <Box flex="1">
-                  <Text fontSize="sm">{formatDate(row.paidAt)}</Text>
-                  {row.rowKind === 'collection' ? (
-                    <Link
-                      href={
-                        row.isBatch && row.collectionBatchId
-                          ? `/dashboard/events/${eventId}/payments/batch/${row.collectionBatchId}/print`
-                          : `/dashboard/events/${eventId}/payments/${row.childPayments[0]?.id}/print`
-                      }
-                      fontSize="xs"
-                      color="blue.600"
-                    >
-                      Print receipt
-                    </Link>
-                  ) : null}
-                  {row.rowKind === 'refund' && row.refundBatchId ? (
-                    <Link
-                      href={`/dashboard/events/${eventId}/payments/refund-batch/${row.refundBatchId}/print`}
-                      fontSize="xs"
-                      color="blue.600"
-                      display="block"
-                    >
-                      Print refund receipt
-                    </Link>
-                  ) : null}
-                </Box>
-              </Flex>
-            </Box>
+              eventId={eventId}
+              row={row}
+              formatCurrency={formatCurrency}
+              formatDate={formatDate}
+              paymentStatusColor={paymentStatusColor}
+            />
           ))
         )}
       </PanelCard>
