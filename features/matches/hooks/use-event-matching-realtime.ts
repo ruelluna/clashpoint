@@ -13,6 +13,7 @@ import type { MatchListItem, SettlingMatchListItem } from '@/features/matches/ty
 import { fetchMatchListItemClient } from '@/features/matches/client-queries'
 import {
   subscribeMatchingCrossTabMessages,
+  type CrossTabSource,
   type MatchingSyncMessage,
 } from '@/features/matches/matching-cross-tab-sync'
 import {
@@ -204,7 +205,7 @@ export function useEventMatchingRealtime({
   )
 
   const handleSyncMessage = useCallback(
-    (message: MatchingSyncMessage, _source: 'broadcast' | 'storage' | 'poll') => {
+    (message: MatchingSyncMessage, source: CrossTabSource) => {
       if (!isMountedRef.current || message.eventId !== eventId) return
 
       if (
@@ -228,7 +229,11 @@ export function useEventMatchingRealtime({
         )
       }
 
-      if (message.action === 'palitada_added' || message.action === 'palitada_removed') {
+      const isLivePalitadaSync = source === 'broadcast' || source === 'storage'
+      if (
+        isLivePalitadaSync &&
+        (message.action === 'palitada_added' || message.action === 'palitada_removed')
+      ) {
         notifyPalitadaSync(message)
       }
 

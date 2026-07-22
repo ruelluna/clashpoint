@@ -19,10 +19,8 @@ import {
 } from '@/features/matches/actions'
 import {
   FIGHT_QUEUE_ADVANCE_ACTION_LABELS,
-  FIGHT_QUEUE_STATUS_LABELS,
   MATCH_BET_PAYMENT_STATUS_LABELS,
 } from '@/features/matches/schema'
-import { fightQueueStatusColorPalette } from '@/features/matches/display-utils'
 import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
 import {
   FIGHT_QUEUE_TRANSITIONS,
@@ -193,19 +191,30 @@ export function CancelMatchForm({
   eventId,
   matchId,
   canManage,
+  buttonSize = 'xs',
+  fullWidth = false,
 }: {
   eventId: string
   matchId: string
   canManage: boolean
+  buttonSize?: 'xs' | 'sm' | 'md'
+  fullWidth?: boolean
 }) {
   const [state, action, pending] = useActionState(cancelMatchAction, initialMatchActionState)
   if (!canManage) return null
 
   return (
-    <form action={action}>
+    <form action={action} style={fullWidth ? { width: '100%' } : undefined}>
       <input type="hidden" name="eventId" value={eventId} />
       <input type="hidden" name="matchId" value={matchId} />
-      <Button type="submit" size="xs" variant="outline" colorPalette="red" loading={pending}>
+      <Button
+        type="submit"
+        size={buttonSize}
+        variant="outline"
+        colorPalette="red"
+        loading={pending}
+        w={fullWidth ? 'full' : undefined}
+      >
         Cancel match
       </Button>
       {state.error ? (
@@ -223,12 +232,14 @@ export function FightQueueAdvanceForm({
   queueMatches,
   canManage,
   canManageQueueOverride = false,
+  fullWidthButtons = false,
 }: {
   match: MatchListItem
   eventId: string
   queueMatches: MatchListItem[]
   canManage: boolean
   canManageQueueOverride?: boolean
+  fullWidthButtons?: boolean
 }) {
   const [advanceState, advanceAction, advancePending] = useActionState(
     updateFightQueueStatusAction,
@@ -256,26 +267,42 @@ export function FightQueueAdvanceForm({
   if (!canManage) return null
 
   return (
-    <Stack gap={2} align={{ base: 'flex-start', lg: 'flex-end' }}>
-      <Flex gap={2} wrap="wrap">
+    <Stack
+      gap={2}
+      align={fullWidthButtons ? 'stretch' : { base: 'flex-start', lg: 'flex-end' }}
+      w={fullWidthButtons ? 'full' : undefined}
+    >
+      <Flex gap={2} wrap="wrap" direction={fullWidthButtons ? 'column' : 'row'} w="full">
         {nextStatus ? (
-          <form action={advanceAction}>
+          <form action={advanceAction} style={fullWidthButtons ? { width: '100%' } : undefined}>
             <input type="hidden" name="matchId" value={match.id} />
             <input type="hidden" name="eventId" value={eventId} />
             <input type="hidden" name="queueStatus" value={nextStatus} />
             <input type="hidden" name="direction" value="advance" />
-            <Button type="submit" size="sm" loading={advancePending} disabled={advanceBlocked}>
+            <Button
+              type="submit"
+              size={{ base: fullWidthButtons ? 'md' : 'sm', lg: 'sm' }}
+              loading={advancePending}
+              disabled={advanceBlocked}
+              w={fullWidthButtons ? 'full' : undefined}
+            >
               {FIGHT_QUEUE_ADVANCE_ACTION_LABELS[nextStatus]}
             </Button>
           </form>
         ) : null}
         {canManageQueueOverride && prevStatus ? (
-          <form action={rollbackAction}>
+          <form action={rollbackAction} style={fullWidthButtons ? { width: '100%' } : undefined}>
             <input type="hidden" name="matchId" value={match.id} />
             <input type="hidden" name="eventId" value={eventId} />
             <input type="hidden" name="queueStatus" value={prevStatus} />
             <input type="hidden" name="direction" value="rollback" />
-            <Button type="submit" size="sm" variant="outline" loading={rollbackPending}>
+            <Button
+              type="submit"
+              size={{ base: fullWidthButtons ? 'md' : 'sm', lg: 'sm' }}
+              variant="outline"
+              loading={rollbackPending}
+              w={fullWidthButtons ? 'full' : undefined}
+            >
               Step back
             </Button>
           </form>
@@ -302,68 +329,5 @@ export function FightQueueAdvanceForm({
         </Text>
       ) : null}
     </Stack>
-  )
-}
-
-export function FightQueueRow({
-  match,
-  eventId,
-  queueMatches,
-  canManage,
-  canManageQueueOverride = false,
-}: {
-  match: MatchListItem
-  eventId: string
-  queueMatches: MatchListItem[]
-  canManage: boolean
-  canManageQueueOverride?: boolean
-}) {
-  return (
-    <Box px={4} py={3} borderBottomWidth="1px" borderColor="border" _last={{ borderBottomWidth: 0 }}>
-      <Flex direction={{ base: 'column', lg: 'row' }} gap={4} align={{ lg: 'center' }}>
-          <Stack gap={1} flexShrink={0}>
-          <Flex align="center" gap={3}>
-            <Text fontSize="lg" fontWeight="semibold">
-              #{match.fight_number}
-            </Text>
-            {match.queue_status ? (
-              <Badge colorPalette={fightQueueStatusColorPalette(match.queue_status)} size="sm">
-                {FIGHT_QUEUE_STATUS_LABELS[match.queue_status]}
-              </Badge>
-            ) : null}
-          </Flex>
-        </Stack>
-        <Flex flex="1" direction={{ base: 'column', md: 'row' }} gap={4}>
-          <Box flex="1">
-            <Text fontSize="xs" color="fg.muted" textTransform="uppercase">
-              Meron
-            </Text>
-            <Text fontWeight="medium">{match.meron.entry_name}</Text>
-            <Text fontSize="sm" color="fg.muted">
-              Bet {formatCurrencyDetailed(match.meron.bet_amount)}
-            </Text>
-            <SidePaymentBadges side={match.meron} />
-          </Box>
-          <Box flex="1">
-            <Text fontSize="xs" color="fg.muted" textTransform="uppercase">
-              Wala
-            </Text>
-            <Text fontWeight="medium">{match.wala.entry_name}</Text>
-            <Text fontSize="sm" color="fg.muted">
-              Bet {formatCurrencyDetailed(match.wala.bet_amount)}
-            </Text>
-            <SidePaymentBadges side={match.wala} />
-          </Box>
-        </Flex>
-        <FightQueueAdvanceForm
-          match={match}
-          eventId={eventId}
-          queueMatches={queueMatches}
-          canManage={canManage}
-          canManageQueueOverride={canManageQueueOverride}
-        />
-        <AdjustPledgeForm eventId={eventId} match={match} canManage={canManage} />
-      </Flex>
-    </Box>
   )
 }

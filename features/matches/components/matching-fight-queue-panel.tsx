@@ -4,7 +4,7 @@ import { Box, Text } from '@chakra-ui/react'
 import { useMemo } from 'react'
 
 import { PanelCard } from '@/components/dashboard'
-import { FightQueueRow } from '@/features/matches/components/matching-shared'
+import { MatchingFightQueueRow } from '@/features/matches/components/matching-fight-queue-row'
 import type { MatchListItem } from '@/features/matches/types'
 import { filterFightQueueTabMatches } from '@/features/matches/utils'
 
@@ -36,7 +36,7 @@ export function MatchingFightQueuePanel({
         </Box>
       ) : (
         fightQueueTabMatches.map((match) => (
-          <FightQueueRow
+          <MatchingFightQueueRow
             key={match.id}
             match={match}
             eventId={eventId}

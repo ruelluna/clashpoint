@@ -72,4 +72,19 @@ test.describe('Matching pledges flow @auth', () => {
     await page.getByRole('tab', { name: 'Pending Payments' }).click()
     await expect(page.getByText('Awaiting cashier payment')).toBeVisible()
   })
+
+  test('matching fight queue and pending tabs render on mobile viewport', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/dashboard/events')
+    await page.getByRole('link', { name: /matching/i }).first().click()
+
+    await page.getByRole('tab', { name: 'Fight Queue' }).click()
+    await expect(page.getByText('Fight queue')).toBeVisible()
+
+    await page.getByRole('tab', { name: 'Pending Payments' }).click()
+    await expect(page.getByText('Awaiting cashier payment')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open Cashier Terminal' })).toBeVisible()
+  })
 })

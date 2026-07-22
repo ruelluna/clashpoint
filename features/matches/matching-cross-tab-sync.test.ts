@@ -9,6 +9,7 @@ import {
 
 function stubBrowserWindow() {
   let storageValue: string | null = null
+  let sessionStorageValue: string | null = null
   const storageListeners = new Set<(event: StorageEvent) => void>()
 
   vi.stubGlobal('window', {
@@ -17,6 +18,15 @@ function stubBrowserWindow() {
         storageValue = value
       },
       getItem: () => storageValue,
+    },
+    sessionStorage: {
+      setItem: (_key: string, value: string) => {
+        sessionStorageValue = value
+      },
+      getItem: () => sessionStorageValue,
+      removeItem: () => {
+        sessionStorageValue = null
+      },
     },
     setInterval: (handler: () => void) => {
       return setInterval(handler, 500)
@@ -223,7 +233,7 @@ describe('matching-cross-tab-sync', () => {
     )
   })
 
-  it('replays stored messages after listener remount', () => {
+  it('does not replay stored messages after listener remount in the same session', () => {
     const handler = vi.fn()
     const browser = stubBrowserWindow()
 
@@ -233,7 +243,6 @@ describe('matching-cross-tab-sync', () => {
       close = vi.fn()
     })
 
-    browser.getStorageValue()
     window.localStorage.setItem(
       'pitclash-matching-sync',
       JSON.stringify({
@@ -259,6 +268,37 @@ describe('matching-cross-tab-sync', () => {
       onMessage: handler,
     })
 
-    expect(handler).toHaveBeenCalledTimes(2)
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('delivers poll messages with poll source for silent data refresh', () => {
+    const handler = vi.fn()
+    const browser = stubBrowserWindow()
+
+    vi.stubGlobal('BroadcastChannel', class {
+      set onmessage(_listenerFn: ((event: MessageEvent) => void) | undefined) {}
+      postMessage = vi.fn()
+      close = vi.fn()
+    })
+
+    subscribeMatchingCrossTabMessages({
+      eventId: 'event-1',
+      pollOnMount: false,
+      onMessage: handler,
+    })
+
+    browser.emitStorage(
+      JSON.stringify({
+        eventId: 'event-1',
+        matchId: 'match-1',
+        action: 'palitada_added',
+        sentAt: Date.now(),
+      })
+    )
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ matchId: 'match-1' }),
+      'storage'
+    )
   })
 })
