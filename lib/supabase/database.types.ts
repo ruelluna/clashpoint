@@ -1336,6 +1336,7 @@ export type Database = {
           wala_weight: number | null
           status: Database['public']['Enums']['match_status']
           queue_status: Database['public']['Enums']['fight_queue_status'] | null
+          matching_number: string | null
           in_meron_odds: number | null
           in_wala_odds: number | null
           pledge_settlement_snapshot: Json | null
@@ -1356,6 +1357,7 @@ export type Database = {
           wala_weight?: number | null
           status?: Database['public']['Enums']['match_status']
           queue_status?: Database['public']['Enums']['fight_queue_status'] | null
+          matching_number?: string | null
           in_meron_odds?: number | null
           in_wala_odds?: number | null
           pledge_settlement_snapshot?: Json | null
@@ -1376,6 +1378,7 @@ export type Database = {
           wala_weight?: number | null
           status?: Database['public']['Enums']['match_status']
           queue_status?: Database['public']['Enums']['fight_queue_status'] | null
+          matching_number?: string
           in_meron_odds?: number | null
           in_wala_odds?: number | null
           pledge_settlement_snapshot?: Json | null

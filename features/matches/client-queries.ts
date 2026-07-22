@@ -20,6 +20,7 @@ export async function fetchMatchListItemClient(
         id,
         event_id,
         fight_number,
+        matching_number,
         round_number,
         status,
         queue_status,

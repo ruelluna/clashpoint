@@ -31,6 +31,7 @@ export default async function MatchBetPrintPage({ params }: MatchBetPrintPagePro
           eventName={event.name}
           meron={{
             fightNumber: match.fight_number,
+            matchingNumber: match.matching_number ?? undefined,
             entryNumber: match.meron.entry_number,
             entryName: match.meron.entry_name,
             ownerName: match.meron.owner_name,
@@ -41,6 +42,7 @@ export default async function MatchBetPrintPage({ params }: MatchBetPrintPagePro
           }}
           wala={{
             fightNumber: match.fight_number,
+            matchingNumber: match.matching_number ?? undefined,
             entryNumber: match.wala.entry_number,
             entryName: match.wala.entry_name,
             ownerName: match.wala.owner_name,

@@ -13,6 +13,7 @@ function buildMatch(id: string, fightNumber: number): MatchListItem {
     id,
     event_id: 'event-1',
     fight_number: fightNumber,
+    matching_number: null,
     round_number: 1,
     status: 'at_pit',
     queue_status: 'birds_at_pit',

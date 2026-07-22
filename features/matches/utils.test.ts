@@ -5,7 +5,11 @@ import {
   canEditMatchBets,
   canLockMatchList,
   collectUsedRoosterIds,
+  filterFightQueueTabMatches,
   getFightQueueAdvanceBlockReason,
+  getFightQueueConcurrentBlockReason,
+  isMatchOccupyingArena,
+  shouldAssignMatchingNumber,
   getMatchBetAdjustmentDelta,
   isMatchBetSideSettled,
   isMatchQueueReady,
@@ -223,6 +227,109 @@ describe('pledge settlement helpers', () => {
   })
 })
 
+describe('getFightQueueConcurrentBlockReason', () => {
+  const queueMatches = [
+    { id: '1', fight_number: 1, status: 'fighting' as const, queue_status: 'fighting' as const },
+    { id: '2', fight_number: 2, status: 'queued' as const, queue_status: 'handlers_called' as const },
+  ]
+
+  it('blocks birds at pit when another match is fighting', () => {
+    expect(getFightQueueConcurrentBlockReason('2', 'birds_at_pit', queueMatches)).toMatch(
+      /Finish fight #1 before birds can be sent to the pit/
+    )
+  })
+
+  it('blocks birds at pit when another match is at the pit', () => {
+    expect(
+      getFightQueueConcurrentBlockReason('2', 'birds_at_pit', [
+        { id: '1', fight_number: 3, status: 'at_pit', queue_status: 'birds_at_pit' },
+        { id: '2', fight_number: 4, status: 'queued', queue_status: 'handlers_called' },
+      ])
+    ).toMatch(/Fight #3 is at the pit/)
+  })
+
+  it('allows birds at pit when arena is free', () => {
+    expect(
+      getFightQueueConcurrentBlockReason('2', 'birds_at_pit', [
+        { id: '1', fight_number: 1, status: 'queued', queue_status: 'handlers_called' },
+        { id: '2', fight_number: 2, status: 'queued', queue_status: 'handlers_called' },
+      ])
+    ).toBeNull()
+  })
+
+  it('blocks start fight when another match is fighting', () => {
+    expect(getFightQueueConcurrentBlockReason('2', 'fighting', queueMatches)).toMatch(
+      /Finish fight #1 before starting another fight/
+    )
+  })
+
+  it('allows advance when no other match is fighting', () => {
+    expect(
+      getFightQueueConcurrentBlockReason('1', 'fighting', [
+        { id: '1', fight_number: 1, status: 'at_pit', queue_status: 'birds_at_pit' },
+        { id: '2', fight_number: 2, status: 'queued', queue_status: 'handlers_called' },
+      ])
+    ).toBeNull()
+  })
+
+  it('does not block when another match only has stale queue_status fighting', () => {
+    expect(
+      getFightQueueConcurrentBlockReason('2', 'birds_at_pit', [
+        {
+          id: '1',
+          fight_number: 2,
+          status: 'settling',
+          queue_status: 'fighting',
+        },
+        { id: '2', fight_number: 6, status: 'queued', queue_status: 'handlers_called' },
+      ])
+    ).toBeNull()
+  })
+
+  it('does not block call handlers advance', () => {
+    expect(
+      getFightQueueConcurrentBlockReason('2', 'handlers_called', queueMatches)
+    ).toBeNull()
+  })
+})
+
+describe('shouldAssignMatchingNumber', () => {
+  it('assigns on handlers_called to birds_at_pit when missing', () => {
+    expect(shouldAssignMatchingNumber('handlers_called', 'birds_at_pit', null)).toBe(true)
+  })
+
+  it('does not reassign when already set', () => {
+    expect(shouldAssignMatchingNumber('handlers_called', 'birds_at_pit', 'ABCD-0001')).toBe(
+      false
+    )
+  })
+
+  it('does not assign on call handlers or other queue transitions', () => {
+    expect(shouldAssignMatchingNumber('waiting', 'handlers_called', null)).toBe(false)
+    expect(shouldAssignMatchingNumber('birds_at_pit', 'fighting', null)).toBe(false)
+  })
+})
+
+describe('isMatchOccupyingArena', () => {
+  it('returns true for birds at pit and fighting', () => {
+    expect(
+      isMatchOccupyingArena({ status: 'at_pit', queue_status: 'birds_at_pit' })
+    ).toBe(true)
+    expect(
+      isMatchOccupyingArena({ status: 'fighting', queue_status: 'fighting' })
+    ).toBe(true)
+  })
+
+  it('returns false for handlers called and finished matches', () => {
+    expect(
+      isMatchOccupyingArena({ status: 'queued', queue_status: 'handlers_called' })
+    ).toBe(false)
+    expect(
+      isMatchOccupyingArena({ status: 'settling', queue_status: 'fighting' })
+    ).toBe(false)
+  })
+})
+
 describe('canEditMatchBets', () => {
   it('allows edits before handlers are called and blocks after', () => {
     expect(canEditMatchBets('draft', ['unpaid', 'unpaid'])).toBe(true)
@@ -253,6 +360,7 @@ function buildMatchListItem(
 
   return {
     event_id: 'event',
+    matching_number: overrides.matching_number ?? null,
     status: 'queued',
     round_number: null,
     meron: side,
@@ -260,6 +368,19 @@ function buildMatchListItem(
     ...overrides,
   }
 }
+
+describe('filterFightQueueTabMatches', () => {
+  it('includes waiting and handlers_called only', () => {
+    const matches = [
+      buildMatchListItem({ id: '1', fight_number: 1, queue_status: 'waiting' }),
+      buildMatchListItem({ id: '2', fight_number: 2, queue_status: 'handlers_called' }),
+      buildMatchListItem({ id: '3', fight_number: 3, queue_status: 'birds_at_pit' }),
+      buildMatchListItem({ id: '4', fight_number: 4, queue_status: 'fighting' }),
+    ]
+
+    expect(filterFightQueueTabMatches(matches).map((match) => match.id)).toEqual(['1', '2'])
+  })
+})
 
 describe('resolveActiveMatch', () => {
   it('returns null when no called or in-progress matches exist', () => {
@@ -283,6 +404,20 @@ describe('resolveActiveMatch', () => {
     const active = resolveActiveMatch([
       buildMatchListItem({ id: '1', fight_number: 3, queue_status: 'birds_at_pit' }),
       buildMatchListItem({ id: '2', fight_number: 2, queue_status: 'birds_at_pit' }),
+    ])
+
+    expect(active?.id).toBe('2')
+  })
+
+  it('ignores settling matches with stale queue_status fighting', () => {
+    const active = resolveActiveMatch([
+      buildMatchListItem({
+        id: '1',
+        fight_number: 2,
+        status: 'settling',
+        queue_status: 'fighting',
+      }),
+      buildMatchListItem({ id: '2', fight_number: 5, queue_status: 'handlers_called' }),
     ])
 
     expect(active?.id).toBe('2')

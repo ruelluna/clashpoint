@@ -27,6 +27,7 @@ import type { EligibleRooster, MatchListItem } from '@/features/matches/types'
 import {
   FIGHT_QUEUE_TRANSITIONS,
   canEditMatchBetAmounts,
+  getFightQueueConcurrentBlockReason,
   getMatchBetAdjustmentDelta,
   isMatchBetSideSettled,
   previousQueueStatus,
@@ -219,11 +220,13 @@ export function CancelMatchForm({
 export function FightQueueAdvanceForm({
   match,
   eventId,
+  queueMatches,
   canManage,
   canManageQueueOverride = false,
 }: {
   match: MatchListItem
   eventId: string
+  queueMatches: MatchListItem[]
   canManage: boolean
   canManageQueueOverride?: boolean
 }) {
@@ -242,6 +245,11 @@ export function FightQueueAdvanceForm({
     match.queue_status === 'waiting' &&
     nextStatus === 'handlers_called' &&
     !matchPledgesSettled(match)
+  const concurrentBlocked =
+    nextStatus != null
+      ? getFightQueueConcurrentBlockReason(match.id, nextStatus, queueMatches)
+      : null
+  const advanceBlocked = callBlocked || concurrentBlocked != null
 
   const state = advanceState.error || advanceState.success ? advanceState : rollbackState
 
@@ -256,7 +264,7 @@ export function FightQueueAdvanceForm({
             <input type="hidden" name="eventId" value={eventId} />
             <input type="hidden" name="queueStatus" value={nextStatus} />
             <input type="hidden" name="direction" value="advance" />
-            <Button type="submit" size="sm" loading={advancePending} disabled={callBlocked}>
+            <Button type="submit" size="sm" loading={advancePending} disabled={advanceBlocked}>
               {FIGHT_QUEUE_ADVANCE_ACTION_LABELS[nextStatus]}
             </Button>
           </form>
@@ -278,6 +286,11 @@ export function FightQueueAdvanceForm({
           Settle pledge adjustments at Cashier Terminal before staff call handlers for this fight.
         </Text>
       ) : null}
+      {concurrentBlocked ? (
+        <Text fontSize="xs" color="orange.fg" maxW="xs">
+          {concurrentBlocked}
+        </Text>
+      ) : null}
       {state.error ? (
         <Text fontSize="xs" color="red.fg">
           {state.error}
@@ -295,27 +308,31 @@ export function FightQueueAdvanceForm({
 export function FightQueueRow({
   match,
   eventId,
+  queueMatches,
   canManage,
   canManageQueueOverride = false,
 }: {
   match: MatchListItem
   eventId: string
+  queueMatches: MatchListItem[]
   canManage: boolean
   canManageQueueOverride?: boolean
 }) {
   return (
     <Box px={4} py={3} borderBottomWidth="1px" borderColor="border" _last={{ borderBottomWidth: 0 }}>
       <Flex direction={{ base: 'column', lg: 'row' }} gap={4} align={{ lg: 'center' }}>
-        <Flex align="center" gap={3} flexShrink={0}>
-          <Text fontSize="lg" fontWeight="semibold">
-            #{match.fight_number}
-          </Text>
-          {match.queue_status ? (
-            <Badge colorPalette={fightQueueStatusColorPalette(match.queue_status)} size="sm">
-              {FIGHT_QUEUE_STATUS_LABELS[match.queue_status]}
-            </Badge>
-          ) : null}
-        </Flex>
+          <Stack gap={1} flexShrink={0}>
+          <Flex align="center" gap={3}>
+            <Text fontSize="lg" fontWeight="semibold">
+              #{match.fight_number}
+            </Text>
+            {match.queue_status ? (
+              <Badge colorPalette={fightQueueStatusColorPalette(match.queue_status)} size="sm">
+                {FIGHT_QUEUE_STATUS_LABELS[match.queue_status]}
+              </Badge>
+            ) : null}
+          </Flex>
+        </Stack>
         <Flex flex="1" direction={{ base: 'column', md: 'row' }} gap={4}>
           <Box flex="1">
             <Text fontSize="xs" color="fg.muted" textTransform="uppercase">
@@ -341,6 +358,7 @@ export function FightQueueRow({
         <FightQueueAdvanceForm
           match={match}
           eventId={eventId}
+          queueMatches={queueMatches}
           canManage={canManage}
           canManageQueueOverride={canManageQueueOverride}
         />

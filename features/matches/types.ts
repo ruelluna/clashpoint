@@ -21,6 +21,7 @@ export type MatchRow = {
   id: string
   event_id: string
   fight_number: number
+  matching_number: string | null
   round_number: number | null
   meron_entry_id: string
   meron_rooster_id: string
@@ -95,6 +96,7 @@ export type MatchListItem = {
   id: string
   event_id: string
   fight_number: number
+  matching_number: string | null
   round_number: number | null
   status: MatchStatus
   queue_status: FightQueueStatus | null

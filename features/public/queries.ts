@@ -41,6 +41,7 @@ type MatchQueryRow = {
   id: string
   event_id: string
   fight_number: number
+  matching_number: string | null
   round_number: number | null
   status: MatchStatus
   queue_status: string | null
@@ -72,6 +73,7 @@ const MATCH_SELECT = `
   id,
   event_id,
   fight_number,
+  matching_number,
   round_number,
   status,
   queue_status,
@@ -112,6 +114,7 @@ function mapMatchRow(row: MatchQueryRow): PublicMatch {
     id: row.id,
     event_id: row.event_id,
     fight_number: Number(row.fight_number),
+    matching_number: row.matching_number,
     round_number: row.round_number != null ? Number(row.round_number) : null,
     status: row.status,
     queue_status: row.queue_status as PublicMatch['queue_status'],
