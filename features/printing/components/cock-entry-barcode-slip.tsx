@@ -54,7 +54,7 @@ function CockBarcodeContent({
 
 export function CockEntryBarcodeSlip(props: CockEntryBarcodeSlipProps) {
   return (
-    <PrintSlipLayout title="Cock entry" eventName={props.eventName}>
+    <PrintSlipLayout title="Cock entry" eventName={props.eventName} labelSizedSlip>
       <CockBarcodeContent {...props} />
     </PrintSlipLayout>
   )
