@@ -9,18 +9,24 @@ import {
   entryMetadataSchema,
   formatEntryNumber,
   formatCockEntryBarcode,
+  formatCockScanCode,
   formatOwnerBarcode,
+  formatOwnerScanCode,
   getNextEntryNumber,
   getNextOwnerBarcode,
   isBandNumberRequiredForEvent,
   isCockEntryBarcodeForEvent,
+  isCockScanCode,
   isOwnerBarcodeForEvent,
+  isOwnerScanCode,
   normalizeCockEntryBarcodeInput,
   normalizeOwnerBarcodeInput,
   parseCockEntryBarcodeSequence,
+  parseCockScanCodeSequence,
   parseCreateEntryFromFormData,
   parseEntryNumber,
   parseOwnerBarcodeSequence,
+  parseOwnerScanCodeSequence,
   roosterEntryItemSchema,
   updateEntrySchema,
   validateEntryRosterCount,
@@ -379,6 +385,14 @@ describe('owner barcode helpers', () => {
     expect(parseOwnerBarcodeSequence(barcode, eventId)).toBe(1)
   })
 
+  it('formats and parses owner scan codes', () => {
+    expect(formatOwnerScanCode(1)).toBe('O0001')
+    expect(parseOwnerScanCodeSequence('o0001')).toBe(1)
+    expect(isOwnerScanCode('O0001')).toBe(true)
+    expect(parseOwnerBarcodeSequence('O0001', eventId)).toBe(1)
+    expect(isOwnerBarcodeForEvent('O0001', eventId)).toBe(true)
+  })
+
   it('normalizes barcode input', () => {
     expect(normalizeOwnerBarcodeInput(' own-abc-0001 ')).toBe('OWN-ABC-0001')
   })
@@ -401,5 +415,12 @@ describe('cock entry barcode helpers', () => {
     expect(parseCockEntryBarcodeSequence(barcode, eventId)).toBe(1)
     expect(isCockEntryBarcodeForEvent(barcode, eventId)).toBe(true)
     expect(normalizeCockEntryBarcodeInput(` ${barcode.toLowerCase()} `)).toBe(barcode)
+  })
+
+  it('formats and parses cock scan codes', () => {
+    expect(formatCockScanCode(1)).toBe('C0001')
+    expect(parseCockScanCodeSequence('c0001')).toBe(1)
+    expect(isCockScanCode('C0001')).toBe(true)
+    expect(isCockEntryBarcodeForEvent('C0001', eventId)).toBe(true)
   })
 })

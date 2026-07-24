@@ -4,15 +4,19 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 
 import {
   patchMatchInList,
-  patchSettlingMatchObligation,
   removeMatchFromList,
   removePalitadaContributionFromMatch,
   removeSettlingMatch,
+  upsertSettlingMatch,
 } from '@/features/matches/matching-realtime-patches'
 import type { MatchListItem, SettlingMatchListItem } from '@/features/matches/types'
-import { fetchMatchListItemClient } from '@/features/matches/client-queries'
+import {
+  fetchMatchListItemClient,
+  fetchSettlingMatchClient,
+} from '@/features/matches/client-queries'
 import {
   subscribeMatchingCrossTabMessages,
+  type CrossTabSource,
   type MatchingSyncMessage,
 } from '@/features/matches/matching-cross-tab-sync'
 import {
@@ -154,12 +158,48 @@ export function useEventMatchingRealtime({
 
     if (sanitizedMatch.status === 'completed') {
       setSettlingMatchesRef.current((current) => removeSettlingMatch(current, matchId))
+    } else if (sanitizedMatch.status === 'settling') {
+      refreshSettlingMatchRef.current(matchId)
     }
   }, [])
 
   const refreshMatchRef = useRef<
     (matchId: string, options?: { debounceMs?: number }) => void
   >(() => undefined)
+
+  const refreshSettlingMatchRef = useRef<(matchId: string, debounceMs?: number) => void>(
+    () => undefined
+  )
+
+  useLayoutEffect(() => {
+    refreshSettlingMatchRef.current = (matchId: string, debounceMs = DEFAULT_REFRESH_DEBOUNCE_MS) => {
+      const timerKey = `settling:${matchId}`
+      const existingTimer = refreshTimersRef.current.get(timerKey)
+      if (existingTimer) clearTimeout(existingTimer)
+
+      refreshTimersRef.current.set(
+        timerKey,
+        setTimeout(async () => {
+          refreshTimersRef.current.delete(timerKey)
+          if (!isMountedRef.current) return
+
+          const settlingMatch = await fetchSettlingMatchClient(
+            eventIdRef.current,
+            matchId
+          )
+
+          if (!isMountedRef.current) return
+
+          if (!settlingMatch) {
+            setSettlingMatchesRef.current((current) => removeSettlingMatch(current, matchId))
+            return
+          }
+
+          setSettlingMatchesRef.current((current) => upsertSettlingMatch(current, settlingMatch))
+        }, debounceMs)
+      )
+    }
+  })
 
   useLayoutEffect(() => {
     refreshMatchRef.current = (matchId: string, options?: { debounceMs?: number }) => {
@@ -203,9 +243,18 @@ export function useEventMatchingRealtime({
     []
   )
 
+  const refreshSettlingMatch = useCallback(async (matchId: string) => {
+    refreshSettlingMatchRef.current(matchId)
+  }, [])
+
   const handleSyncMessage = useCallback(
-    (message: MatchingSyncMessage, _source: 'broadcast' | 'storage' | 'poll') => {
+    (message: MatchingSyncMessage, source: CrossTabSource) => {
       if (!isMountedRef.current || message.eventId !== eventId) return
+
+      if (message.action === 'settlement_updated') {
+        refreshSettlingMatchRef.current(message.matchId)
+        return
+      }
 
       if (
         message.action === 'palitada_removed' &&
@@ -228,7 +277,11 @@ export function useEventMatchingRealtime({
         )
       }
 
-      if (message.action === 'palitada_added' || message.action === 'palitada_removed') {
+      const isLivePalitadaSync = source === 'broadcast' || source === 'storage'
+      if (
+        isLivePalitadaSync &&
+        (message.action === 'palitada_added' || message.action === 'palitada_removed')
+      ) {
         notifyPalitadaSync(message)
       }
 
@@ -298,6 +351,7 @@ export function useEventMatchingRealtime({
               (payload.new as { id?: string } | null)?.id ??
               (payload.old as { id?: string } | null)?.id
             if (matchId) void refreshMatchRef.current(matchId)
+            if (matchId) refreshSettlingMatchRef.current(matchId)
           }
         )
         .on(
@@ -315,6 +369,7 @@ export function useEventMatchingRealtime({
               (payload.new as { match_id?: string } | null)?.match_id ??
               (payload.old as { match_id?: string } | null)?.match_id
             if (matchId) void refreshMatchRef.current(matchId)
+            if (matchId) refreshSettlingMatchRef.current(matchId)
           }
         )
         .on(
@@ -379,11 +434,13 @@ export function useEventMatchingRealtime({
           (payload) => {
             if (!isMountedRef.current) return
 
-            const row = payload.new as SettlingMatchListItem['obligations'][number] | null
-            if (!row?.match_id) return
-            setSettlingMatchesRef.current((current) =>
-              patchSettlingMatchObligation(current, row)
-            )
+            const matchId =
+              (payload.new as { match_id?: string; id?: string } | null)?.match_id ??
+              (payload.old as { match_id?: string; id?: string } | null)?.match_id
+
+            if (matchId) {
+              refreshSettlingMatchRef.current(matchId)
+            }
           }
         )
         .subscribe((status) => {
@@ -414,5 +471,5 @@ export function useEventMatchingRealtime({
     }
   }, [eventId, markContributionRemoved, notifyPalitadaSync])
 
-  return { refreshMatch }
+  return { refreshMatch, refreshSettlingMatch }
 }

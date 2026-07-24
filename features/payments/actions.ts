@@ -7,6 +7,7 @@ import {
   recordMatchBetPartialRefundSchema,
   recordMatchBetPaymentSchema,
   recordMatchBetTopUpSchema,
+  recordMatchBetWinPayoutSchema,
   recordPaymentSchema,
   refundPaymentSchema,
   refundSelectedPaymentsSchema,
@@ -16,6 +17,7 @@ import {
   recordMatchBetPartialRefund,
   recordMatchBetPayment,
   recordMatchBetTopUp,
+  recordMatchBetWinPayout,
   recordPayment,
   refundPayment,
   refundSelectedPayments,
@@ -59,6 +61,7 @@ function revalidateCashierPaths(eventId: string) {
   revalidatePath(`/dashboard/events/${eventId}/owners`)
   revalidatePath(`/dashboard/events/${eventId}/roosters`)
   revalidatePath(`/dashboard/events/${eventId}/matching`)
+  revalidatePath(`/dashboard/events/${eventId}/results`)
   revalidatePath('/dashboard/fights')
   revalidatePath('/dashboard/transactions')
   revalidatePath('/dashboard/audit')
@@ -224,6 +227,44 @@ export async function recordMatchBetPartialRefundAction(
 
   return {
     success: 'Pledge adjustment refund recorded',
+    paymentId: result.paymentId,
+  }
+}
+
+export async function recordMatchBetWinPayoutAction(
+  _prev: PaymentActionState,
+  formData: FormData
+): Promise<PaymentActionState> {
+  const profile = await requireOperationalPermission('payments.manage')
+
+  const parsed = recordMatchBetWinPayoutSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchBetId: formData.get('matchBetId'),
+    amountTendered: formData.get('amountTendered'),
+    paymentMethod: formData.get('paymentMethod'),
+    notes: formData.get('notes')?.toString().trim() || undefined,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const sessionResult = await requireOpenCashierSession(profile.id, parsed.data.eventId)
+  if (sessionResult.error || !sessionResult.session) {
+    return { error: sessionResult.error ?? 'Open a cashier session first' }
+  }
+
+  const result = await recordMatchBetWinPayout(
+    profile.id,
+    parsed.data,
+    sessionResult.session.id
+  )
+  if (result.error) return { error: result.error }
+
+  revalidateCashierPaths(parsed.data.eventId)
+
+  return {
+    success: 'Handler payout recorded',
     paymentId: result.paymentId,
   }
 }

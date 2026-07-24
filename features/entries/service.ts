@@ -11,7 +11,12 @@ import {
   listEntryNumbersForEvent,
   listOwnerBarcodesForEvent,
 } from '@/features/entries/queries'
-import { getNextEntryNumber, getNextOwnerBarcode } from '@/features/entries/schema'
+import {
+  formatOwnerScanCode,
+  getNextEntryNumber,
+  getNextOwnerBarcode,
+  parseOwnerBarcodeSequence,
+} from '@/features/entries/schema'
 import type {
   CreateEntryInput,
   CreateOwnerEntryInput,
@@ -261,6 +266,8 @@ export async function createEntry(
   const isDerby = event.event_type === 'derby'
   const existingBarcodes = await listOwnerBarcodesForEvent(input.eventId, options)
   const ownerBarcode = getNextOwnerBarcode(input.eventId, existingBarcodes)
+  const ownerSequence = parseOwnerBarcodeSequence(ownerBarcode, input.eventId) ?? 0
+  const ownerScanCode = formatOwnerScanCode(ownerSequence)
   const feeSnapshot = isDerby ? snapshotFromSettings(eventFeeSettingsFromRow(event)) : null
 
   const feeSettings = eventFeeSettingsFromRow(event)
@@ -286,6 +293,7 @@ export async function createEntry(
       notes: input.notes ?? null,
       created_by: actorId,
       owner_barcode: ownerBarcode,
+      owner_scan_code: ownerScanCode,
       fee_snapshot: feeSnapshot,
     })
     .select('id')
@@ -308,6 +316,7 @@ export async function createEntry(
       owner_name: input.ownerName,
       competitor_id: competitorId,
       owner_barcode: ownerBarcode,
+      owner_scan_code: ownerScanCode,
       ...(input.entrySource === 'online' ? { source: 'online' } : {}),
     },
   })

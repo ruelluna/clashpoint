@@ -31,6 +31,7 @@ export default async function MatchBetPrintPage({ params }: MatchBetPrintPagePro
           eventName={event.name}
           meron={{
             fightNumber: match.fight_number,
+            matchingNumber: match.matching_number ?? undefined,
             entryNumber: match.meron.entry_number,
             entryName: match.meron.entry_name,
             ownerName: match.meron.owner_name,
@@ -38,9 +39,11 @@ export default async function MatchBetPrintPage({ params }: MatchBetPrintPagePro
             bandNumber: match.meron.band_number,
             betAmount: match.meron.bet_amount,
             betBarcode: match.meron.bet_barcode,
+            betScanCode: match.meron.bet_scan_code,
           }}
           wala={{
             fightNumber: match.fight_number,
+            matchingNumber: match.matching_number ?? undefined,
             entryNumber: match.wala.entry_number,
             entryName: match.wala.entry_name,
             ownerName: match.wala.owner_name,
@@ -48,6 +51,7 @@ export default async function MatchBetPrintPage({ params }: MatchBetPrintPagePro
             bandNumber: match.wala.band_number,
             betAmount: match.wala.bet_amount,
             betBarcode: match.wala.bet_barcode,
+            betScanCode: match.wala.bet_scan_code,
           }}
         />
         <Button asChild variant="outline" alignSelf="flex-start" className="no-print">

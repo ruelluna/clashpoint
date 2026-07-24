@@ -31,6 +31,7 @@ export type PublicRegistrationActionState = {
   step?: 'roosters' | 'complete'
   bandNumbers?: string[]
   ownerBarcode?: string
+  ownerScanCode?: string | null
   ownerName?: string
   contactFullName?: string | null
   contactDesignation?: string | null
@@ -178,6 +179,7 @@ export async function registerPublicRoostersAction(
     entryId: result.entryId,
     bandNumbers: result.bandNumbers,
     ownerBarcode: result.ownerBarcode,
+    ownerScanCode: result.ownerScanCode,
     ownerName: result.ownerName,
     contactFullName: result.contactFullName,
     contactDesignation: result.contactDesignation,

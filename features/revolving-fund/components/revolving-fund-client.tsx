@@ -13,11 +13,16 @@ import { useMemo, useState } from 'react'
 import { PageHeader, PageStack, PanelCard } from '@/components/dashboard'
 import type { RevolvingFundLedgerEntry } from '@/features/revolving-fund/types'
 
+type RevolvingFundClientEntry = Omit<RevolvingFundLedgerEntry, 'balanceAfter'> & {
+  balanceAfter?: number
+}
+
 type RevolvingFundClientProps = {
   eventName: string
+  canViewBalance: boolean
   initialBalance: number
   revolvingFundInitial: number
-  entries: RevolvingFundLedgerEntry[]
+  entries: RevolvingFundClientEntry[]
 }
 
 function formatCurrency(amount: number) {
@@ -34,7 +39,7 @@ function formatDate(iso: string) {
   })
 }
 
-function entryTypeLabel(entryType: RevolvingFundLedgerEntry['entryType']) {
+function entryTypeLabel(entryType: RevolvingFundClientEntry['entryType']) {
   switch (entryType) {
     case 'opening':
       return 'Opening'
@@ -50,6 +55,7 @@ function entryTypeLabel(entryType: RevolvingFundLedgerEntry['entryType']) {
 
 export function RevolvingFundClient({
   eventName,
+  canViewBalance,
   initialBalance,
   revolvingFundInitial,
   entries,
@@ -67,8 +73,9 @@ export function RevolvingFundClient({
         formatDate(entry.createdAt),
         String(entry.amount),
         formatCurrency(entry.amount),
-        String(entry.balanceAfter),
-        formatCurrency(entry.balanceAfter),
+        ...(canViewBalance && entry.balanceAfter != null
+          ? [String(entry.balanceAfter), formatCurrency(entry.balanceAfter)]
+          : []),
       ]
         .filter(Boolean)
         .join(' ')
@@ -76,7 +83,7 @@ export function RevolvingFundClient({
 
       return haystack.includes(trimmed)
     })
-  }, [entries, ledgerSearch])
+  }, [canViewBalance, entries, ledgerSearch])
 
   return (
     <PageStack>
@@ -85,19 +92,21 @@ export function RevolvingFundClient({
         description={`Ledger for ${eventName}`}
       />
 
-      <PanelCard title="Balance">
-        <Stack gap={2}>
-          <Text fontSize="sm" color="fg.muted">
-            Current balance
-          </Text>
-          <Text fontSize="3xl" fontWeight="semibold">
-            {formatCurrency(initialBalance)}
-          </Text>
-          <Text fontSize="sm" color="fg.muted">
-            Initial amount at creation: {formatCurrency(revolvingFundInitial)}
-          </Text>
-        </Stack>
-      </PanelCard>
+      {canViewBalance ? (
+        <PanelCard title="Balance">
+          <Stack gap={2}>
+            <Text fontSize="sm" color="fg.muted">
+              Current balance
+            </Text>
+            <Text fontSize="3xl" fontWeight="semibold">
+              {formatCurrency(initialBalance)}
+            </Text>
+            <Text fontSize="sm" color="fg.muted">
+              Initial amount at creation: {formatCurrency(revolvingFundInitial)}
+            </Text>
+          </Stack>
+        </PanelCard>
+      ) : null}
 
       <PanelCard title="Ledger">
         {entries.length === 0 ? (
@@ -152,9 +161,11 @@ export function RevolvingFundClient({
                       {entry.amount >= 0 ? '+' : ''}
                       {formatCurrency(entry.amount)}
                     </Text>
-                    <Text fontSize="sm" color="fg.muted">
-                      Balance: {formatCurrency(entry.balanceAfter)}
-                    </Text>
+                    {canViewBalance && entry.balanceAfter != null ? (
+                      <Text fontSize="sm" color="fg.muted">
+                        Balance: {formatCurrency(entry.balanceAfter)}
+                      </Text>
+                    ) : null}
                   </Box>
                 </Flex>
               ))

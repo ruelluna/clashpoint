@@ -87,6 +87,7 @@ describe('createPublicRoostersForEntry', () => {
         id: entryId,
         entry_number: '001',
         owner_barcode: 'OWN-00000000-0001',
+        owner_scan_code: 'O0001',
         owner_name: 'Farm Alpha',
         contact_full_name: 'Juan Dela Cruz',
         contact_designation: 'Manager',
@@ -99,6 +100,7 @@ describe('createPublicRoostersForEntry', () => {
           id: registrationId,
           band_number: 'B-100',
           cock_entry_barcode: 'COCK-00000000-0001',
+          cock_scan_code: 'C0001',
           registry_rooster_id: registryId,
         },
       ],
@@ -159,6 +161,7 @@ describe('createPublicRoostersForEntry', () => {
     expect(result.error).toBeUndefined()
     expect(result.entryNumber).toBe('001')
     expect(result.ownerBarcode).toBe('OWN-00000000-0001')
+    expect(result.ownerScanCode).toBe('O0001')
     expect(result.ownerName).toBe('Farm Alpha')
     expect(result.bandNumbers).toEqual(['B-100'])
     expect(result.roosters).toEqual([
@@ -167,6 +170,7 @@ describe('createPublicRoostersForEntry', () => {
         entryName: 'Thunder',
         bandNumber: 'B-100',
         cockEntryBarcode: 'COCK-00000000-0001',
+        cockScanCode: 'C0001',
       },
     ])
     expect(setPublicRegistrationReceiptSession).toHaveBeenCalledWith({

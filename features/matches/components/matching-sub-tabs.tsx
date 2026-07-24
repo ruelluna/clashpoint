@@ -11,7 +11,7 @@ import { useMatchingLiveSync } from '@/features/matches/components/matching-live
 import { MatchingPendingPaymentsPanel } from '@/features/matches/components/matching-pending-payments-panel'
 import { MatchingSettlingPanel } from '@/features/matches/components/matching-settling-panel'
 import type { EligibleRooster } from '@/features/matches/types'
-import { resolveActiveMatch, resolveBetBalancingTargetMatch } from '@/features/matches/utils'
+import { resolveActiveMatch, resolveBetBalancingTargetMatch, filterFightQueueTabMatches } from '@/features/matches/utils'
 
 export type MatchingView = 'active' | 'queue' | 'pending' | 'desk' | 'settling'
 
@@ -72,6 +72,10 @@ export function MatchingSubTabs({
   }, [canManage, canSettle, settlingMatches.length])
 
   const activeMatch = useMemo(() => resolveActiveMatch(queueMatches), [queueMatches])
+  const fightQueueTabMatches = useMemo(
+    () => filterFightQueueTabMatches(queueMatches),
+    [queueMatches]
+  )
   const palitadaTargetMatch = useMemo(
     () => resolveBetBalancingTargetMatch(queueMatches),
     [queueMatches]
@@ -123,6 +127,11 @@ export function MatchingSubTabs({
           {visibleViews.map((view) => (
             <Tabs.Trigger key={view} value={view}>
               {VIEW_LABELS[view]}
+              {view === 'queue' && fightQueueTabMatches.length > 0 ? (
+                <Badge ml={2} size="sm" colorPalette="blue">
+                  {fightQueueTabMatches.length}
+                </Badge>
+              ) : null}
               {view === 'pending' && awaitingPaymentMatches.length > 0 ? (
                 <Badge ml={2} size="sm" colorPalette="orange">
                   {awaitingPaymentMatches.length}
@@ -142,6 +151,7 @@ export function MatchingSubTabs({
         <MatchingActiveMatchPanel
           eventId={eventId}
           activeMatch={activeMatch}
+          queueMatches={queueMatches}
           betBalancingMatch={betBalancingMatch}
           palitadaTargetMatch={palitadaTargetMatch}
           taxPerFight={taxPerFight}

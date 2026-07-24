@@ -11,7 +11,12 @@ import type {
   UpdateFightQueueStatusInput,
   UpdateMatchBetAmountsInput,
 } from '@/features/matches/schema'
-import { formatMatchBetBarcode } from '@/features/matches/schema'
+import {
+  formatMatchBetBarcode,
+  formatMatchBetScanCode,
+  generateMatchingNumber,
+  nextMatchingNumberSequence,
+} from '@/features/matches/schema'
 import { tryPromoteMatchToQueue } from '@/features/matches/promotion'
 import type {
   EligibleRooster,
@@ -25,10 +30,12 @@ import {
   canLockMatchList,
   collectUsedRoosterIds,
   getFightQueueAdvanceBlockReason,
+  getFightQueueConcurrentBlockReason,
   isValidFightQueueRollback,
   isValidFightQueueTransition,
   matchStatusForQueueStatusChange,
   roundMatchMoney,
+  shouldAssignMatchingNumber,
   validateCockUsedOnce,
   validateNoSelfMatch,
   validateRoosterEligibility,
@@ -113,6 +120,7 @@ async function upsertMatchBets(
       side: 'meron',
       amount: meronBet,
       barcode: formatMatchBetBarcode(eventId, fightNumber, 'meron'),
+      scan_code: formatMatchBetScanCode(fightNumber, 'meron'),
       payment_status: 'unpaid',
       recorded_by: actorId,
     },
@@ -122,6 +130,7 @@ async function upsertMatchBets(
       side: 'wala',
       amount: walaBet,
       barcode: formatMatchBetBarcode(eventId, fightNumber, 'wala'),
+      scan_code: formatMatchBetScanCode(fightNumber, 'wala'),
       payment_status: 'unpaid',
       recorded_by: actorId,
     },
@@ -177,7 +186,7 @@ export async function lookupEligibleRoosterByBarcode(
       `
     )
     .eq('event_id', input.eventId)
-    .eq('cock_entry_barcode', barcode)
+    .or(`cock_entry_barcode.eq.${barcode},cock_scan_code.eq.${barcode}`)
     .maybeSingle()
 
   if (error) return { error: error.message }
@@ -650,7 +659,9 @@ export async function updateFightQueueStatus(
 
   const { data: match, error: fetchError } = await supabase
     .from('matches')
-    .select('id, event_id, fight_number, status, queue_status, meron_entry_id, wala_entry_id')
+    .select(
+      'id, event_id, fight_number, status, queue_status, matching_number, meron_entry_id, wala_entry_id'
+    )
     .eq('id', input.matchId)
     .maybeSingle()
 
@@ -730,12 +741,69 @@ export async function updateFightQueueStatus(
     if (advanceBlock) return { error: advanceBlock }
   }
 
+  if (
+    !isRollback &&
+    (input.queueStatus === 'birds_at_pit' || input.queueStatus === 'fighting')
+  ) {
+    const { data: occupyingMatches, error: occupyingError } = await supabase
+      .from('matches')
+      .select('id, fight_number, status, queue_status')
+      .eq('event_id', match.event_id)
+      .neq('id', input.matchId)
+      .or('status.eq.fighting,and(status.eq.at_pit,queue_status.eq.birds_at_pit)')
+      .limit(1)
+
+    if (occupyingError) return { error: occupyingError.message }
+
+    const concurrentBlock = getFightQueueConcurrentBlockReason(
+      input.matchId,
+      input.queueStatus,
+      (occupyingMatches ?? []).map((occupyingMatch) => ({
+        id: occupyingMatch.id,
+        fight_number: occupyingMatch.fight_number,
+        status: occupyingMatch.status as MatchStatus,
+        queue_status: occupyingMatch.queue_status as FightQueueStatus,
+      }))
+    )
+
+    if (concurrentBlock) return { error: concurrentBlock }
+  }
+
   const nextMatchStatus = matchStatusForQueueStatusChange(input.queueStatus, isRollback)
+  let assignedMatchingNumber: string | null = null
+
+  if (
+    !isRollback &&
+    shouldAssignMatchingNumber(
+      currentQueue as FightQueueStatus | null,
+      input.queueStatus,
+      (match.matching_number as string | null) ?? null
+    )
+  ) {
+    const { data: existingMatchingNumbers, error: matchingNumbersError } = await supabase
+      .from('matches')
+      .select('matching_number')
+      .eq('event_id', match.event_id)
+      .not('matching_number', 'is', null)
+
+    if (matchingNumbersError) return { error: matchingNumbersError.message }
+
+    const sequence = nextMatchingNumberSequence(
+      (existingMatchingNumbers ?? []).map(
+        (row) => (row.matching_number as string | null) ?? null
+      )
+    )
+    assignedMatchingNumber = generateMatchingNumber(sequence)
+  }
+
   const payload: MatchUpdate = {
     queue_status: input.queueStatus,
   }
   if (nextMatchStatus) {
     payload.status = nextMatchStatus
+  }
+  if (assignedMatchingNumber) {
+    payload.matching_number = assignedMatchingNumber
   }
 
   const { error: updateError } = await supabase
@@ -759,6 +827,7 @@ export async function updateFightQueueStatus(
       status: nextMatchStatus ?? match.status,
       fightNumber: match.fight_number,
       eventId: match.event_id,
+      ...(assignedMatchingNumber ? { matchingNumber: assignedMatchingNumber } : {}),
     },
   })
 

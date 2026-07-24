@@ -82,6 +82,7 @@ export default async function PublicRegisterLabelsPage({
           entryNumber={labels.entryNumber}
           ownerName={labels.ownerName}
           ownerBarcode={labels.ownerBarcode}
+          ownerScanCode={labels.ownerScanCode}
           contactFullName={labels.contactFullName}
           contactDesignation={labels.contactDesignation}
           roosters={labels.roosters}

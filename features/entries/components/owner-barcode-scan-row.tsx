@@ -1,10 +1,11 @@
 'use client'
 
 import { Button, Flex, Input, Text } from '@chakra-ui/react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { lookupOwnerEntryByBarcodeAction } from '@/features/entries/actions'
 import { OwnerBarcodeScannerDialog } from '@/features/entries/components/owner-barcode-scanner-dialog'
+import { useBarcodeScanInput } from '@/hooks/use-barcode-scan-input'
 
 type OwnerBarcodeScanRowProps = {
   eventId: string
@@ -17,43 +18,37 @@ export function OwnerBarcodeScanRow({
   onResolved,
   maxW = '2xl',
 }: OwnerBarcodeScanRowProps) {
-  const scanInputRef = useRef<HTMLInputElement>(null)
-  const [scanValue, setScanValue] = useState('')
   const [scanError, setScanError] = useState<string | null>(null)
-  const [scanPending, setScanPending] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
 
-  const resolveBarcode = useCallback(
+  const handleSubmit = useCallback(
     async (rawBarcode: string) => {
-      const trimmed = rawBarcode.trim()
-      if (!trimmed) {
-        setScanError('Enter a barcode to scan')
-        return
-      }
-
-      setScanPending(true)
-      setScanError(null)
-
-      const result = await lookupOwnerEntryByBarcodeAction(eventId, trimmed)
-      setScanPending(false)
+      const result = await lookupOwnerEntryByBarcodeAction(eventId, rawBarcode)
 
       if (result.error || !result.entryId) {
         setScanError(result.error ?? 'No owner found for this barcode')
-        scanInputRef.current?.select()
-        return
+        return 'error' as const
       }
 
-      setScanValue('')
+      setScanError(null)
       onResolved(result.entryId)
+      return 'success' as const
     },
     [eventId, onResolved]
   )
 
-  async function handleScanKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== 'Enter') return
-    event.preventDefault()
-    await resolveBarcode(scanValue)
-  }
+  const {
+    inputRef,
+    value,
+    onChange,
+    onKeyDown,
+    onFocus,
+    submitCurrent,
+    submitRaw,
+    pending,
+  } = useBarcodeScanInput({
+    onSubmit: handleSubmit,
+  })
 
   return (
     <Flex direction="column" gap={2} maxW={maxW}>
@@ -62,16 +57,17 @@ export function OwnerBarcodeScanRow({
           Scan
         </Text>
         <Input
-          ref={scanInputRef}
+          ref={inputRef}
           size="sm"
           placeholder="Scan OWNER barcode or type and press Enter"
-          value={scanValue}
+          value={value}
           onChange={(event) => {
-            setScanValue(event.target.value)
+            onChange(event)
             if (scanError) setScanError(null)
           }}
-          onKeyDown={handleScanKeyDown}
-          disabled={scanPending}
+          onKeyDown={onKeyDown}
+          onFocus={onFocus}
+          disabled={pending}
           data-testid="owner-barcode-scan-input"
         />
       </Flex>
@@ -80,16 +76,16 @@ export function OwnerBarcodeScanRow({
           size="sm"
           variant="outline"
           onClick={() => setScannerOpen(true)}
-          disabled={scanPending}
+          disabled={pending}
         >
           Scan with camera
         </Button>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => void resolveBarcode(scanValue)}
-          loading={scanPending}
-          disabled={!scanValue.trim()}
+          onClick={submitCurrent}
+          loading={pending}
+          disabled={!value.trim()}
         >
           Look up barcode
         </Button>
@@ -102,7 +98,7 @@ export function OwnerBarcodeScanRow({
       <OwnerBarcodeScannerDialog
         open={scannerOpen}
         onOpenChange={setScannerOpen}
-        onScan={(barcode) => void resolveBarcode(barcode)}
+        onScan={(barcode) => submitRaw(barcode)}
       />
     </Flex>
   )

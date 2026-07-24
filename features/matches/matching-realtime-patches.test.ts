@@ -5,14 +5,17 @@ import {
   removeMatchFromList,
   removePalitadaContributionFromMatch,
   removeSettlingMatch,
+  sortSettlingMatches,
+  upsertSettlingMatch,
 } from '@/features/matches/matching-realtime-patches'
-import type { MatchListItem } from '@/features/matches/types'
+import type { MatchListItem, SettlingMatchListItem } from '@/features/matches/types'
 
 function buildMatch(id: string, fightNumber: number): MatchListItem {
   return {
     id,
     event_id: 'event-1',
     fight_number: fightNumber,
+    matching_number: null,
     round_number: 1,
     status: 'at_pit',
     queue_status: 'birds_at_pit',
@@ -30,6 +33,7 @@ function buildMatch(id: string, fightNumber: number): MatchListItem {
       bet_amount: 10000,
       bet_collected_amount: 10000,
       bet_barcode: null,
+      bet_scan_code: null,
       bet_payment_status: 'paid',
     },
     wala: {
@@ -44,6 +48,7 @@ function buildMatch(id: string, fightNumber: number): MatchListItem {
       bet_amount: 5000,
       bet_collected_amount: 5000,
       bet_barcode: null,
+      bet_scan_code: null,
       bet_payment_status: 'paid',
     },
     meron_palitada: [],
@@ -131,6 +136,92 @@ describe('matching-realtime-patches', () => {
       }
 
       expect(removeSettlingMatch([match], 'match-1')).toEqual([])
+    })
+  })
+
+  describe('upsertSettlingMatch', () => {
+    function buildSettlingMatch(
+      id: string,
+      fightNumber: number,
+      matchingNumber: string | null = null
+    ): SettlingMatchListItem {
+      return {
+        ...buildMatch(id, fightNumber),
+        matching_number: matchingNumber,
+        result_type: 'meron_win',
+        obligations: [],
+      }
+    }
+
+    it('inserts a new settling match sorted by matching code', () => {
+      const existing = buildSettlingMatch('match-2', 2, 'B-002')
+      const incoming = buildSettlingMatch('match-1', 1, 'A-001')
+
+      const result = upsertSettlingMatch([existing], incoming)
+
+      expect(result.map((row) => row.id)).toEqual(['match-1', 'match-2'])
+    })
+
+    it('replaces an existing settling match in place', () => {
+      const match = buildSettlingMatch('match-1', 1, 'A-001')
+      const updated = {
+        ...match,
+        obligations: [
+          {
+            id: 'obligation-1',
+            match_id: 'match-1',
+            event_id: 'event-1',
+            obligation_key: 'handler-win',
+            obligation_type: 'handler_win_payout',
+            label: 'Pay winner',
+            description: null,
+            amount: 5000,
+            status: 'paid',
+            requires_ledger_post: false,
+            contributor_id: null,
+            ledger_entry_id: null,
+            paid_at: null,
+            paid_by: null,
+            payment_id: null,
+            sort_order: 1,
+          },
+        ],
+      }
+
+      const result = upsertSettlingMatch([match], updated)
+
+      expect(result).toHaveLength(1)
+      expect(result[0]?.obligations).toHaveLength(1)
+      expect(result[0]?.obligations[0]?.status).toBe('paid')
+    })
+  })
+
+  describe('sortSettlingMatches', () => {
+    it('sorts by matching_number then fight_number', () => {
+      const matches: SettlingMatchListItem[] = [
+        {
+          ...buildMatch('match-3', 3),
+          matching_number: 'Z-003',
+          result_type: 'meron_win',
+          obligations: [],
+        },
+        {
+          ...buildMatch('match-1', 1),
+          matching_number: 'A-001',
+          result_type: 'meron_win',
+          obligations: [],
+        },
+        {
+          ...buildMatch('match-2', 2),
+          matching_number: null,
+          result_type: 'meron_win',
+          obligations: [],
+        },
+      ]
+
+      const result = sortSettlingMatches(matches)
+
+      expect(result.map((row) => row.id)).toEqual(['match-1', 'match-3', 'match-2'])
     })
   })
 })

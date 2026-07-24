@@ -110,6 +110,28 @@ export function MatchingDeskPanel({
     [eligibleRoosters]
   )
 
+  const meronDropdownRoosters = useMemo(
+    () =>
+      eligibleRoosters.filter((rooster) => rooster.rooster_id !== walaRooster?.rooster_id),
+    [eligibleRoosters, walaRooster?.rooster_id]
+  )
+
+  const walaDropdownRoosters = useMemo(
+    () =>
+      eligibleRoosters.filter((rooster) => rooster.rooster_id !== meronRooster?.rooster_id),
+    [eligibleRoosters, meronRooster?.rooster_id]
+  )
+
+  useEffect(() => {
+    if (
+      meronRooster &&
+      walaRooster &&
+      meronRooster.rooster_id === walaRooster.rooster_id
+    ) {
+      setWalaRooster(null)
+    }
+  }, [meronRooster, walaRooster])
+
   useEffect(() => {
     if (createState.matchId) {
       router.push(`/dashboard/events/${eventId}/matching/${createState.matchId}/print`)
@@ -189,7 +211,10 @@ export function MatchingDeskPanel({
             <MatchingRoosterScanRow
               eventId={eventId}
               label="Meron"
-              onResolved={setMeronRooster}
+              onResolved={(rooster) => {
+                if (walaRooster?.rooster_id === rooster.rooster_id) return
+                setMeronRooster(rooster)
+              }}
             />
             <FormField label="Or select meron">
               <NativeSelect.Root size="sm">
@@ -200,7 +225,7 @@ export function MatchingDeskPanel({
                   }
                 >
                   <option value="">Select rooster</option>
-                  {eligibleRoosters.map((rooster) => (
+                  {meronDropdownRoosters.map((rooster) => (
                     <option key={rooster.rooster_id} value={rooster.rooster_id}>
                       {roosterLabel(rooster)} · {formatWeight(rooster.official_weight)}
                     </option>
@@ -228,7 +253,10 @@ export function MatchingDeskPanel({
             <MatchingRoosterScanRow
               eventId={eventId}
               label="Wala"
-              onResolved={setWalaRooster}
+              onResolved={(rooster) => {
+                if (meronRooster?.rooster_id === rooster.rooster_id) return
+                setWalaRooster(rooster)
+              }}
             />
             <FormField label="Or select wala">
               <NativeSelect.Root size="sm">
@@ -239,7 +267,7 @@ export function MatchingDeskPanel({
                   }
                 >
                   <option value="">Select rooster</option>
-                  {eligibleRoosters.map((rooster) => (
+                  {walaDropdownRoosters.map((rooster) => (
                     <option key={rooster.rooster_id} value={rooster.rooster_id}>
                       {roosterLabel(rooster)} · {formatWeight(rooster.official_weight)}
                     </option>
