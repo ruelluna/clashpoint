@@ -10,6 +10,8 @@ import {
   countVipObligations,
   listUnpaidHandlerObligationLabels,
   listUnpaidVipObligationLabels,
+  revolvingFundEntryTypeForVipObligation,
+  revolvingFundLedgerAmountForVipObligation,
 } from '@/features/matches/match-settlement-obligations'
 import { calculatePledgeSettlement } from '@/features/matches/pledge-settlement'
 
@@ -396,5 +398,26 @@ describe('listUnpaidVipObligationLabels', () => {
         },
       ])
     ).toEqual(['Pay VIP — Juan'])
+  })
+})
+
+describe('revolvingFundLedgerAmountForVipObligation', () => {
+  it('debits revolving fund for VIP payout and draw refund', () => {
+    expect(revolvingFundLedgerAmountForVipObligation('vip_palitada_payout', 1966.67)).toBe(
+      -1966.67
+    )
+    expect(revolvingFundLedgerAmountForVipObligation('vip_palitada_draw_refund', 500)).toBe(-500)
+  })
+
+  it('credits revolving fund when collecting from VIP on losing side', () => {
+    expect(revolvingFundLedgerAmountForVipObligation('vip_palitada_collect', 2000)).toBe(2000)
+  })
+})
+
+describe('revolvingFundEntryTypeForVipObligation', () => {
+  it('maps VIP obligation types to ledger entry types', () => {
+    expect(revolvingFundEntryTypeForVipObligation('vip_palitada_collect')).toBe('collection')
+    expect(revolvingFundEntryTypeForVipObligation('vip_palitada_payout')).toBe('refund')
+    expect(revolvingFundEntryTypeForVipObligation('vip_palitada_draw_refund')).toBe('refund')
   })
 })

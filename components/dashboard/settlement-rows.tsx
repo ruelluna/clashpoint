@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge, Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
+import { Badge, Box, Flex, Stack, Text } from '@chakra-ui/react'
 import type { ReactNode } from 'react'
 
 import { formatCurrency } from '@/features/matches/components/matching-shared'
@@ -107,6 +107,7 @@ type SettlementSectionProps = {
   progressColor?: 'green' | 'orange'
   emptyMessage?: ReactNode
   columnHeaders?: boolean
+  actionHeader?: string
   children: ReactNode
   feedback?: ReactNode
 }
@@ -117,6 +118,7 @@ export function SettlementSection({
   progressColor = 'orange',
   emptyMessage,
   columnHeaders = true,
+  actionHeader = 'Action',
   children,
   feedback,
 }: SettlementSectionProps) {
@@ -158,7 +160,7 @@ export function SettlementSection({
               Status
             </Box>
             <Box minW="9rem" textAlign="right">
-              Action
+              {actionHeader}
             </Box>
           </Flex>
         ) : null}

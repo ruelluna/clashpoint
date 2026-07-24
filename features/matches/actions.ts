@@ -302,6 +302,7 @@ export async function markVipSettlementPaidAction(
   if (result.error) return { error: result.error }
 
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/revolving-fund`)
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/results`)
   return { success: 'VIP payment marked complete' }
 }

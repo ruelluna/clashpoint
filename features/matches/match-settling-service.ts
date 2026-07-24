@@ -8,7 +8,10 @@ import {
   isVipSettlementObligationType,
   listUnpaidHandlerObligationLabels,
   listUnpaidVipObligationLabels,
+  revolvingFundEntryTypeForVipObligation,
+  revolvingFundLedgerAmountForVipObligation,
   type MatchSettlementObligationType,
+  type VipSettlementObligationType,
 } from '@/features/matches/match-settlement-obligations'
 import { loadMatchSettlementContext } from '@/features/matches/pledge-settlement-service'
 import type {
@@ -316,7 +319,54 @@ export async function markVipSettlementObligationPaid(
   }
   if (row.status === 'paid') return {}
 
+  const amount = Number(row.amount)
   const paidAt = new Date().toISOString()
+  const vipType = row.obligation_type as VipSettlementObligationType
+
+  if (Math.abs(amount) >= 0.005) {
+    const ledgerResult = await postRevolvingFundLedgerEntry({
+      eventId,
+      amount: revolvingFundLedgerAmountForVipObligation(vipType, amount),
+      entryType: revolvingFundEntryTypeForVipObligation(vipType),
+      description: row.description ?? row.label,
+      actorId,
+      sourceMatchId: matchId,
+      obligationKey: row.obligation_key,
+    })
+
+    if (ledgerResult.error) return { error: ledgerResult.error }
+    if (!ledgerResult.ledgerEntryId) return { error: 'Failed to create revolving fund entry' }
+
+    const { error: updateError } = await supabase
+      .from('match_settlement_obligations')
+      .update({
+        status: 'paid',
+        paid_at: paidAt,
+        paid_by: actorId,
+        ledger_entry_id: ledgerResult.ledgerEntryId,
+        updated_at: paidAt,
+      })
+      .eq('id', obligationId)
+
+    if (updateError) return { error: updateError.message }
+
+    await writeAuditLog({
+      actorId,
+      action: 'match.vip_settlement_paid',
+      entityType: 'match',
+      entityId: matchId,
+      newValues: {
+        obligationId,
+        obligationKey: row.obligation_key,
+        obligationType: row.obligation_type,
+        amount,
+        ledgerEntryId: ledgerResult.ledgerEntryId,
+        paidAt,
+      },
+    })
+
+    return {}
+  }
 
   const { error: updateError } = await supabase
     .from('match_settlement_obligations')
@@ -339,7 +389,7 @@ export async function markVipSettlementObligationPaid(
       obligationId,
       obligationKey: row.obligation_key,
       obligationType: row.obligation_type,
-      amount: Number(row.amount),
+      amount,
       paidAt,
     },
   })

@@ -8,6 +8,8 @@ import {
 
 } from '@/features/matches/pledge-settlement'
 
+import type { RevolvingFundEntryType } from '@/features/revolving-fund/types'
+
 import type { FightResultType } from '@/features/results/types'
 
 
@@ -757,6 +759,40 @@ export function handlerContributorName(label: string): string {
   }
 
   return label
+
+}
+
+export type VipSettlementObligationType =
+
+  | 'vip_palitada_payout'
+
+  | 'vip_palitada_collect'
+
+  | 'vip_palitada_draw_refund'
+
+export function revolvingFundLedgerAmountForVipObligation(
+
+  obligationType: VipSettlementObligationType,
+
+  amount: number
+
+): number {
+
+  const normalized = roundMatchMoney(Math.abs(amount))
+
+  if (obligationType === 'vip_palitada_collect') return normalized
+
+  return -normalized
+
+}
+
+export function revolvingFundEntryTypeForVipObligation(
+
+  obligationType: VipSettlementObligationType
+
+): RevolvingFundEntryType {
+
+  return obligationType === 'vip_palitada_collect' ? 'collection' : 'refund'
 
 }
 

@@ -3,10 +3,7 @@ import { notFound } from 'next/navigation'
 
 import { getEventWithPrize } from '@/features/events/queries'
 import { ResultsEntryClient } from '@/features/results/components/results-entry-client'
-import {
-  listMatchesPendingResults,
-  listResultsForEvent,
-} from '@/features/results/queries'
+import { listResultsForEvent } from '@/features/results/queries'
 import { getUser } from '@/lib/auth/session'
 import { hasPermission, requirePermission } from '@/lib/auth/permissions'
 
@@ -21,9 +18,8 @@ export default async function EventResultsPage({ params }: EventResultsPageProps
 
   if (!event) notFound()
 
-  const [results, pendingMatches, user] = await Promise.all([
+  const [results, user] = await Promise.all([
     listResultsForEvent(id),
-    listMatchesPendingResults(id),
     getUser(),
   ])
 
@@ -35,7 +31,6 @@ export default async function EventResultsPage({ params }: EventResultsPageProps
     <EventPageLayout eventId={event.id} eventName={event.name}>
       <ResultsEntryClient
         eventId={event.id}
-        pendingMatches={pendingMatches}
         results={results}
         canManage={canManage}
       />
