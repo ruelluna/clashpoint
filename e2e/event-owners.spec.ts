@@ -88,34 +88,6 @@ test.describe('Event owners list @auth', () => {
         await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/owners/${entryId}$`))
     })
 
-    test('looks up owner by short scan code', async ({ page }) => {
-        test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
-
-        const suffix = uniqueSuffix()
-        const eventName = `E2E Owner Short Scan ${suffix}`
-        const ownerName = `Short Farm ${suffix}`
-        const contactFullName = `Short Contact ${suffix}`
-
-        await signInAsAdmin(page)
-        const eventId = await createOpenDerbyEvent(page, eventName)
-        await registerOwnerForEvent(page, eventId, ownerName, contactFullName)
-
-        const barcodeText = await page.locator('text=/^OWN-/').first().innerText()
-        const shortCode = `O${barcodeText.slice(-4)}`
-        await expect(page.getByText(shortCode, { exact: true }).first()).toBeVisible()
-
-        const entryUrl = page.url().replace(/\/print$/, '')
-        const entryId = entryUrl.split('/').pop()!
-
-        await page.goto(`/dashboard/events/${eventId}/owners`)
-        await page
-            .getByPlaceholder('Scan OWNER barcode or type and press Enter')
-            .fill(shortCode)
-        await page.getByRole('button', { name: 'Look up barcode' }).click()
-
-        await expect(page).toHaveURL(new RegExp(`/dashboard/events/${eventId}/owners/${entryId}$`))
-    })
-
     test('blocks registering the same owner twice for an event', async ({ page }) => {
         test.skip(!hasAdminCredentials(), 'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD')
 

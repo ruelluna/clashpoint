@@ -17,7 +17,6 @@ import { palitadaContributionFingerprint } from '@/features/matches/utils'
 type MatchingActiveMatchPanelProps = {
   eventId: string
   activeMatch: MatchListItem | null
-  queueMatches: MatchListItem[]
   betBalancingMatch: MatchListItem | null
   palitadaTargetMatch: MatchListItem | null
   taxPerFight: number
@@ -33,7 +32,6 @@ type MatchingActiveMatchPanelProps = {
 export function MatchingActiveMatchPanel({
   eventId,
   activeMatch,
-  queueMatches,
   betBalancingMatch,
   palitadaTargetMatch,
   taxPerFight,
@@ -69,13 +67,7 @@ export function MatchingActiveMatchPanel({
 
   return (
     <Stack gap={LAYOUT_GAP.section}>
-      <PanelCard
-        title={
-          activeMatch.matching_number
-            ? `Fight #${activeMatch.fight_number} · ${activeMatch.matching_number}`
-            : `Fight #${activeMatch.fight_number}`
-        }
-      >
+      <PanelCard title={`Fight #${activeMatch.fight_number}`}>
         <Flex justify="flex-end" mb={3}>
           {activeMatch.queue_status ? (
             <Badge
@@ -109,7 +101,6 @@ export function MatchingActiveMatchPanel({
             <FightQueueAdvanceForm
               match={activeMatch}
               eventId={eventId}
-              queueMatches={queueMatches}
               canManage={canManage}
               canManageQueueOverride={canManageQueueOverride}
             />

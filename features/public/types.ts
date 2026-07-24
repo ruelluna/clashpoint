@@ -94,14 +94,12 @@ export type PublicRegistrationRoosterBarcode = {
   entryName: string
   bandNumber: string
   cockEntryBarcode: string
-  cockScanCode?: string | null
 }
 
 export type PublicRegistrationBarcodeResult = {
   entryNumber: string
   entryId: string
   ownerBarcode: string
-  ownerScanCode?: string | null
   ownerName: string
   contactFullName?: string | null
   contactDesignation?: string | null

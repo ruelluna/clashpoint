@@ -7,7 +7,6 @@ const baseMatch: MatchListItem = {
   id: 'match-1',
   event_id: 'event-1',
   fight_number: 1,
-  matching_number: 'ABCD-0001',
   round_number: 1,
   status: 'fighting',
   queue_status: 'fighting',
@@ -25,7 +24,6 @@ const baseMatch: MatchListItem = {
     bet_amount: 30000,
     bet_collected_amount: 30000,
     bet_barcode: 'BET-1-M',
-    bet_scan_code: 'B0001M',
     bet_payment_status: 'paid',
   },
   wala: {
@@ -40,7 +38,6 @@ const baseMatch: MatchListItem = {
     bet_amount: 20000,
     bet_collected_amount: 20000,
     bet_barcode: 'BET-1-W',
-    bet_scan_code: 'B0001W',
     bet_payment_status: 'paid',
   },
   meron_palitada: [],

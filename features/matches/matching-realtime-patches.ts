@@ -68,32 +68,3 @@ export function removeSettlingMatch(
 ): SettlingMatchListItem[] {
   return settlingMatches.filter((match) => match.id !== matchId)
 }
-
-export function sortSettlingMatches(
-  settlingMatches: SettlingMatchListItem[]
-): SettlingMatchListItem[] {
-  return [...settlingMatches].sort((a, b) => {
-    const aCode = a.matching_number ?? ''
-    const bCode = b.matching_number ?? ''
-    if (aCode && bCode && aCode !== bCode) {
-      return aCode.localeCompare(bCode)
-    }
-    if (aCode && !bCode) return -1
-    if (!aCode && bCode) return 1
-    return a.fight_number - b.fight_number
-  })
-}
-
-export function upsertSettlingMatch(
-  settlingMatches: SettlingMatchListItem[],
-  match: SettlingMatchListItem
-): SettlingMatchListItem[] {
-  const index = settlingMatches.findIndex((row) => row.id === match.id)
-  if (index === -1) {
-    return sortSettlingMatches([...settlingMatches, match])
-  }
-
-  const next = [...settlingMatches]
-  next[index] = match
-  return next
-}

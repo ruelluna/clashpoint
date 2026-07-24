@@ -138,16 +138,6 @@ export type CashierTargetMatch = {
   matchedVia: 'owner_barcode' | 'cock_barcode' | 'search'
 }
 
-export type MatchBetSettlementPayout = {
-  outcome: 'win' | 'lose' | 'draw_refund' | 'none'
-  betAmount: number
-  winnings: number
-  totalPayout: number
-  matchingNumber: string | null
-  obligationId: string | null
-  alreadyPaid: boolean
-}
-
 export type MatchBetCashierTarget = {
   matchBetId: string
   matchId: string
@@ -167,7 +157,6 @@ export type MatchBetCashierTarget = {
   bandNumber: string
   entryDues: EntryOutstandingDues
   primaryPaymentId: string | null
-  settlementPayout?: MatchBetSettlementPayout
 }
 
 export type CashierLookupResult = {

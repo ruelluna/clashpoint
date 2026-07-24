@@ -26,7 +26,7 @@ export default async function CockPrintPage({ params }: CockPrintPageProps) {
   const { data: registration, error } = await supabase
     .from('rooster_event_registrations')
     .select(
-      'id, entry_id, band_number, cock_entry_barcode, cock_scan_code, entries ( entry_number, owner_name, entry_name )'
+      'id, entry_id, band_number, cock_entry_barcode, entries ( entry_number, owner_name, entry_name )'
     )
     .eq('id', registrationId)
     .eq('event_id', id)
@@ -53,7 +53,6 @@ export default async function CockPrintPage({ params }: CockPrintPageProps) {
           entryName={entryName}
           bandNumber={registration.band_number as string}
           cockEntryBarcode={registration.cock_entry_barcode as string}
-          cockScanCode={(registration.cock_scan_code as string | null) ?? null}
         />
         <Button asChild variant="outline" alignSelf="flex-start" className="no-print">
           <Link href={`/dashboard/events/${id}/roosters`}>Back to roosters</Link>

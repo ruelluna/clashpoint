@@ -14,7 +14,6 @@ export type PublicRegistrationBarcodesProps = {
   entryNumber: string
   ownerName: string
   ownerBarcode: string
-  ownerScanCode?: string | null
   contactFullName?: string | null
   contactDesignation?: string | null
   roosters: PublicRegistrationRoosterBarcode[]
@@ -29,7 +28,6 @@ export function PublicRegistrationBarcodes({
   entryNumber,
   ownerName,
   ownerBarcode,
-  ownerScanCode,
   contactFullName,
   contactDesignation,
   roosters,
@@ -58,7 +56,6 @@ export function PublicRegistrationBarcodes({
         contactFullName={contactFullName}
         contactDesignation={contactDesignation}
         ownerBarcode={ownerBarcode}
-        ownerScanCode={ownerScanCode}
         feeSettings={feeSettings}
       />
 
@@ -71,7 +68,6 @@ export function PublicRegistrationBarcodes({
           entryName={rooster.entryName}
           bandNumber={rooster.bandNumber}
           cockEntryBarcode={rooster.cockEntryBarcode}
-          cockScanCode={rooster.cockScanCode}
         />
       ))}
 

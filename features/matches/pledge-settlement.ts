@@ -107,15 +107,6 @@ function computeSideTax(taxAmount: number): number {
   return roundMatchMoney(Math.max(0, taxAmount) / 2)
 }
 
-export function computeHandlerDrawRefund(
-  basePledge: number,
-  sideTotal: number,
-  commissionRate: number,
-  taxAmount: number
-): number {
-  return computeContributorDrawRefund(basePledge, sideTotal, commissionRate, taxAmount)
-}
-
 function computeContributorDrawRefund(
   contributionAmount: number,
   sideTotal: number,

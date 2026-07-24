@@ -148,7 +148,7 @@ export function collectUsedRoosterIds(
 ): Set<string> {
   const used = new Set<string>()
   for (const match of matches) {
-    if (match.status === 'cancelled') continue
+    if (!isActiveMatchStatus(match.status)) continue
     used.add(match.meron_rooster_id)
     used.add(match.wala_rooster_id)
   }
@@ -255,74 +255,6 @@ export function getFightQueueAdvanceBlockReason(
   return null
 }
 
-export function shouldAssignMatchingNumber(
-  currentQueue: FightQueueStatus | null,
-  nextQueue: FightQueueStatus,
-  existingMatchingNumber: string | null
-): boolean {
-  if (existingMatchingNumber != null) return false
-  return currentQueue === 'handlers_called' && nextQueue === 'birds_at_pit'
-}
-
-export const FIGHT_QUEUE_TAB_STATUSES = ['waiting', 'handlers_called'] as const satisfies readonly FightQueueStatus[]
-
-export function isFightQueueTabMatch(match: {
-  queue_status: FightQueueStatus | null
-}): boolean {
-  return (
-    match.queue_status != null &&
-    (FIGHT_QUEUE_TAB_STATUSES as readonly FightQueueStatus[]).includes(match.queue_status)
-  )
-}
-
-export function filterFightQueueTabMatches<T extends { queue_status: FightQueueStatus | null }>(
-  matches: T[]
-): T[] {
-  return matches.filter(isFightQueueTabMatch)
-}
-
-export function isMatchOccupyingArena(match: {
-  status: MatchStatus
-  queue_status: FightQueueStatus | null
-}): boolean {
-  if (match.status === 'fighting') return true
-  if (match.status === 'at_pit' && match.queue_status === 'birds_at_pit') return true
-  return false
-}
-
-export function getFightQueueConcurrentBlockReason(
-  matchId: string,
-  nextQueue: FightQueueStatus,
-  queueMatches: Array<{
-    id: string
-    fight_number: number
-    status: MatchStatus
-    queue_status: FightQueueStatus | null
-  }>
-): string | null {
-  if (nextQueue !== 'birds_at_pit' && nextQueue !== 'fighting') {
-    return null
-  }
-
-  const otherOccupying = queueMatches.find(
-    (queueMatch) => queueMatch.id !== matchId && isMatchOccupyingArena(queueMatch)
-  )
-  if (!otherOccupying) return null
-
-  if (nextQueue === 'fighting') {
-    return `Finish fight #${otherOccupying.fight_number} before starting another fight.`
-  }
-
-  if (
-    otherOccupying.status === 'at_pit' &&
-    otherOccupying.queue_status === 'birds_at_pit'
-  ) {
-    return `Fight #${otherOccupying.fight_number} is at the pit. Wait until that match finishes before sending birds to the arena.`
-  }
-
-  return `Finish fight #${otherOccupying.fight_number} before birds can be sent to the pit.`
-}
-
 export function canEditMatchBets(
   matchStatus: MatchStatus,
   betPaymentStatuses: MatchBetPaymentStatus[],
@@ -391,8 +323,7 @@ export function resolveActiveMatch(queueMatches: MatchListItem[]): MatchListItem
   const candidates = queueMatches.filter(
     (match) =>
       match.queue_status != null &&
-      ACTIVE_CALLED_QUEUE_STATUSES.includes(match.queue_status) &&
-      (match.status === 'queued' || match.status === 'at_pit' || match.status === 'fighting')
+      ACTIVE_CALLED_QUEUE_STATUSES.includes(match.queue_status)
   )
 
   if (candidates.length === 0) return null

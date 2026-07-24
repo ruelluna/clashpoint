@@ -1,26 +1,21 @@
 const MATCHING_SYNC_CHANNEL = 'pitclash-matching-sync'
 export const MATCHING_SYNC_STORAGE_KEY = 'pitclash-matching-sync'
-export const MATCHING_SYNC_HANDLED_STORAGE_KEY = 'pitclash-matching-sync-handled'
 const POLL_MS = 500
 
-export type CrossTabSource = 'broadcast' | 'storage' | 'poll'
-
 export type PalitadaSyncAction = 'palitada_added' | 'palitada_removed'
-
-export type SettlementSyncAction = 'settlement_updated'
-
-export type MatchingSyncAction = PalitadaSyncAction | SettlementSyncAction
 
 export type MatchingSyncMessage = {
   eventId: string
   matchId: string
-  action?: MatchingSyncAction
+  action?: PalitadaSyncAction
   fightNumber?: number
   contributionId?: string
   sentAt?: number
 }
 
 type StoredMatchingSyncMessage = MatchingSyncMessage & { sentAt: number }
+
+type CrossTabSource = 'broadcast' | 'storage' | 'poll'
 
 type CrossTabListener = {
   eventId: string | null
@@ -90,35 +85,6 @@ function listenerMatchesEvent(listener: CrossTabListener, eventId: string): bool
   return listener.eventId == null || listener.eventId === eventId
 }
 
-function readPersistedLastHandledSentAt(eventId: string): number {
-  const win = getBrowserWindow()
-  if (!win) return 0
-  try {
-    const raw = win.sessionStorage.getItem(MATCHING_SYNC_HANDLED_STORAGE_KEY)
-    if (!raw) return 0
-    const parsed = JSON.parse(raw) as Record<string, number>
-    const value = parsed[eventId]
-    return typeof value === 'number' ? value : 0
-  } catch {
-    return 0
-  }
-}
-
-function persistLastHandledSentAt(eventId: string, sentAt: number) {
-  const win = getBrowserWindow()
-  if (!win) return
-  try {
-    const raw = win.sessionStorage.getItem(MATCHING_SYNC_HANDLED_STORAGE_KEY)
-    const parsed = raw ? (JSON.parse(raw) as Record<string, number>) : {}
-    const current = parsed[eventId] ?? 0
-    if (sentAt <= current) return
-    parsed[eventId] = sentAt
-    win.sessionStorage.setItem(MATCHING_SYNC_HANDLED_STORAGE_KEY, JSON.stringify(parsed))
-  } catch {
-    // ignore storage errors
-  }
-}
-
 function deliverToListeners(message: MatchingSyncMessage, source: CrossTabSource) {
   const sentAt = resolveSentAt(message)
   if (sentAt == null) return
@@ -128,7 +94,6 @@ function deliverToListeners(message: MatchingSyncMessage, source: CrossTabSource
     if (sentAt <= listener.lastHandledSentAt) continue
 
     listener.lastHandledSentAt = sentAt
-    persistLastHandledSentAt(message.eventId, sentAt)
     listener.onMessage(stripSentAt(message), source)
   }
 }
@@ -214,7 +179,7 @@ export function subscribeMatchingCrossTabMessages(options: {
 
   const listener: CrossTabListener = {
     eventId: options.eventId,
-    lastHandledSentAt: readPersistedLastHandledSentAt(options.eventId),
+    lastHandledSentAt: 0,
     pollOnMount: options.pollOnMount ?? false,
     onMessage: options.onMessage,
   }
@@ -235,11 +200,7 @@ export function subscribeMatchingCrossTabMessages(options: {
 export function broadcastMatchingRefresh(
   eventId: string,
   matchId: string,
-  options?: {
-    action?: MatchingSyncAction
-    fightNumber?: number
-    contributionId?: string
-  }
+  options?: { action?: PalitadaSyncAction; fightNumber?: number; contributionId?: string }
 ) {
   publishSyncMessage({
     eventId,
@@ -248,10 +209,6 @@ export function broadcastMatchingRefresh(
     fightNumber: options?.fightNumber,
     contributionId: options?.contributionId,
   })
-}
-
-export function broadcastSettlementUpdated(eventId: string, matchId: string) {
-  broadcastMatchingRefresh(eventId, matchId, { action: 'settlement_updated' })
 }
 
 /** @deprecated Prefer subscribeMatchingCrossTabMessages */

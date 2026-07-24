@@ -129,7 +129,7 @@ export async function createPublicRoostersForEntry(
   const { data: entry, error: entryError } = await supabase
     .from('entries')
     .select(
-      'id, entry_number, owner_barcode, owner_scan_code, owner_name, contact_full_name, contact_designation'
+      'id, entry_number, owner_barcode, owner_name, contact_full_name, contact_designation'
     )
     .eq('id', context.entryId)
     .maybeSingle()
@@ -141,7 +141,7 @@ export async function createPublicRoostersForEntry(
 
   const { data: registrations, error: registrationsError } = await supabase
     .from('rooster_event_registrations')
-    .select('id, band_number, cock_entry_barcode, cock_scan_code, registry_rooster_id')
+    .select('id, band_number, cock_entry_barcode, registry_rooster_id')
     .eq('entry_id', context.entryId)
     .order('cock_number', { ascending: true })
 
@@ -165,7 +165,6 @@ export async function createPublicRoostersForEntry(
   const roosters = (registrations ?? []).map((row, index) => {
     const bandNumber = (row.band_number as string) ?? ''
     const cockEntryBarcode = (row.cock_entry_barcode as string | null) ?? ''
-    const cockScanCode = (row.cock_scan_code as string | null) ?? null
     const registryId = row.registry_rooster_id as string | null
     const registryName = registryId ? registryNameById.get(registryId) : undefined
     const submittedName = input.roosters[index]?.entryName?.trim()
@@ -174,7 +173,6 @@ export async function createPublicRoostersForEntry(
       entryName: registryName?.trim() || submittedName || bandNumber || 'Rooster',
       bandNumber,
       cockEntryBarcode,
-      cockScanCode,
     }
   })
 
@@ -195,7 +193,6 @@ export async function createPublicRoostersForEntry(
     entryId: context.entryId,
     entryNumber: (entry.entry_number as string | undefined) ?? context.entryNumber ?? '',
     ownerBarcode: entry.owner_barcode as string,
-    ownerScanCode: (entry.owner_scan_code as string | null) ?? null,
     ownerName: (entry.owner_name as string) ?? '',
     contactFullName: (entry.contact_full_name as string | null) ?? null,
     contactDesignation: (entry.contact_designation as string | null) ?? null,

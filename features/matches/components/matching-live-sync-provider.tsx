@@ -11,7 +11,6 @@ type MatchingLiveSyncContextValue = {
   awaitingPaymentMatches: MatchListItem[]
   settlingMatches: SettlingMatchListItem[]
   refreshMatch: (matchId: string) => Promise<void>
-  refreshSettlingMatch: (matchId: string) => Promise<void>
 }
 
 const MatchingLiveSyncContext = createContext<MatchingLiveSyncContextValue | null>(null)
@@ -39,7 +38,7 @@ export function MatchingLiveSyncProvider({
   )
   const [settlingMatches, setSettlingMatches] = useState(initialSettlingMatches)
 
-  const { refreshMatch, refreshSettlingMatch } = useEventMatchingRealtime({
+  const { refreshMatch } = useEventMatchingRealtime({
     eventId,
     setQueueMatches,
     setAwaitingPaymentMatches,
@@ -53,9 +52,8 @@ export function MatchingLiveSyncProvider({
       awaitingPaymentMatches,
       settlingMatches,
       refreshMatch,
-      refreshSettlingMatch,
     }),
-    [queueMatches, awaitingPaymentMatches, settlingMatches, refreshMatch, refreshSettlingMatch]
+    [queueMatches, awaitingPaymentMatches, settlingMatches, refreshMatch]
   )
 
   return (

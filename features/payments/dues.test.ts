@@ -221,19 +221,4 @@ describe('classifyCashierQuery', () => {
       value: 'Smith Farm',
     })
   })
-
-  it('classifies short scan codes', () => {
-    expect(classifyCashierQuery('o0003', eventId)).toEqual({
-      kind: 'owner_barcode',
-      value: 'O0003',
-    })
-    expect(classifyCashierQuery('C0007', eventId)).toEqual({
-      kind: 'cock_barcode',
-      value: 'C0007',
-    })
-    expect(classifyCashierQuery('b0042m', eventId)).toEqual({
-      kind: 'match_bet',
-      value: 'B0042M',
-    })
-  })
 })

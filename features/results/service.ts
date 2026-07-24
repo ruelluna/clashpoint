@@ -133,11 +133,7 @@ export async function recordResult(
 
   await supabase
     .from('matches')
-    .update({
-      status: 'settling',
-      queue_status: null,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ status: 'settling', updated_at: new Date().toISOString() })
     .eq('id', input.matchId)
 
   const settlementResult = await applyMatchPledgeSettlement(

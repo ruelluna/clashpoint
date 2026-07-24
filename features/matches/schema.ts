@@ -123,12 +123,6 @@ export const completeMatchSettlementSchema = z.object({
   matchId: z.string().uuid(),
 })
 
-export const markVipSettlementPaidSchema = z.object({
-  eventId: z.string().uuid(),
-  matchId: z.string().uuid(),
-  obligationId: z.string().uuid(),
-})
-
 export const lookupRoosterForMatchingSchema = z.object({
   eventId: z.string().uuid(),
   barcode: z.string().min(1, 'Barcode is required'),
@@ -146,7 +140,6 @@ export type PostMatchSettlementObligationInput = z.infer<
   typeof postMatchSettlementObligationSchema
 >
 export type CompleteMatchSettlementInput = z.infer<typeof completeMatchSettlementSchema>
-export type MarkVipSettlementPaidInput = z.infer<typeof markVipSettlementPaidSchema>
 export type LookupRoosterForMatchingInput = z.infer<
   typeof lookupRoosterForMatchingSchema
 >
@@ -197,55 +190,6 @@ export const FIGHT_SIDE_LABELS = {
   wala: 'Wala',
 } as const
 
-export function formatMatchingNumberSuffix(sequence: number): string {
-  return `-${String(sequence).padStart(4, '0')}`
-}
-
-const MATCHING_NUMBER_PATTERN = /^[A-Z]{4}-(\d{4})$/
-
-export function parseMatchingNumberSequence(matchingNumber: string): number | null {
-  const match = matchingNumber.trim().toUpperCase().match(MATCHING_NUMBER_PATTERN)
-  if (!match) return null
-  return Number.parseInt(match[1]!, 10)
-}
-
-export function nextMatchingNumberSequence(existing: (string | null)[]): number {
-  let maxSequence = 0
-  for (const matchingNumber of existing) {
-    if (matchingNumber == null) continue
-    const sequence = parseMatchingNumberSequence(matchingNumber)
-    if (sequence != null && sequence > maxSequence) {
-      maxSequence = sequence
-    }
-  }
-  return maxSequence + 1
-}
-
-function randomMatchingLetters(): string {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  let letters = ''
-  const bytes = new Uint8Array(4)
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    crypto.getRandomValues(bytes)
-    for (let index = 0; index < 4; index += 1) {
-      letters += alphabet[bytes[index]! % 26]!
-    }
-  } else {
-    for (let index = 0; index < 4; index += 1) {
-      letters += alphabet[Math.floor(Math.random() * 26)]!
-    }
-  }
-  return letters
-}
-
-export function formatMatchingNumber(letters: string, sequence: number): string {
-  return `${letters}${formatMatchingNumberSuffix(sequence)}`
-}
-
-export function generateMatchingNumber(sequence: number): string {
-  return formatMatchingNumber(randomMatchingLetters(), sequence)
-}
-
 export function formatMatchBetBarcode(
   eventId: string,
   fightNumber: number,
@@ -256,54 +200,8 @@ export function formatMatchBetBarcode(
   return `BET-${prefix}-${String(fightNumber).padStart(4, '0')}-${sideCode}`
 }
 
-export function formatMatchBetScanCode(
-  fightNumber: number,
-  side: 'meron' | 'wala'
-): string {
-  const sideCode = side === 'meron' ? 'M' : 'W'
-  return `B${String(fightNumber).padStart(4, '0')}${sideCode}`
-}
-
-export function matchBetScanCodeFromCanonical(barcode: string): string | null {
-  const match = /^BET-[A-Z0-9]{8}-(\d{4})-(M|W)$/i.exec(barcode.trim())
-  if (!match) return null
-  return formatMatchBetScanCode(
-    Number.parseInt(match[1]!, 10),
-    match[2]!.toUpperCase() === 'M' ? 'meron' : 'wala'
-  )
-}
-
-export function resolveMatchBetScanCode(
-  barcode: string | null | undefined,
-  scanCode?: string | null
-): string | null {
-  if (scanCode?.trim()) return normalizeMatchBetBarcodeInput(scanCode)
-  if (!barcode) return null
-  return matchBetScanCodeFromCanonical(barcode)
-}
-
 export function normalizeMatchBetBarcodeInput(value: string): string {
   return value.trim().toUpperCase()
-}
-
-export function parseMatchBetScanCode(
-  raw: string
-): { fightNumber: number; side: 'meron' | 'wala' } | null {
-  const value = normalizeMatchBetBarcodeInput(raw)
-  const match = /^B(\d{4})(M|W)$/.exec(value)
-  if (!match) return null
-
-  const fightNumber = Number.parseInt(match[1]!, 10)
-  if (Number.isNaN(fightNumber) || fightNumber <= 0) return null
-
-  return {
-    fightNumber,
-    side: match[2] === 'M' ? 'meron' : 'wala',
-  }
-}
-
-export function isMatchBetScanCode(value: string): boolean {
-  return parseMatchBetScanCode(value) != null
 }
 
 export function isMatchBetBarcodeForEvent(value: string, eventId: string): boolean {
@@ -315,9 +213,6 @@ export function parseMatchBetBarcode(
   eventId: string
 ): { fightNumber: number; side: 'meron' | 'wala' } | null {
   const value = normalizeMatchBetBarcodeInput(raw)
-  const fromScan = parseMatchBetScanCode(value)
-  if (fromScan != null) return fromScan
-
   const prefix = `BET-${eventId.replace(/-/g, '').slice(0, 8).toUpperCase()}-`
   if (!value.startsWith(prefix)) return null
 

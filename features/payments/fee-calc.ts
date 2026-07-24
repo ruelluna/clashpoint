@@ -41,7 +41,6 @@ export type PaymentCategory =
   | 'adjustment'
   | 'legacy'
   | 'match_bet'
-  | 'match_bet_payout'
 
 export function computeCategoryAmountDue(
   category: PaymentCategory,

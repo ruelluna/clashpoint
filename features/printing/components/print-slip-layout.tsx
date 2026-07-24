@@ -1,13 +1,9 @@
 'use client'
 
 import { Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { flushSync } from 'react-dom'
 
-import {
-  printCompactLabel,
-  printWithClearedTitle,
-} from '@/features/printing/print-compact-label'
 import {
   PrintFormatProvider,
   type PrintFormat,
@@ -16,7 +12,7 @@ import {
 type PrintSlipLayoutProps = {
   title: string
   eventName: string
-  /** Center full slip on 100×150 mm label paper (barcode slips only). */
+  /** Center full slip on 100×150 mm label paper, landscape (barcode slips only). */
   labelSizedSlip?: boolean
   children: React.ReactNode
   onPrint?: (format: PrintFormat) => void
@@ -38,12 +34,8 @@ function setDocumentLabelPrint(active: boolean) {
   }
 }
 
-function setDocumentStickerPrint(active: boolean) {
-  if (active) {
-    document.documentElement.dataset.stickerPrint = 'true'
-  } else {
-    delete document.documentElement.dataset.stickerPrint
-  }
+function usesLabelPrint(format: PrintFormat, labelSizedSlip: boolean) {
+  return format === 'sticker' || (format === 'slip' && labelSizedSlip)
 }
 
 function waitForBarcodeThenPrint(root: Element | null, print: () => void) {
@@ -78,7 +70,6 @@ export function PrintSlipLayout({
   onPrint,
 }: PrintSlipLayoutProps) {
   const [printFormat, setPrintFormat] = useState<PrintFormat>('slip')
-  const rootRef = useRef<HTMLDivElement>(null)
 
   const handlePrint = useCallback(
     (format: PrintFormat) => {
@@ -90,14 +81,12 @@ export function PrintSlipLayout({
 
       flushSync(() => setPrintFormat(format))
 
-      const root = rootRef.current
-      const panel = root?.querySelector('.print-slip-panel')
+      const root = document.querySelector('.print-slip-root')
       if (root instanceof HTMLElement) {
         root.dataset.printFormat = format
       }
       setDocumentPrintFormat(format)
-      setDocumentLabelPrint(format === 'slip' && labelSizedSlip)
-      setDocumentStickerPrint(format === 'sticker' && labelSizedSlip)
+      setDocumentLabelPrint(usesLabelPrint(format, labelSizedSlip))
 
       const resetFormat = () => {
         if (root instanceof HTMLElement) {
@@ -105,23 +94,11 @@ export function PrintSlipLayout({
         }
         setDocumentPrintFormat(null)
         setDocumentLabelPrint(false)
-        setDocumentStickerPrint(false)
         setPrintFormat('slip')
         window.removeEventListener('afterprint', resetFormat)
       }
 
       window.addEventListener('afterprint', resetFormat)
-
-      if (format === 'sticker' && labelSizedSlip && panel instanceof HTMLElement) {
-        waitForBarcodeThenPrint(root, () => {
-          void printCompactLabel(panel)
-            .catch(() => {
-              printWithClearedTitle(() => window.print())
-            })
-            .finally(resetFormat)
-        })
-        return
-      }
 
       waitForBarcodeThenPrint(root, () => {
         window.print()
@@ -137,25 +114,16 @@ export function PrintSlipLayout({
   return (
     <PrintFormatProvider format={printFormat}>
       <Stack
-        ref={rootRef}
         gap={6}
         className={rootClassName}
         data-print-format={printFormat}
       >
-        <Stack gap={1} className="no-print">
-          <Flex gap={2} wrap="wrap">
-            <Button onClick={() => handlePrint('slip')}>Print slip</Button>
-            <Button variant="outline" onClick={() => handlePrint('sticker')}>
-              Print sticker
-            </Button>
-          </Flex>
-          {labelSizedSlip ? (
-            <Text fontSize="xs" color="fg.muted">
-              If a URL appears on sticker print, disable Headers and footers in
-              the print dialog.
-            </Text>
-          ) : null}
-        </Stack>
+        <Flex gap={2} className="no-print" wrap="wrap">
+          <Button onClick={() => handlePrint('slip')}>Print slip</Button>
+          <Button variant="outline" onClick={() => handlePrint('sticker')}>
+            Print sticker
+          </Button>
+        </Flex>
         <Box
           borderWidth="1px"
           borderColor="border"
@@ -165,7 +133,7 @@ export function PrintSlipLayout({
           className="print-slip-panel"
           css={{
             '@media screen': {
-              maxWidth: printFormat === 'sticker' && labelSizedSlip ? undefined : 'md',
+              maxWidth: 'md',
             },
           }}
         >

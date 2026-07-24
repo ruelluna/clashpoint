@@ -1,12 +1,11 @@
 'use client'
 
 import { Button, Flex, Input, Text } from '@chakra-ui/react'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import { OwnerBarcodeScannerDialog } from '@/features/entries/components/owner-barcode-scanner-dialog'
 import { lookupRoosterForMatchingAction } from '@/features/matches/actions'
 import type { EligibleRooster } from '@/features/matches/types'
-import { useBarcodeScanInput } from '@/hooks/use-barcode-scan-input'
 
 type MatchingRoosterScanRowProps = {
   eventId: string
@@ -21,38 +20,43 @@ export function MatchingRoosterScanRow({
   onResolved,
   disabled = false,
 }: MatchingRoosterScanRowProps) {
+  const scanInputRef = useRef<HTMLInputElement>(null)
+  const [scanValue, setScanValue] = useState('')
   const [scanError, setScanError] = useState<string | null>(null)
+  const [scanPending, setScanPending] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
 
-  const handleSubmit = useCallback(
+  const resolveBarcode = useCallback(
     async (rawBarcode: string) => {
-      const result = await lookupRoosterForMatchingAction(eventId, rawBarcode)
+      const trimmed = rawBarcode.trim()
+      if (!trimmed) {
+        setScanError('Enter a barcode to scan')
+        return
+      }
+
+      setScanPending(true)
+      setScanError(null)
+
+      const result = await lookupRoosterForMatchingAction(eventId, trimmed)
+      setScanPending(false)
 
       if (result.error || !result.rooster) {
         setScanError(result.error ?? 'No eligible rooster found for this barcode')
-        return 'error' as const
+        scanInputRef.current?.select()
+        return
       }
 
-      setScanError(null)
+      setScanValue('')
       onResolved(result.rooster)
-      return 'success' as const
     },
     [eventId, onResolved]
   )
 
-  const {
-    inputRef,
-    value,
-    onChange,
-    onKeyDown,
-    onFocus,
-    submitCurrent,
-    submitRaw,
-    pending,
-  } = useBarcodeScanInput({
-    onSubmit: handleSubmit,
-    disabled,
-  })
+  async function handleScanKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    await resolveBarcode(scanValue)
+  }
 
   return (
     <Flex direction="column" gap={2}>
@@ -61,17 +65,16 @@ export function MatchingRoosterScanRow({
           {label}
         </Text>
         <Input
-          ref={inputRef}
+          ref={scanInputRef}
           size="md"
           placeholder="Scan COCK barcode or type and press Enter"
-          value={value}
+          value={scanValue}
           onChange={(event) => {
-            onChange(event)
+            setScanValue(event.target.value)
             if (scanError) setScanError(null)
           }}
-          onKeyDown={onKeyDown}
-          onFocus={onFocus}
-          disabled={pending || disabled}
+          onKeyDown={handleScanKeyDown}
+          disabled={scanPending || disabled}
           data-testid={`matching-${label.toLowerCase()}-scan-input`}
         />
       </Flex>
@@ -80,16 +83,16 @@ export function MatchingRoosterScanRow({
           size="md"
           variant="outline"
           onClick={() => setScannerOpen(true)}
-          disabled={pending || disabled}
+          disabled={scanPending || disabled}
         >
           Scan with camera
         </Button>
         <Button
           size="md"
           variant="outline"
-          onClick={submitCurrent}
-          loading={pending}
-          disabled={!value.trim() || disabled}
+          onClick={() => void resolveBarcode(scanValue)}
+          loading={scanPending}
+          disabled={!scanValue.trim() || disabled}
         >
           Look up barcode
         </Button>
@@ -102,7 +105,7 @@ export function MatchingRoosterScanRow({
       <OwnerBarcodeScannerDialog
         open={scannerOpen}
         onOpenChange={setScannerOpen}
-        onScan={(barcode) => submitRaw(barcode)}
+        onScan={(barcode) => void resolveBarcode(barcode)}
         title="Scan cock entry barcode"
         hint="Point the camera at the cock entry slip barcode."
       />

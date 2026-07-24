@@ -21,7 +21,6 @@ export type MatchRow = {
   id: string
   event_id: string
   fight_number: number
-  matching_number: string | null
   round_number: number | null
   meron_entry_id: string
   meron_rooster_id: string
@@ -50,25 +49,18 @@ export type MatchSettlementObligationItem = {
   event_id: string
   obligation_key: string
   obligation_type:
-    | 'handler_win_payout'
-    | 'handler_draw_refund'
     | 'monton_palitada_stake'
     | 'monton_palitada_payout'
     | 'monton_palitada_draw_refund'
     | 'monton_house_earnings'
-    | 'vip_palitada_payout'
-    | 'vip_palitada_collect'
-    | 'vip_palitada_draw_refund'
+    | 'vip_palitada_payout_info'
   amount: number
   label: string
   description: string | null
   contributor_id: string | null
   requires_ledger_post: boolean
-  status: 'pending' | 'posted' | 'paid'
+  status: 'pending' | 'posted'
   ledger_entry_id: string | null
-  paid_at: string | null
-  paid_by: string | null
-  payment_id: string | null
   sort_order: number
 }
 
@@ -96,7 +88,6 @@ export type MatchSideDetails = {
   bet_amount: number
   bet_collected_amount: number
   bet_barcode: string | null
-  bet_scan_code: string | null
   bet_payment_status: MatchBetPaymentStatus
 }
 
@@ -104,7 +95,6 @@ export type MatchListItem = {
   id: string
   event_id: string
   fight_number: number
-  matching_number: string | null
   round_number: number | null
   status: MatchStatus
   queue_status: FightQueueStatus | null

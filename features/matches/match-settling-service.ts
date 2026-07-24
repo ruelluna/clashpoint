@@ -2,16 +2,9 @@ import 'server-only'
 
 import { writeAuditLog } from '@/features/audit/service'
 import {
-  allObligationsComplete,
+  allRequiredObligationsPosted,
   buildMatchSettlementObligations,
-  isHandlerSettlementObligationType,
-  isVipSettlementObligationType,
-  listUnpaidHandlerObligationLabels,
-  listUnpaidVipObligationLabels,
-  revolvingFundEntryTypeForVipObligation,
-  revolvingFundLedgerAmountForVipObligation,
   type MatchSettlementObligationType,
-  type VipSettlementObligationType,
 } from '@/features/matches/match-settlement-obligations'
 import { loadMatchSettlementContext } from '@/features/matches/pledge-settlement-service'
 import type {
@@ -28,17 +21,14 @@ type ObligationRow = {
   match_id: string
   event_id: string
   obligation_key: string
-  obligation_type: MatchSettlementObligationType | 'vip_palitada_payout_info'
+  obligation_type: MatchSettlementObligationType
   amount: number
   label: string
   description: string | null
   contributor_id: string | null
   requires_ledger_post: boolean
-  status: 'pending' | 'posted' | 'paid'
+  status: 'pending' | 'posted'
   ledger_entry_id: string | null
-  paid_at: string | null
-  paid_by: string | null
-  payment_id: string | null
   sort_order: number
 }
 
@@ -48,7 +38,7 @@ function mapObligationRow(row: ObligationRow): MatchSettlementObligationItem {
     match_id: row.match_id,
     event_id: row.event_id,
     obligation_key: row.obligation_key,
-    obligation_type: row.obligation_type as MatchSettlementObligationItem['obligation_type'],
+    obligation_type: row.obligation_type,
     amount: Number(row.amount),
     label: row.label,
     description: row.description,
@@ -56,9 +46,6 @@ function mapObligationRow(row: ObligationRow): MatchSettlementObligationItem {
     requires_ledger_post: row.requires_ledger_post,
     status: row.status,
     ledger_entry_id: row.ledger_entry_id,
-    paid_at: row.paid_at,
-    paid_by: row.paid_by,
-    payment_id: row.payment_id,
     sort_order: row.sort_order,
   }
 }
@@ -102,10 +89,7 @@ export async function persistMatchSettlementObligations(
     })
   )
 
-  const drafts = buildMatchSettlementObligations(settlement, resultType, {
-    meronEntryName: context.match.meron.entry_name,
-    walaEntryName: context.match.wala.entry_name,
-  })
+  const drafts = buildMatchSettlementObligations(settlement, resultType)
   if (drafts.length === 0) return {}
 
   const supabase = await createClient()
@@ -120,7 +104,7 @@ export async function persistMatchSettlementObligations(
       description: draft.description,
       contributor_id: draft.contributorId,
       requires_ledger_post: draft.requiresLedgerPost,
-      status: 'pending' as const,
+      status: draft.requiresLedgerPost ? ('pending' as const) : ('posted' as const),
       sort_order: draft.sortOrder,
       updated_at: new Date().toISOString(),
     })),
@@ -183,16 +167,6 @@ export async function listSettlingMatchesWithObligations(
       result_type: resultByMatch.get(match.id) ?? 'draw',
       obligations: obligationsByMatch.get(match.id) ?? [],
     }))
-    .sort((a, b) => {
-      const aCode = a.matching_number ?? ''
-      const bCode = b.matching_number ?? ''
-      if (aCode && bCode && aCode !== bCode) {
-        return aCode.localeCompare(bCode)
-      }
-      if (aCode && !bCode) return -1
-      if (!aCode && bCode) return 1
-      return a.fight_number - b.fight_number
-    })
 }
 
 export async function postMatchSettlementObligation(
@@ -217,16 +191,13 @@ export async function postMatchSettlementObligation(
   const row = obligation as ObligationRow
   if (row.status === 'posted') return {}
 
-  if (isVipSettlementObligationType(row.obligation_type)) {
-    return { error: 'Use Mark paid for VIP Palitada obligations' }
-  }
-
-  if (isHandlerSettlementObligationType(row.obligation_type)) {
-    return { error: 'Handler payouts are paid at the Cashier Terminal' }
-  }
-
   if (!row.requires_ledger_post) {
-    return { error: 'This obligation does not require a revolving fund post' }
+    const { error } = await supabase
+      .from('match_settlement_obligations')
+      .update({ status: 'posted', updated_at: new Date().toISOString() })
+      .eq('id', obligationId)
+    if (error) return { error: error.message }
+    return {}
   }
 
   const amount = Number(row.amount)
@@ -242,9 +213,7 @@ export async function postMatchSettlementObligation(
   const ledgerResult = await postRevolvingFundLedgerEntry({
     eventId,
     amount,
-    entryType: ledgerEntryTypeForObligation(
-      row.obligation_type as MatchSettlementObligationType
-    ),
+    entryType: ledgerEntryTypeForObligation(row.obligation_type),
     description: row.description ?? row.label,
     actorId,
     sourceMatchId: matchId,
@@ -281,122 +250,6 @@ export async function postMatchSettlementObligation(
   return {}
 }
 
-export async function markVipSettlementObligationPaid(
-  actorId: string,
-  eventId: string,
-  matchId: string,
-  obligationId: string
-): Promise<{ error?: string }> {
-  const supabase = await createClient()
-
-  const { data: match, error: matchError } = await supabase
-    .from('matches')
-    .select('id, status')
-    .eq('id', matchId)
-    .eq('event_id', eventId)
-    .maybeSingle()
-
-  if (matchError) return { error: matchError.message }
-  if (!match) return { error: 'Match not found' }
-  if (match.status !== 'settling') {
-    return { error: 'Match is not awaiting settlement' }
-  }
-
-  const { data: obligation, error: fetchError } = await supabase
-    .from('match_settlement_obligations')
-    .select('*')
-    .eq('id', obligationId)
-    .eq('match_id', matchId)
-    .eq('event_id', eventId)
-    .maybeSingle()
-
-  if (fetchError) return { error: fetchError.message }
-  if (!obligation) return { error: 'Settlement obligation not found' }
-
-  const row = obligation as ObligationRow
-  if (!isVipSettlementObligationType(row.obligation_type)) {
-    return { error: 'Only VIP Palitada obligations can be marked paid here' }
-  }
-  if (row.status === 'paid') return {}
-
-  const amount = Number(row.amount)
-  const paidAt = new Date().toISOString()
-  const vipType = row.obligation_type as VipSettlementObligationType
-
-  if (Math.abs(amount) >= 0.005) {
-    const ledgerResult = await postRevolvingFundLedgerEntry({
-      eventId,
-      amount: revolvingFundLedgerAmountForVipObligation(vipType, amount),
-      entryType: revolvingFundEntryTypeForVipObligation(vipType),
-      description: row.description ?? row.label,
-      actorId,
-      sourceMatchId: matchId,
-      obligationKey: row.obligation_key,
-    })
-
-    if (ledgerResult.error) return { error: ledgerResult.error }
-    if (!ledgerResult.ledgerEntryId) return { error: 'Failed to create revolving fund entry' }
-
-    const { error: updateError } = await supabase
-      .from('match_settlement_obligations')
-      .update({
-        status: 'paid',
-        paid_at: paidAt,
-        paid_by: actorId,
-        ledger_entry_id: ledgerResult.ledgerEntryId,
-        updated_at: paidAt,
-      })
-      .eq('id', obligationId)
-
-    if (updateError) return { error: updateError.message }
-
-    await writeAuditLog({
-      actorId,
-      action: 'match.vip_settlement_paid',
-      entityType: 'match',
-      entityId: matchId,
-      newValues: {
-        obligationId,
-        obligationKey: row.obligation_key,
-        obligationType: row.obligation_type,
-        amount,
-        ledgerEntryId: ledgerResult.ledgerEntryId,
-        paidAt,
-      },
-    })
-
-    return {}
-  }
-
-  const { error: updateError } = await supabase
-    .from('match_settlement_obligations')
-    .update({
-      status: 'paid',
-      paid_at: paidAt,
-      paid_by: actorId,
-      updated_at: paidAt,
-    })
-    .eq('id', obligationId)
-
-  if (updateError) return { error: updateError.message }
-
-  await writeAuditLog({
-    actorId,
-    action: 'match.vip_settlement_paid',
-    entityType: 'match',
-    entityId: matchId,
-    newValues: {
-      obligationId,
-      obligationKey: row.obligation_key,
-      obligationType: row.obligation_type,
-      amount,
-      paidAt,
-    },
-  })
-
-  return {}
-}
-
 export async function completeMatchSettlement(
   actorId: string,
   eventId: string,
@@ -419,26 +272,12 @@ export async function completeMatchSettlement(
 
   const { data: obligations, error: obligationError } = await supabase
     .from('match_settlement_obligations')
-    .select('obligation_type, requires_ledger_post, status, label')
+    .select('requires_ledger_post, status')
     .eq('match_id', matchId)
 
   if (obligationError) return { error: obligationError.message }
 
-  const obligationRows = (obligations ?? []) as ObligationRow[]
-
-  if (!allObligationsComplete(obligationRows)) {
-    const unpaidHandlers = listUnpaidHandlerObligationLabels(obligationRows)
-    if (unpaidHandlers.length > 0) {
-      return {
-        error: `Pay match winners at Cashier before marking settled: ${unpaidHandlers.join(', ')}`,
-      }
-    }
-    const unpaidVips = listUnpaidVipObligationLabels(obligationRows)
-    if (unpaidVips.length > 0) {
-      return {
-        error: `Complete VIP payments before marking settled: ${unpaidVips.join(', ')}`,
-      }
-    }
+  if (!allRequiredObligationsPosted((obligations ?? []) as ObligationRow[])) {
     return { error: 'Post all required revolving fund obligations before marking settled' }
   }
 

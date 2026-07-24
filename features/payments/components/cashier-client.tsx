@@ -25,13 +25,11 @@ import {
 } from '@/components/dashboard'
 import { OwnerBarcodeScannerDialog } from '@/features/entries/components/owner-barcode-scanner-dialog'
 import { PAYMENT_STATUS_LABELS } from '@/features/entries/schema'
-import type { ScanSubmitOutcome } from '@/features/entries/barcode-scan-utils'
 import type { AdminHandoverCandidate, CashierSessionSummary } from '@/features/cashier-sessions/types'
 import type { EventFeeSettings } from '@/features/events/fee-utils'
 import { CashierCloseSessionForm } from '@/features/payments/components/cashier-close-session-form'
 import { CashierHandoverForm } from '@/features/payments/components/cashier-handover-form'
 import { CashierOpenSessionForm } from '@/features/payments/components/cashier-open-session-form'
-import { CashierLedgerRow } from '@/features/payments/components/cashier-ledger-row'
 import { CashierTerminalClock } from '@/features/payments/components/cashier-terminal-clock'
 import { CashBondRefundDialog } from '@/features/payments/components/cash-bond-refund-dialog'
 import {
@@ -45,7 +43,6 @@ import {
   recordMatchBetPartialRefundAction,
   recordMatchBetPaymentAction,
   recordMatchBetTopUpAction,
-  recordMatchBetWinPayoutAction,
   recordPaymentAction,
   type PaymentActionState,
 } from '@/features/payments/actions'
@@ -59,9 +56,7 @@ import type {
   PaymentLedgerItem,
 } from '@/features/payments/types'
 import { FIGHT_SIDE_LABELS, MATCH_BET_PAYMENT_STATUS_LABELS } from '@/features/matches/schema'
-import { broadcastSettlementUpdated } from '@/features/matches/matching-cross-tab-sync'
 import { formatEventDateTime } from '@/lib/format/datetime'
-import { useBarcodeScanInput } from '@/hooks/use-barcode-scan-input'
 
 type CashierClientProps = {
   eventId: string
@@ -122,8 +117,10 @@ export function CashierClient({
   initialBarcode,
 }: CashierClientProps) {
   const router = useRouter()
+  const scanInputRef = useRef<HTMLInputElement>(null)
+  const [scanValue, setScanValue] = useState('')
   const [scanError, setScanError] = useState<string | null>(null)
-  const [dropdownPending, setDropdownPending] = useState(false)
+  const [scanPending, setScanPending] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [matches, setMatches] = useState<CashierTargetMatch[]>([])
   const [activeMatch, setActiveMatch] = useState<CashierTargetMatch | null>(null)
@@ -153,37 +150,13 @@ export function CashierClient({
     recordMatchBetPartialRefundAction,
     initialState
   )
-  const [betWinPayoutState, betWinPayoutAction, betWinPayoutPending] = useActionState(
-    recordMatchBetWinPayoutAction,
-    initialState
-  )
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null)
-  const collectingMatchBetIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!betWinPayoutState.success || !activeMatchBet?.matchId) return
-    broadcastSettlementUpdated(eventId, activeMatchBet.matchId)
-    router.refresh()
-  }, [activeMatchBet?.matchId, betWinPayoutState.success, eventId, router])
-
-  useEffect(() => {
-    if (!betRecordState.paymentId) return
-    const collectedForMatchBetId = collectingMatchBetIdRef.current
-    if (!collectedForMatchBetId) return
-
-    setLastPaymentId(betRecordState.paymentId)
-    setActiveMatchBet((current) => {
-      if (!current || current.matchBetId !== collectedForMatchBetId) return current
-      return {
-        ...current,
-        betPaymentStatus: 'paid',
-        collectedAmount: current.betAmount,
-        adjustmentDelta: 0,
-        primaryPaymentId: betRecordState.paymentId ?? current.primaryPaymentId,
-      }
-    })
-    router.refresh()
-  }, [betRecordState.paymentId, router])
+    if (betRecordState.paymentId) {
+      setLastPaymentId(betRecordState.paymentId)
+    }
+  }, [betRecordState.paymentId])
 
   const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('cash_bond')
   const [collectAmount, setCollectAmount] = useState(0)
@@ -210,7 +183,6 @@ export function CashierClient({
   }, [])
 
   const applyMatchBet = useCallback((matchBet: MatchBetCashierTarget) => {
-    collectingMatchBetIdRef.current = matchBet.matchBetId
     setActiveMatchBet(matchBet)
     setActiveMatch({
       entryId: matchBet.entryId,
@@ -227,63 +199,51 @@ export function CashierClient({
     setScanError(null)
     setLastCollectionBatchId(null)
     setLastPaymentId(null)
-    setAmountTendered(0)
     const suggested = matchBet.entryDues.suggestedCategory
     if (suggested) setPaymentCategory(suggested)
   }, [])
 
   const resolveQuery = useCallback(
-    async (raw: string): Promise<ScanSubmitOutcome> => {
+    async (raw: string) => {
       const trimmed = raw.trim()
       if (!trimmed) {
         setScanError('Enter a barcode or search for an owner / entry')
-        return 'error'
+        return
       }
 
+      setScanPending(true)
       setScanError(null)
       setMatches([])
       setActiveMatchBet(null)
 
       const result = await lookupCashierTargetAction(eventId, trimmed)
+      setScanPending(false)
 
       if (result.error) {
         setScanError(result.error)
         setActiveMatch(null)
-        return 'error'
+        scanInputRef.current?.select()
+        return
       }
 
       if (result.matchBet) {
         applyMatchBet(result.matchBet)
-        return 'success'
+        setScanValue('')
+        return
       }
 
       const found = result.matches ?? []
       if (found.length === 1) {
         applyMatch(found[0])
-        return 'success'
+        setScanValue('')
+        return
       }
 
       setActiveMatch(null)
       setMatches(found)
-      return found.length > 0 ? 'error' : 'error'
     },
     [applyMatch, applyMatchBet, eventId]
   )
-
-  const {
-    inputRef: scanInputRef,
-    value: scanValue,
-    onChange: onScanChange,
-    onKeyDown: onScanKeyDown,
-    onFocus: onScanFocus,
-    submitCurrent: submitScanQuery,
-    submitRaw: submitScanRaw,
-    pending: scanPending,
-  } = useBarcodeScanInput({
-    onSubmit: resolveQuery,
-    autoFocus: canOperate && session != null,
-    disabled: !canOperate || session == null,
-  })
 
   useEffect(() => {
     if (!initialBarcode?.trim()) return
@@ -343,15 +303,21 @@ export function CashierClient({
     return parts.length ? parts.join(' · ') : 'No fees configured'
   }, [feeSettings])
 
+  async function handleScanKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    await resolveQuery(scanValue)
+  }
+
   async function selectEntryFromDropdown(entryId: string) {
     if (!entryId) {
       setActiveMatch(null)
       return
     }
-    setDropdownPending(true)
+    setScanPending(true)
     setScanError(null)
     const result = await getCashierDuesAction(eventId, entryId)
-    setDropdownPending(false)
+    setScanPending(false)
     if (result.error || !result.match) {
       setScanError(result.error ?? 'Could not load dues for this entry')
       return
@@ -455,11 +421,10 @@ export function CashierClient({
               placeholder="Scan OWN-/COCK-/BET- barcode, or search owner / entry #"
               value={scanValue}
               onChange={(event) => {
-                onScanChange(event)
+                setScanValue(event.target.value)
                 if (scanError) setScanError(null)
               }}
-              onKeyDown={onScanKeyDown}
-              onFocus={onScanFocus}
+              onKeyDown={handleScanKeyDown}
               disabled={scanPending}
               data-testid="cashier-scan-input"
             />
@@ -474,7 +439,7 @@ export function CashierClient({
               </Button>
               <Button
                 size="md"
-                onClick={submitScanQuery}
+                onClick={() => void resolveQuery(scanValue)}
                 loading={scanPending}
                 disabled={!scanValue.trim()}
               >
@@ -546,10 +511,7 @@ export function CashierClient({
           <Stack gap={LAYOUT_GAP.form}>
             <Box>
               <Text fontWeight="medium">
-                {activeMatchBet.settlementPayout?.matchingNumber
-                  ? `${activeMatchBet.settlementPayout.matchingNumber} · Fight #${activeMatchBet.fightNumber}`
-                  : `Fight #${activeMatchBet.fightNumber}`}{' '}
-                · {FIGHT_SIDE_LABELS[activeMatchBet.side]}
+                Fight #{activeMatchBet.fightNumber} · {FIGHT_SIDE_LABELS[activeMatchBet.side]}
               </Text>
               <Text fontSize="sm" color="fg.muted">
                 #{activeMatchBet.entryNumber} {activeMatchBet.entryName} · {activeMatchBet.ownerName}
@@ -580,12 +542,6 @@ export function CashierClient({
                     </Text>
                   </Flex>
 
-                  {betRecordState.error ? (
-                    <Text fontSize="sm" color="red.500">
-                      {betRecordState.error}
-                    </Text>
-                  ) : null}
-
                   <FormField label="Cash tendered" required>
                     <Input
                       name="amountTendered"
@@ -601,6 +557,35 @@ export function CashierClient({
                       data-testid="cashier-pledge-tendered"
                     />
                   </FormField>
+
+                  {betRecordState.error ? (
+                    <Text fontSize="sm" color="red.500">
+                      {betRecordState.error}
+                    </Text>
+                  ) : null}
+                  {betRecordState.success ? (
+                    <Stack gap={2}>
+                      <Text fontSize="sm" color="green.600">
+                        {betRecordState.success}
+                      </Text>
+                      {betRecordState.changeGiven != null && betRecordState.changeGiven > 0 ? (
+                        <Text fontSize="sm" fontWeight="medium">
+                          Change: {formatCurrency(betRecordState.changeGiven)}
+                        </Text>
+                      ) : null}
+                      {lastPaymentId ? (
+                        <ButtonGroup>
+                          <Button asChild size="sm" variant="outline">
+                            <Link
+                              href={`/dashboard/events/${eventId}/payments/${lastPaymentId}/print`}
+                            >
+                              Print receipt
+                            </Link>
+                          </Button>
+                        </ButtonGroup>
+                      ) : null}
+                    </Stack>
+                  ) : null}
 
                   <Button
                     type="submit"
@@ -739,196 +724,10 @@ export function CashierClient({
                   </Button>
                 </Stack>
               </form>
-            ) : activeMatchBet.betPaymentStatus === 'paid' &&
-              activeMatchBet.settlementPayout &&
-              terminalReady ? (
-              <Stack gap={LAYOUT_GAP.form} maxW="xl">
-                {activeMatchBet.settlementPayout.outcome === 'lose' ? (
-                  <>
-                    <Badge colorPalette="red" width="fit-content">
-                      Lost — no payout
-                    </Badge>
-                    <Text fontSize="sm" color="fg.muted">
-                      This side lost the fight. No handler payout is due.
-                    </Text>
-                  </>
-                ) : activeMatchBet.settlementPayout.alreadyPaid ? (
-                  <>
-                    <Badge colorPalette="green" width="fit-content">
-                      Payout complete
-                    </Badge>
-                    <Flex justify="space-between" fontWeight="semibold">
-                      <Text>Total paid</Text>
-                      <Text>{formatCurrency(activeMatchBet.settlementPayout.totalPayout)}</Text>
-                    </Flex>
-                  </>
-                ) : activeMatchBet.settlementPayout.outcome === 'win' ? (
-                  <form action={betWinPayoutAction}>
-                    <Stack gap={LAYOUT_GAP.form}>
-                      <input type="hidden" name="eventId" value={eventId} />
-                      <input type="hidden" name="matchBetId" value={activeMatchBet.matchBetId} />
-                      <input type="hidden" name="paymentMethod" value="cash" />
-
-                      <Flex justify="space-between">
-                        <Text>Bet</Text>
-                        <Text>{formatCurrency(activeMatchBet.settlementPayout.betAmount)}</Text>
-                      </Flex>
-                      <Flex justify="space-between">
-                        <Text>Won</Text>
-                        <Text>{formatCurrency(activeMatchBet.settlementPayout.winnings)}</Text>
-                      </Flex>
-                      <Flex justify="space-between" fontWeight="semibold">
-                        <Text>Total payout</Text>
-                        <Text data-testid="cashier-winner-total">
-                          {formatCurrency(activeMatchBet.settlementPayout.totalPayout)}
-                        </Text>
-                      </Flex>
-
-                      <FormField label="Cash tendered" required>
-                        <Input
-                          name="amountTendered"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          required
-                          value={amountTendered > 0 ? amountTendered : ''}
-                          onChange={(event) => {
-                            const parsed = Number.parseFloat(event.currentTarget.value)
-                            setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
-                          }}
-                          data-testid="cashier-winner-tendered"
-                        />
-                      </FormField>
-
-                      {betWinPayoutState.error ? (
-                        <Text fontSize="sm" color="red.500">
-                          {betWinPayoutState.error}
-                        </Text>
-                      ) : null}
-                      {betWinPayoutState.success ? (
-                        <Text fontSize="sm" color="green.600">
-                          {betWinPayoutState.success}
-                        </Text>
-                      ) : null}
-
-                      <Button
-                        type="submit"
-                        loading={betWinPayoutPending}
-                        alignSelf="flex-start"
-                        disabled={
-                          !isCashierTenderValid(
-                            activeMatchBet.settlementPayout.totalPayout,
-                            amountTendered
-                          )
-                        }
-                        data-testid="cashier-pay-winner"
-                      >
-                        Pay winner
-                      </Button>
-                    </Stack>
-                  </form>
-                ) : activeMatchBet.settlementPayout.outcome === 'draw_refund' ? (
-                  <form action={betWinPayoutAction}>
-                    <Stack gap={LAYOUT_GAP.form}>
-                      <input type="hidden" name="eventId" value={eventId} />
-                      <input type="hidden" name="matchBetId" value={activeMatchBet.matchBetId} />
-                      <input type="hidden" name="paymentMethod" value="cash" />
-
-                      <Flex justify="space-between">
-                        <Text>Stake refund</Text>
-                        <Text>{formatCurrency(activeMatchBet.settlementPayout.betAmount)}</Text>
-                      </Flex>
-                      <Flex justify="space-between" fontWeight="semibold">
-                        <Text>Draw refund</Text>
-                        <Text data-testid="cashier-draw-refund-total">
-                          {formatCurrency(activeMatchBet.settlementPayout.totalPayout)}
-                        </Text>
-                      </Flex>
-
-                      <FormField label="Cash tendered" required>
-                        <Input
-                          name="amountTendered"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          required
-                          value={amountTendered > 0 ? amountTendered : ''}
-                          onChange={(event) => {
-                            const parsed = Number.parseFloat(event.currentTarget.value)
-                            setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
-                          }}
-                        />
-                      </FormField>
-
-                      {betWinPayoutState.error ? (
-                        <Text fontSize="sm" color="red.500">
-                          {betWinPayoutState.error}
-                        </Text>
-                      ) : null}
-                      {betWinPayoutState.success ? (
-                        <Text fontSize="sm" color="green.600">
-                          {betWinPayoutState.success}
-                        </Text>
-                      ) : null}
-
-                      <Button
-                        type="submit"
-                        loading={betWinPayoutPending}
-                        alignSelf="flex-start"
-                        disabled={
-                          !isCashierTenderValid(
-                            activeMatchBet.settlementPayout.totalPayout,
-                            amountTendered
-                          )
-                        }
-                        data-testid="cashier-pay-draw-refund"
-                      >
-                        Pay refund
-                      </Button>
-                    </Stack>
-                  </form>
-                ) : (
-                  <Text fontSize="sm" color="fg.muted">
-                    No handler payout is due for this side.
-                  </Text>
-                )}
-              </Stack>
             ) : activeMatchBet.betPaymentStatus === 'paid' ? (
-              <Stack gap={LAYOUT_GAP.form} maxW="xl">
-                {betRecordState.success &&
-                lastPaymentId &&
-                lastPaymentId === activeMatchBet.primaryPaymentId ? (
-                  <>
-                    <Text fontSize="sm" color="green.600">
-                      {betRecordState.success}
-                    </Text>
-                    {betRecordState.changeGiven != null && betRecordState.changeGiven > 0 ? (
-                      <Text fontSize="sm" fontWeight="medium">
-                        Change: {formatCurrency(betRecordState.changeGiven)}
-                      </Text>
-                    ) : null}
-                  </>
-                ) : (
-                  <Text fontSize="sm" color="fg.muted">
-                    Pledge already collected for this slip.
-                  </Text>
-                )}
-                <Flex justify="space-between" fontWeight="semibold">
-                  <Text>Pledge collected</Text>
-                  <Text>{formatCurrency(activeMatchBet.collectedAmount)}</Text>
-                </Flex>
-                {(lastPaymentId ?? activeMatchBet.primaryPaymentId) ? (
-                  <ButtonGroup>
-                    <Button asChild size="sm" variant="outline">
-                      <Link
-                        href={`/dashboard/events/${eventId}/payments/${lastPaymentId ?? activeMatchBet.primaryPaymentId}/print`}
-                      >
-                        Print receipt
-                      </Link>
-                    </Button>
-                  </ButtonGroup>
-                ) : null}
-              </Stack>
+              <Text fontSize="sm" color="fg.muted">
+                Pledge already collected for this slip.
+              </Text>
             ) : null}
           </Stack>
         </PanelCard>
@@ -1152,7 +951,7 @@ export function CashierClient({
         </>
       ) : null}
 
-      <PanelCard flush title="Payment history">
+      <PanelCard flush>
         <Flex
           px={4}
           py={4}
@@ -1177,14 +976,100 @@ export function CashierClient({
           </Box>
         ) : (
           ledgerRows.map((row) => (
-            <CashierLedgerRow
+            <Box
               key={row.id}
-              eventId={eventId}
-              row={row}
-              formatCurrency={formatCurrency}
-              formatDate={formatDate}
-              paymentStatusColor={paymentStatusColor}
-            />
+              px={4}
+              py={4}
+              borderBottomWidth="1px"
+              borderColor="border"
+            >
+              <Flex
+                direction={{ base: 'column', lg: 'row' }}
+                gap={3}
+                align={{ lg: 'center' }}
+              >
+                <Box flex="1">
+                  <Text fontWeight="medium" fontSize="sm">
+                    {row.paymentReference}
+                  </Text>
+                  {row.receiptNumber ? (
+                    <Text fontSize="xs" color="fg.muted">
+                      Receipt {row.receiptNumber}
+                    </Text>
+                  ) : null}
+                </Box>
+                <Box flex="1.2">
+                  <Stack gap={0.5}>
+                    {row.itemsPaid.map((item) => (
+                      <Text key={item} fontSize="xs">
+                        {item}
+                      </Text>
+                    ))}
+                  </Stack>
+                </Box>
+                <Box flex="1.2">
+                  <Text fontSize="sm">
+                    #{row.entryNumber} {row.entryName}
+                  </Text>
+                  <Text fontSize="xs" color="fg.muted">
+                    {row.ownerName}
+                  </Text>
+                </Box>
+                <Box flex="0.7">
+                  {row.rowKind === 'refund' ? (
+                    <Text fontSize="sm" color="orange.600">
+                      −{formatCurrency(row.amountRefunded ?? 0)}
+                    </Text>
+                  ) : (
+                    <>
+                      <Text fontSize="sm">{formatCurrency(row.amountPaid)}</Text>
+                      {row.amountTendered != null && row.changeGiven != null ? (
+                        <Text fontSize="xs" color="fg.muted">
+                          Tender {formatCurrency(row.amountTendered)} · Change{' '}
+                          {formatCurrency(row.changeGiven)}
+                        </Text>
+                      ) : null}
+                    </>
+                  )}
+                </Box>
+                <Box flex="0.7">
+                  <Text fontSize="sm">
+                    {row.rowKind === 'refund' ? '—' : formatCurrency(row.balance)}
+                  </Text>
+                </Box>
+                <Box flex="0.7">
+                  <Badge colorPalette={paymentStatusColor(row.paymentStatus)}>
+                    {PAYMENT_STATUS_LABELS[row.paymentStatus]}
+                  </Badge>
+                </Box>
+                <Box flex="1">
+                  <Text fontSize="sm">{formatDate(row.paidAt)}</Text>
+                  {row.rowKind === 'collection' ? (
+                    <Link
+                      href={
+                        row.isBatch && row.collectionBatchId
+                          ? `/dashboard/events/${eventId}/payments/batch/${row.collectionBatchId}/print`
+                          : `/dashboard/events/${eventId}/payments/${row.childPayments[0]?.id}/print`
+                      }
+                      fontSize="xs"
+                      color="blue.600"
+                    >
+                      Print receipt
+                    </Link>
+                  ) : null}
+                  {row.rowKind === 'refund' && row.refundBatchId ? (
+                    <Link
+                      href={`/dashboard/events/${eventId}/payments/refund-batch/${row.refundBatchId}/print`}
+                      fontSize="xs"
+                      color="blue.600"
+                      display="block"
+                    >
+                      Print refund receipt
+                    </Link>
+                  ) : null}
+                </Box>
+              </Flex>
+            </Box>
           ))
         )}
       </PanelCard>
@@ -1193,7 +1078,10 @@ export function CashierClient({
         <OwnerBarcodeScannerDialog
           open={scannerOpen}
           onOpenChange={setScannerOpen}
-          onScan={(barcode) => submitScanRaw(barcode)}
+          onScan={(barcode) => {
+            setScanValue(barcode)
+            void resolveQuery(barcode)
+          }}
           title="Scan barcode"
           hint="Point the camera at an OWNER or COCK entry slip barcode."
         />

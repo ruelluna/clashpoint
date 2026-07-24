@@ -301,7 +301,7 @@ test.describe('Cashier Terminal @auth', () => {
       await expect(page.getByText('Registration fee').first()).toBeVisible()
       await expect(page.getByText('Rooster entry fee').first()).toBeVisible()
       await expect(page.getByText('Cash bond').first()).toBeVisible()
-      const ledgerPrintLinks = page.locator('[data-testid="cashier-ledger-print-link"]:visible')
+      const ledgerPrintLinks = page.locator('a:has-text("Print receipt")')
       await expect(ledgerPrintLinks).toHaveCount(1)
 
       await page.goto(`/dashboard/events/${eventId}/payments`)

@@ -3,12 +3,9 @@
 import { Stack, Text } from '@chakra-ui/react'
 
 import { computeRegistrationAmountDue, type EventFeeSettings } from '@/features/events/fee-utils'
-import { resolveOwnerScanCode } from '@/features/entries/schema'
 import { BarcodeLabel } from '@/features/printing/components/barcode-label'
-import { CompactBarcodeLabelBody } from '@/features/printing/components/compact-barcode-label-body'
-import { PrintFormatSection } from '@/features/printing/components/print-format-section'
 import { PrintSlipLayout } from '@/features/printing/components/print-slip-layout'
-import { formatOwnerStickerHeadline } from '@/features/printing/format-compact-label-line'
+import { usePrintFormat } from '@/features/printing/print-format-context'
 
 type OwnerBarcodeSlipProps = {
   eventName: string
@@ -17,7 +14,6 @@ type OwnerBarcodeSlipProps = {
   contactFullName?: string | null
   contactDesignation?: string | null
   ownerBarcode: string
-  ownerScanCode?: string | null
   feeSettings: EventFeeSettings
 }
 
@@ -27,7 +23,6 @@ function OwnerBarcodeContent({
   contactFullName,
   contactDesignation,
   ownerBarcode,
-  ownerScanCode,
   registrationDue,
 }: {
   entryNumber: string
@@ -35,38 +30,42 @@ function OwnerBarcodeContent({
   contactFullName?: string | null
   contactDesignation?: string | null
   ownerBarcode: string
-  ownerScanCode?: string | null
   registrationDue: number
 }) {
+  const printFormat = usePrintFormat()
+  const barcodeSize = printFormat === 'sticker' ? 'sticker' : 'default'
   const contactLine = [contactFullName, contactDesignation].filter(Boolean).join(' · ')
-  const stickerHeadline = formatOwnerStickerHeadline(entryNumber, ownerName)
-  const stickerCode =
-    resolveOwnerScanCode(ownerBarcode, ownerScanCode) ?? ownerBarcode
 
   return (
     <>
-      <PrintFormatSection when="slip">
-        <Stack gap={1} className="print-slip-only">
-          <Text fontSize="2xl" fontWeight="bold" textAlign="center">
-            OWNER
+      <Stack gap={1} className="print-slip-only">
+        <Text fontSize="2xl" fontWeight="bold" textAlign="center">
+          OWNER
+        </Text>
+        <Text fontSize="sm">Entry #{entryNumber}</Text>
+        <Text fontWeight="semibold">{ownerName}</Text>
+        {contactLine ? (
+          <Text fontSize="sm" color="fg.muted">
+            {contactLine}
           </Text>
-          <Text fontSize="sm">Entry #{entryNumber}</Text>
-          <Text fontWeight="semibold">{ownerName}</Text>
-          {contactLine ? (
-            <Text fontSize="sm" color="fg.muted">
-              {contactLine}
-            </Text>
-          ) : null}
-          {registrationDue > 0 ? (
-            <Text fontSize="sm">Registration fee due: ₱{registrationDue.toFixed(2)}</Text>
-          ) : null}
-          <BarcodeLabel value={stickerCode} size="default" />
-        </Stack>
-      </PrintFormatSection>
+        ) : null}
+        {registrationDue > 0 ? (
+          <Text fontSize="sm">Registration fee due: ₱{registrationDue.toFixed(2)}</Text>
+        ) : null}
+      </Stack>
 
-      <PrintFormatSection when="sticker">
-        <CompactBarcodeLabelBody headline={stickerHeadline} barcode={stickerCode} />
-      </PrintFormatSection>
+      <Stack gap={1} className="print-sticker-only">
+        <Text className="print-sticker-line" fontWeight="semibold">
+          #{entryNumber} · {ownerName}
+        </Text>
+        {contactLine ? (
+          <Text className="print-sticker-line" color="fg.muted">
+            {contactLine}
+          </Text>
+        ) : null}
+      </Stack>
+
+      <BarcodeLabel value={ownerBarcode} size={barcodeSize} />
     </>
   )
 }
@@ -78,7 +77,6 @@ export function OwnerBarcodeSlip({
   contactFullName,
   contactDesignation,
   ownerBarcode,
-  ownerScanCode,
   feeSettings,
 }: OwnerBarcodeSlipProps) {
   const registrationDue = computeRegistrationAmountDue(feeSettings)
@@ -91,7 +89,6 @@ export function OwnerBarcodeSlip({
         contactFullName={contactFullName}
         contactDesignation={contactDesignation}
         ownerBarcode={ownerBarcode}
-        ownerScanCode={ownerScanCode}
         registrationDue={registrationDue}
       />
     </PrintSlipLayout>

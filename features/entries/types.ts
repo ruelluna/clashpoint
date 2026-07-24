@@ -31,7 +31,6 @@ export type EntryRow = {
   registration_status: RegistrationStatus
   payment_status: PaymentStatus
   owner_barcode: string | null
-  owner_scan_code: string | null
   fee_snapshot: Record<string, unknown> | null
   notes: string | null
   created_by: string | null

@@ -625,7 +625,6 @@ export type Database = {
           registration_status: Database['public']['Enums']['registration_status']
           payment_status: Database['public']['Enums']['payment_status']
           owner_barcode: string | null
-          owner_scan_code: string | null
           fee_snapshot: Json | null
           notes: string | null
           created_by: string | null
@@ -650,7 +649,6 @@ export type Database = {
           registration_status?: Database['public']['Enums']['registration_status']
           payment_status?: Database['public']['Enums']['payment_status']
           owner_barcode?: string | null
-          owner_scan_code?: string | null
           fee_snapshot?: Json | null
           notes?: string | null
           created_by?: string | null
@@ -675,7 +673,6 @@ export type Database = {
           registration_status?: Database['public']['Enums']['registration_status']
           payment_status?: Database['public']['Enums']['payment_status']
           owner_barcode?: string | null
-          owner_scan_code?: string | null
           fee_snapshot?: Json | null
           notes?: string | null
           created_by?: string | null
@@ -1053,7 +1050,6 @@ export type Database = {
           weight_verification_status: Database['public']['Enums']['weight_status'] | null
           weight_notes: string | null
           cock_entry_barcode: string | null
-          cock_scan_code: string | null
           handler_name: string | null
           notes: string | null
           created_at: string
@@ -1110,7 +1106,6 @@ export type Database = {
           weight_verification_status?: Database['public']['Enums']['weight_status'] | null
           weight_notes?: string | null
           cock_entry_barcode?: string | null
-          cock_scan_code?: string | null
           handler_name?: string | null
           created_at?: string
           updated_at?: string
@@ -1166,7 +1161,6 @@ export type Database = {
           weight_verification_status?: Database['public']['Enums']['weight_status'] | null
           weight_notes?: string | null
           cock_entry_barcode?: string | null
-          cock_scan_code?: string | null
           handler_name?: string | null
           created_at?: string
           updated_at?: string
@@ -1264,11 +1258,8 @@ export type Database = {
           amount: number
           collected_amount: number
           barcode: string
-          scan_code: string | null
           payment_status: Database['public']['Enums']['match_bet_payment_status']
           payment_id: string | null
-          payout_status: Database['public']['Enums']['match_bet_payment_status']
-          payout_payment_id: string | null
           printed_at: string | null
           recorded_by: string | null
           notes: string | null
@@ -1283,11 +1274,8 @@ export type Database = {
           amount?: number
           collected_amount?: number
           barcode: string
-          scan_code?: string | null
           payment_status?: Database['public']['Enums']['match_bet_payment_status']
           payment_id?: string | null
-          payout_status?: Database['public']['Enums']['match_bet_payment_status']
-          payout_payment_id?: string | null
           printed_at?: string | null
           recorded_by?: string | null
           notes?: string | null
@@ -1302,11 +1290,8 @@ export type Database = {
           amount?: number
           collected_amount?: number
           barcode?: string
-          scan_code?: string | null
           payment_status?: Database['public']['Enums']['match_bet_payment_status']
           payment_id?: string | null
-          payout_status?: Database['public']['Enums']['match_bet_payment_status']
-          payout_payment_id?: string | null
           printed_at?: string | null
           recorded_by?: string | null
           notes?: string | null
@@ -1351,7 +1336,6 @@ export type Database = {
           wala_weight: number | null
           status: Database['public']['Enums']['match_status']
           queue_status: Database['public']['Enums']['fight_queue_status'] | null
-          matching_number: string | null
           in_meron_odds: number | null
           in_wala_odds: number | null
           pledge_settlement_snapshot: Json | null
@@ -1372,7 +1356,6 @@ export type Database = {
           wala_weight?: number | null
           status?: Database['public']['Enums']['match_status']
           queue_status?: Database['public']['Enums']['fight_queue_status'] | null
-          matching_number?: string | null
           in_meron_odds?: number | null
           in_wala_odds?: number | null
           pledge_settlement_snapshot?: Json | null
@@ -1393,7 +1376,6 @@ export type Database = {
           wala_weight?: number | null
           status?: Database['public']['Enums']['match_status']
           queue_status?: Database['public']['Enums']['fight_queue_status'] | null
-          matching_number?: string
           in_meron_odds?: number | null
           in_wala_odds?: number | null
           pledge_settlement_snapshot?: Json | null
@@ -1531,9 +1513,6 @@ export type Database = {
           requires_ledger_post: boolean
           status: Database['public']['Enums']['match_settlement_obligation_status']
           ledger_entry_id: string | null
-          paid_at: string | null
-          paid_by: string | null
-          payment_id: string | null
           sort_order: number
           created_at: string
           updated_at: string
@@ -1551,9 +1530,6 @@ export type Database = {
           requires_ledger_post?: boolean
           status?: Database['public']['Enums']['match_settlement_obligation_status']
           ledger_entry_id?: string | null
-          paid_at?: string | null
-          paid_by?: string | null
-          payment_id?: string | null
           sort_order?: number
           created_at?: string
           updated_at?: string
@@ -1571,9 +1547,6 @@ export type Database = {
           requires_ledger_post?: boolean
           status?: Database['public']['Enums']['match_settlement_obligation_status']
           ledger_entry_id?: string | null
-          paid_at?: string | null
-          paid_by?: string | null
-          payment_id?: string | null
           sort_order?: number
           created_at?: string
           updated_at?: string
@@ -1598,13 +1571,6 @@ export type Database = {
             columns: ['contributor_id']
             isOneToOne: false
             referencedRelation: 'match_palitada_contributions'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'match_settlement_obligations_payment_id_fkey'
-            columns: ['payment_id']
-            isOneToOne: false
-            referencedRelation: 'payments'
             referencedColumns: ['id']
           },
         ]
@@ -1984,7 +1950,6 @@ export type Database = {
         | 'adjustment'
         | 'legacy'
         | 'match_bet'
-        | 'match_bet_payout'
       revolving_fund_entry_type: 'opening' | 'adjustment' | 'collection' | 'refund'
       registration_payment_status:
         | 'not_required'
@@ -2033,12 +1998,7 @@ export type Database = {
         | 'monton_palitada_draw_refund'
         | 'monton_house_earnings'
         | 'vip_palitada_payout_info'
-        | 'vip_palitada_payout'
-        | 'vip_palitada_collect'
-        | 'vip_palitada_draw_refund'
-        | 'handler_win_payout'
-        | 'handler_draw_refund'
-      match_settlement_obligation_status: 'pending' | 'posted' | 'paid'
+      match_settlement_obligation_status: 'pending' | 'posted'
       fight_result_type:
         | 'meron_win'
         | 'wala_win'

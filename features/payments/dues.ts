@@ -1,4 +1,3 @@
-import { detectClashPointBarcodeKind } from '@/features/entries/barcode-scan-utils'
 import type { EventFeeSettings } from '@/features/events/fee-utils'
 import {
   computeCategoryAmountDue,
@@ -275,24 +274,17 @@ export function classifyCashierQuery(
 ): { kind: 'owner_barcode' | 'cock_barcode' | 'match_bet' | 'search'; value: string } {
   const value = raw.trim().toUpperCase()
   const eventPrefix = eventId.replace(/-/g, '').slice(0, 8).toUpperCase()
-  const kind = detectClashPointBarcodeKind(value)
 
-  if (kind === 'owner') {
-    if (/^O\d{4}$/.test(value) || value.startsWith(`OWN-${eventPrefix}-`)) {
-      return { kind: 'owner_barcode', value }
-    }
-    return { kind: 'search', value: raw.trim() }
+  if (value.startsWith(`OWN-${eventPrefix}-`)) {
+    return { kind: 'owner_barcode', value }
   }
-  if (kind === 'cock') {
-    if (/^C\d{4}$/.test(value) || value.startsWith(`COCK-${eventPrefix}-`)) {
-      return { kind: 'cock_barcode', value }
-    }
-    return { kind: 'search', value: raw.trim() }
+  if (value.startsWith(`COCK-${eventPrefix}-`)) {
+    return { kind: 'cock_barcode', value }
   }
-  if (kind === 'bet') {
-    if (/^B\d{4}[MW]$/.test(value) || value.startsWith(`BET-${eventPrefix}-`)) {
-      return { kind: 'match_bet', value }
-    }
+  if (value.startsWith(`BET-${eventPrefix}-`)) {
+    return { kind: 'match_bet', value }
+  }
+  if (value.startsWith('OWN-') || value.startsWith('COCK-') || value.startsWith('BET-')) {
     return { kind: 'search', value: raw.trim() }
   }
 

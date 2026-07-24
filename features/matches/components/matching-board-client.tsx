@@ -1,7 +1,7 @@
 'use client'
 
-import { Flex, IconButton, Text } from '@chakra-ui/react'
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Box, Text } from '@chakra-ui/react'
+import { Suspense, useCallback, useState } from 'react'
 
 import { PageHeader, PageStack } from '@/components/dashboard'
 import { MatchingLiveSyncProvider } from '@/features/matches/components/matching-live-sync-provider'
@@ -28,24 +28,14 @@ type MatchingBoardClientProps = {
 
 type MatchingBoardContentProps = MatchingBoardClientProps & {
   feedback: { message: string; isError: boolean } | null
-  onDismissFeedback: () => void
   onFeedback: (message: string | null, isError: boolean) => void
 }
 
-const FEEDBACK_AUTO_DISMISS_MS = 8000
-
 function MatchingBoardContent({
   feedback,
-  onDismissFeedback,
   onFeedback,
   ...props
 }: MatchingBoardContentProps) {
-  useEffect(() => {
-    if (!feedback || feedback.isError) return
-    const timer = window.setTimeout(onDismissFeedback, FEEDBACK_AUTO_DISMISS_MS)
-    return () => window.clearTimeout(timer)
-  }, [feedback, onDismissFeedback])
-
   return (
     <PageStack>
       <PageHeader
@@ -54,27 +44,16 @@ function MatchingBoardContent({
       />
 
       {feedback ? (
-        <Flex
+        <Box
           rounded="md"
           px={3}
           py={2}
           fontSize="sm"
-          align="flex-start"
-          justify="space-between"
-          gap={2}
           bg={feedback.isError ? 'red.subtle' : 'green.subtle'}
           color={feedback.isError ? 'red.fg' : 'green.fg'}
         >
-          <Text flex="1">{feedback.message}</Text>
-          <IconButton
-            aria-label="Dismiss message"
-            size="xs"
-            variant="ghost"
-            onClick={onDismissFeedback}
-          >
-            ×
-          </IconButton>
-        </Flex>
+          {feedback.message}
+        </Box>
       ) : null}
 
       <Suspense
@@ -123,7 +102,6 @@ export function MatchingBoardClient(props: MatchingBoardClientProps) {
       <MatchingBoardContent
         {...props}
         feedback={feedback}
-        onDismissFeedback={() => setFeedback(null)}
         onFeedback={(message, isError) => {
           window.setTimeout(() => {
             if (!message) {

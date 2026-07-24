@@ -1,12 +1,10 @@
 'use client'
 
 import { Box, Text } from '@chakra-ui/react'
-import { useMemo } from 'react'
 
 import { PanelCard } from '@/components/dashboard'
-import { MatchingFightQueueRow } from '@/features/matches/components/matching-fight-queue-row'
+import { FightQueueRow } from '@/features/matches/components/matching-shared'
 import type { MatchListItem } from '@/features/matches/types'
-import { filterFightQueueTabMatches } from '@/features/matches/utils'
 
 type MatchingFightQueuePanelProps = {
   eventId: string
@@ -21,26 +19,20 @@ export function MatchingFightQueuePanel({
   canManage,
   canManageQueueOverride = false,
 }: MatchingFightQueuePanelProps) {
-  const fightQueueTabMatches = useMemo(
-    () => filterFightQueueTabMatches(queueMatches),
-    [queueMatches]
-  )
-
   return (
     <PanelCard flush title="Fight queue">
-      {fightQueueTabMatches.length === 0 ? (
+      {queueMatches.length === 0 ? (
         <Box px={4} py={8} textAlign="center">
           <Text color="fg.muted">
             No fights in the queue yet. Matches appear here after both sides pay.
           </Text>
         </Box>
       ) : (
-        fightQueueTabMatches.map((match) => (
-          <MatchingFightQueueRow
+        queueMatches.map((match) => (
+          <FightQueueRow
             key={match.id}
             match={match}
             eventId={eventId}
-            queueMatches={queueMatches}
             canManage={canManage}
             canManageQueueOverride={canManageQueueOverride}
           />

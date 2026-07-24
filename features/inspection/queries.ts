@@ -85,12 +85,11 @@ export async function getRegistrationIdByCockEntryBarcode(
   barcode: string
 ): Promise<string | null> {
   const supabase = await createClient()
-  const normalized = barcode.trim().toUpperCase()
   const { data, error } = await supabase
     .from('rooster_event_registrations')
     .select('id')
     .eq('event_id', eventId)
-    .or(`cock_entry_barcode.eq.${normalized},cock_scan_code.eq.${normalized}`)
+    .eq('cock_entry_barcode', barcode)
     .maybeSingle()
 
   if (error) throw error
