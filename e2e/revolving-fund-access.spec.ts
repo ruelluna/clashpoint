@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 
-import { signInAsEventOrganizer, signInWithCredentials } from './fixtures/auth'
+import {
+  hasAdminCredentials,
+  signInAsAdmin,
+  signInAsEventOrganizer,
+  signInWithCredentials,
+} from './fixtures/auth'
 import {
   createCashierStaffTestUser,
   deleteTestUser,
@@ -9,7 +14,11 @@ import {
 
 const eventDetailUrl = /\/dashboard\/events\/[0-9a-f-]{36}/
 
-async function createMinimalEvent(page: import('@playwright/test').Page, name: string) {
+async function createMinimalEvent(
+  page: import('@playwright/test').Page,
+  name: string,
+  revolvingFundInitial = 0
+) {
   await page.goto('/dashboard/events/new')
   await page.locator('input[name="name"]').fill(name)
   await page.locator('input[name="eventDate"]').fill('2026-12-20T10:00')
@@ -19,6 +28,10 @@ async function createMinimalEvent(page: import('@playwright/test').Page, name: s
     .locator('select')
     .filter({ has: page.locator('option', { hasText: 'Classic' }) })
   await eventTypeSelect.selectOption('derby')
+
+  if (revolvingFundInitial > 0) {
+    await page.locator('input[name="revolvingFundInitial"]').fill(String(revolvingFundInitial))
+  }
 
   await page.getByRole('button', { name: 'Create event' }).click()
   await page.waitForURL(eventDetailUrl)
@@ -56,5 +69,48 @@ test.describe('Revolving fund staff access @auth', () => {
     } finally {
       await deleteTestUser(cashierStaff.id)
     }
+  })
+})
+
+test.describe('Revolving fund balance visibility @auth', () => {
+  test('hides balance card and row balances for event organizers', async ({ page }) => {
+    test.skip(
+      !hasServiceRoleCredentials(),
+      'Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for organizer balance tests'
+    )
+
+    const suffix = Date.now().toString(36)
+    const eventName = `E2E Revolving Fund Organizer Balance ${suffix}`
+    const organizer = await signInAsEventOrganizer(page)
+
+    try {
+      const eventId = await createMinimalEvent(page, eventName, 200_000)
+
+      await page.goto(`/dashboard/events/${eventId}/revolving-fund`)
+      await expect(page.getByRole('heading', { name: 'Revolving fund' })).toBeVisible()
+      await expect(page.getByText('Current balance')).not.toBeVisible()
+      await expect(page.getByText(/^Balance:/)).not.toBeVisible()
+      await expect(page.getByText('Opening')).toBeVisible()
+    } finally {
+      await deleteTestUser(organizer.id)
+    }
+  })
+
+  test('shows balance card and row balances for system owner admin', async ({ page }) => {
+    test.skip(
+      !hasAdminCredentials(),
+      'Set PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD for admin balance tests'
+    )
+
+    const suffix = Date.now().toString(36)
+    const eventName = `E2E Revolving Fund Admin Balance ${suffix}`
+
+    await signInAsAdmin(page)
+    const eventId = await createMinimalEvent(page, eventName, 200_000)
+
+    await page.goto(`/dashboard/events/${eventId}/revolving-fund`)
+    await expect(page.getByRole('heading', { name: 'Revolving fund' })).toBeVisible()
+    await expect(page.getByText('Current balance')).toBeVisible()
+    await expect(page.getByText(/^Balance:/)).toBeVisible()
   })
 })
