@@ -78,6 +78,7 @@ export function MatchBetBarcodeSlip(props: MatchBetBarcodeSlipProps) {
     <PrintSlipLayout
       title={`Pledge — ${FIGHT_SIDE_LABELS[props.side]}`}
       eventName={props.eventName}
+      labelSizedSlip
     >
       <MatchBetSlipContent {...props} />
     </PrintSlipLayout>

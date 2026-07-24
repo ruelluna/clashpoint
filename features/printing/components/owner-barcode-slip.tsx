@@ -82,7 +82,7 @@ export function OwnerBarcodeSlip({
   const registrationDue = computeRegistrationAmountDue(feeSettings)
 
   return (
-    <PrintSlipLayout title="Owner registration" eventName={eventName}>
+    <PrintSlipLayout title="Owner registration" eventName={eventName} labelSizedSlip>
       <OwnerBarcodeContent
         entryNumber={entryNumber}
         ownerName={ownerName}
