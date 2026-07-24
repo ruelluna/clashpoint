@@ -148,7 +148,7 @@ describe('fight queue status transitions', () => {
 })
 
 describe('collectUsedRoosterIds', () => {
-  it('includes roosters from active matches only', () => {
+  it('includes roosters from non-cancelled matches only', () => {
     const used = collectUsedRoosterIds([
       {
         meron_rooster_id: 'meron-1',
@@ -158,14 +158,28 @@ describe('collectUsedRoosterIds', () => {
       {
         meron_rooster_id: 'meron-2',
         wala_rooster_id: 'wala-2',
+        status: 'completed',
+      },
+      {
+        meron_rooster_id: 'meron-3',
+        wala_rooster_id: 'wala-3',
+        status: 'settling',
+      },
+      {
+        meron_rooster_id: 'meron-4',
+        wala_rooster_id: 'wala-4',
         status: 'cancelled',
       },
     ])
 
     expect(used.has('meron-1')).toBe(true)
     expect(used.has('wala-1')).toBe(true)
-    expect(used.has('meron-2')).toBe(false)
-    expect(used.has('wala-2')).toBe(false)
+    expect(used.has('meron-2')).toBe(true)
+    expect(used.has('wala-2')).toBe(true)
+    expect(used.has('meron-3')).toBe(true)
+    expect(used.has('wala-3')).toBe(true)
+    expect(used.has('meron-4')).toBe(false)
+    expect(used.has('wala-4')).toBe(false)
   })
 })
 

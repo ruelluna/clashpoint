@@ -12,7 +12,7 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { useActionState, useCallback, useEffect, useMemo, useState } from 'react'
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import {
@@ -45,6 +45,7 @@ import {
   recordMatchBetPartialRefundAction,
   recordMatchBetPaymentAction,
   recordMatchBetTopUpAction,
+  recordMatchBetWinPayoutAction,
   recordPaymentAction,
   type PaymentActionState,
 } from '@/features/payments/actions'
@@ -58,6 +59,7 @@ import type {
   PaymentLedgerItem,
 } from '@/features/payments/types'
 import { FIGHT_SIDE_LABELS, MATCH_BET_PAYMENT_STATUS_LABELS } from '@/features/matches/schema'
+import { broadcastSettlementUpdated } from '@/features/matches/matching-cross-tab-sync'
 import { formatEventDateTime } from '@/lib/format/datetime'
 import { useBarcodeScanInput } from '@/hooks/use-barcode-scan-input'
 
@@ -151,13 +153,27 @@ export function CashierClient({
     recordMatchBetPartialRefundAction,
     initialState
   )
+  const [betWinPayoutState, betWinPayoutAction, betWinPayoutPending] = useActionState(
+    recordMatchBetWinPayoutAction,
+    initialState
+  )
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null)
+  const collectingMatchBetIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!betWinPayoutState.success || !activeMatchBet?.matchId) return
+    broadcastSettlementUpdated(eventId, activeMatchBet.matchId)
+    router.refresh()
+  }, [activeMatchBet?.matchId, betWinPayoutState.success, eventId, router])
 
   useEffect(() => {
     if (!betRecordState.paymentId) return
+    const collectedForMatchBetId = collectingMatchBetIdRef.current
+    if (!collectedForMatchBetId) return
+
     setLastPaymentId(betRecordState.paymentId)
     setActiveMatchBet((current) => {
-      if (!current) return current
+      if (!current || current.matchBetId !== collectedForMatchBetId) return current
       return {
         ...current,
         betPaymentStatus: 'paid',
@@ -194,6 +210,7 @@ export function CashierClient({
   }, [])
 
   const applyMatchBet = useCallback((matchBet: MatchBetCashierTarget) => {
+    collectingMatchBetIdRef.current = matchBet.matchBetId
     setActiveMatchBet(matchBet)
     setActiveMatch({
       entryId: matchBet.entryId,
@@ -210,6 +227,7 @@ export function CashierClient({
     setScanError(null)
     setLastCollectionBatchId(null)
     setLastPaymentId(null)
+    setAmountTendered(0)
     const suggested = matchBet.entryDues.suggestedCategory
     if (suggested) setPaymentCategory(suggested)
   }, [])
@@ -528,7 +546,10 @@ export function CashierClient({
           <Stack gap={LAYOUT_GAP.form}>
             <Box>
               <Text fontWeight="medium">
-                Fight #{activeMatchBet.fightNumber} · {FIGHT_SIDE_LABELS[activeMatchBet.side]}
+                {activeMatchBet.settlementPayout?.matchingNumber
+                  ? `${activeMatchBet.settlementPayout.matchingNumber} · Fight #${activeMatchBet.fightNumber}`
+                  : `Fight #${activeMatchBet.fightNumber}`}{' '}
+                · {FIGHT_SIDE_LABELS[activeMatchBet.side]}
               </Text>
               <Text fontSize="sm" color="fg.muted">
                 #{activeMatchBet.entryNumber} {activeMatchBet.entryName} · {activeMatchBet.ownerName}
@@ -565,35 +586,31 @@ export function CashierClient({
                     </Text>
                   ) : null}
 
-                  {!betRecordState.success ? (
-                    <>
-                      <FormField label="Cash tendered" required>
-                        <Input
-                          name="amountTendered"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          required
-                          value={amountTendered > 0 ? amountTendered : ''}
-                          onChange={(event) => {
-                            const parsed = Number.parseFloat(event.currentTarget.value)
-                            setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
-                          }}
-                          data-testid="cashier-pledge-tendered"
-                        />
-                      </FormField>
+                  <FormField label="Cash tendered" required>
+                    <Input
+                      name="amountTendered"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      value={amountTendered > 0 ? amountTendered : ''}
+                      onChange={(event) => {
+                        const parsed = Number.parseFloat(event.currentTarget.value)
+                        setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
+                      }}
+                      data-testid="cashier-pledge-tendered"
+                    />
+                  </FormField>
 
-                      <Button
-                        type="submit"
-                        loading={betRecordPending}
-                        alignSelf="flex-start"
-                        disabled={!isCashierTenderValid(activeMatchBet.betAmount, amountTendered)}
-                        data-testid="cashier-record-pledge"
-                      >
-                        Collect pledge
-                      </Button>
-                    </>
-                  ) : null}
+                  <Button
+                    type="submit"
+                    loading={betRecordPending}
+                    alignSelf="flex-start"
+                    disabled={!isCashierTenderValid(activeMatchBet.betAmount, amountTendered)}
+                    data-testid="cashier-record-pledge"
+                  >
+                    Collect pledge
+                  </Button>
                 </Stack>
               </form>
             ) : activeMatchBet.betPaymentStatus === 'paid' &&
@@ -722,9 +739,165 @@ export function CashierClient({
                   </Button>
                 </Stack>
               </form>
+            ) : activeMatchBet.betPaymentStatus === 'paid' &&
+              activeMatchBet.settlementPayout &&
+              terminalReady ? (
+              <Stack gap={LAYOUT_GAP.form} maxW="xl">
+                {activeMatchBet.settlementPayout.outcome === 'lose' ? (
+                  <>
+                    <Badge colorPalette="red" width="fit-content">
+                      Lost — no payout
+                    </Badge>
+                    <Text fontSize="sm" color="fg.muted">
+                      This side lost the fight. No handler payout is due.
+                    </Text>
+                  </>
+                ) : activeMatchBet.settlementPayout.alreadyPaid ? (
+                  <>
+                    <Badge colorPalette="green" width="fit-content">
+                      Payout complete
+                    </Badge>
+                    <Flex justify="space-between" fontWeight="semibold">
+                      <Text>Total paid</Text>
+                      <Text>{formatCurrency(activeMatchBet.settlementPayout.totalPayout)}</Text>
+                    </Flex>
+                  </>
+                ) : activeMatchBet.settlementPayout.outcome === 'win' ? (
+                  <form action={betWinPayoutAction}>
+                    <Stack gap={LAYOUT_GAP.form}>
+                      <input type="hidden" name="eventId" value={eventId} />
+                      <input type="hidden" name="matchBetId" value={activeMatchBet.matchBetId} />
+                      <input type="hidden" name="paymentMethod" value="cash" />
+
+                      <Flex justify="space-between">
+                        <Text>Bet</Text>
+                        <Text>{formatCurrency(activeMatchBet.settlementPayout.betAmount)}</Text>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text>Won</Text>
+                        <Text>{formatCurrency(activeMatchBet.settlementPayout.winnings)}</Text>
+                      </Flex>
+                      <Flex justify="space-between" fontWeight="semibold">
+                        <Text>Total payout</Text>
+                        <Text data-testid="cashier-winner-total">
+                          {formatCurrency(activeMatchBet.settlementPayout.totalPayout)}
+                        </Text>
+                      </Flex>
+
+                      <FormField label="Cash tendered" required>
+                        <Input
+                          name="amountTendered"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          required
+                          value={amountTendered > 0 ? amountTendered : ''}
+                          onChange={(event) => {
+                            const parsed = Number.parseFloat(event.currentTarget.value)
+                            setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
+                          }}
+                          data-testid="cashier-winner-tendered"
+                        />
+                      </FormField>
+
+                      {betWinPayoutState.error ? (
+                        <Text fontSize="sm" color="red.500">
+                          {betWinPayoutState.error}
+                        </Text>
+                      ) : null}
+                      {betWinPayoutState.success ? (
+                        <Text fontSize="sm" color="green.600">
+                          {betWinPayoutState.success}
+                        </Text>
+                      ) : null}
+
+                      <Button
+                        type="submit"
+                        loading={betWinPayoutPending}
+                        alignSelf="flex-start"
+                        disabled={
+                          !isCashierTenderValid(
+                            activeMatchBet.settlementPayout.totalPayout,
+                            amountTendered
+                          )
+                        }
+                        data-testid="cashier-pay-winner"
+                      >
+                        Pay winner
+                      </Button>
+                    </Stack>
+                  </form>
+                ) : activeMatchBet.settlementPayout.outcome === 'draw_refund' ? (
+                  <form action={betWinPayoutAction}>
+                    <Stack gap={LAYOUT_GAP.form}>
+                      <input type="hidden" name="eventId" value={eventId} />
+                      <input type="hidden" name="matchBetId" value={activeMatchBet.matchBetId} />
+                      <input type="hidden" name="paymentMethod" value="cash" />
+
+                      <Flex justify="space-between">
+                        <Text>Stake refund</Text>
+                        <Text>{formatCurrency(activeMatchBet.settlementPayout.betAmount)}</Text>
+                      </Flex>
+                      <Flex justify="space-between" fontWeight="semibold">
+                        <Text>Draw refund</Text>
+                        <Text data-testid="cashier-draw-refund-total">
+                          {formatCurrency(activeMatchBet.settlementPayout.totalPayout)}
+                        </Text>
+                      </Flex>
+
+                      <FormField label="Cash tendered" required>
+                        <Input
+                          name="amountTendered"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          required
+                          value={amountTendered > 0 ? amountTendered : ''}
+                          onChange={(event) => {
+                            const parsed = Number.parseFloat(event.currentTarget.value)
+                            setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
+                          }}
+                        />
+                      </FormField>
+
+                      {betWinPayoutState.error ? (
+                        <Text fontSize="sm" color="red.500">
+                          {betWinPayoutState.error}
+                        </Text>
+                      ) : null}
+                      {betWinPayoutState.success ? (
+                        <Text fontSize="sm" color="green.600">
+                          {betWinPayoutState.success}
+                        </Text>
+                      ) : null}
+
+                      <Button
+                        type="submit"
+                        loading={betWinPayoutPending}
+                        alignSelf="flex-start"
+                        disabled={
+                          !isCashierTenderValid(
+                            activeMatchBet.settlementPayout.totalPayout,
+                            amountTendered
+                          )
+                        }
+                        data-testid="cashier-pay-draw-refund"
+                      >
+                        Pay refund
+                      </Button>
+                    </Stack>
+                  </form>
+                ) : (
+                  <Text fontSize="sm" color="fg.muted">
+                    No handler payout is due for this side.
+                  </Text>
+                )}
+              </Stack>
             ) : activeMatchBet.betPaymentStatus === 'paid' ? (
               <Stack gap={LAYOUT_GAP.form} maxW="xl">
-                {betRecordState.success ? (
+                {betRecordState.success &&
+                lastPaymentId &&
+                lastPaymentId === activeMatchBet.primaryPaymentId ? (
                   <>
                     <Text fontSize="sm" color="green.600">
                       {betRecordState.success}

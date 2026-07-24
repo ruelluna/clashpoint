@@ -34,6 +34,7 @@ import {
   type RecordMatchBetPartialRefundInput,
   type RecordMatchBetPaymentInput,
   type RecordMatchBetTopUpInput,
+  type RecordMatchBetWinPayoutInput,
   type RecordPaymentInput,
   type RefundPaymentInput,
   type RefundSelectedPaymentsInput,
@@ -41,10 +42,12 @@ import {
 import {
   allocateSplitPaymentTender,
   clearedTenderFieldsForRefund,
+  computeCashChange,
   roundMoney,
 } from '@/features/payments/tender'
 import type { PaymentStatus } from '@/features/entries/types'
 import type { MatchBetPaymentStatus } from '@/features/matches/types'
+import type { FightResultType } from '@/features/results/types'
 import { FIGHT_QUEUE_STATUS_LABELS } from '@/features/matches/schema'
 import {
   BLOCKED_BET_EDIT_QUEUE_STATUSES,
@@ -57,6 +60,7 @@ import type {
   CashierSelectableEntry,
   CashierTargetMatch,
   MatchBetCashierTarget,
+  MatchBetSettlementPayout,
   PaymentBatchReceiptItem,
   PaymentBatchReceiptLine,
   PaymentLedgerItem,
@@ -1192,6 +1196,259 @@ export async function recordMatchBetPartialRefund(
   return { paymentId: bet.payment_id ?? undefined }
 }
 
+function sideWonResult(resultType: FightResultType, side: 'meron' | 'wala'): boolean {
+  if (resultType === 'meron_win') return side === 'meron'
+  if (resultType === 'wala_win') return side === 'wala'
+  return false
+}
+
+function sideLostResult(resultType: FightResultType, side: 'meron' | 'wala'): boolean {
+  if (resultType === 'meron_win') return side === 'wala'
+  if (resultType === 'wala_win') return side === 'meron'
+  return false
+}
+
+function handlerObligationKeyForSide(
+  resultType: FightResultType,
+  side: 'meron' | 'wala'
+): string | null {
+  if (resultType === 'draw') return `handler:${side}:draw_refund`
+  if (sideWonResult(resultType, side)) return `handler:${side}:win_payout`
+  return null
+}
+
+export async function recordMatchBetWinPayout(
+  actorId: string,
+  input: RecordMatchBetWinPayoutInput,
+  cashierSessionId: string
+): Promise<{ error?: string; paymentId?: string }> {
+  const supabase = await createClient()
+
+  const { data: bet, error: betError } = await supabase
+    .from('match_bets')
+    .select(
+      `
+        id,
+        match_id,
+        event_id,
+        side,
+        amount,
+        barcode,
+        payment_status,
+        payout_status,
+        matches (
+          fight_number,
+          status,
+          matching_number
+        )
+      `
+    )
+    .eq('id', input.matchBetId)
+    .eq('event_id', input.eventId)
+    .maybeSingle()
+
+  if (betError) return { error: betError.message }
+  if (!bet) return { error: 'Match bet not found' }
+
+  const matchRow = bet.matches as {
+    fight_number: number
+    status: string
+    matching_number: string | null
+  }
+
+  if (matchRow.status !== 'settling') {
+    return { error: 'This match is not awaiting winner payout' }
+  }
+  if (bet.payment_status !== 'paid') {
+    return { error: 'Collect the pledge before paying the handler' }
+  }
+  if (bet.payout_status === 'paid') {
+    return { error: 'Handler payout is already complete for this side' }
+  }
+
+  const side = bet.side as 'meron' | 'wala'
+
+  const { data: fightResult, error: resultError } = await supabase
+    .from('fight_results')
+    .select('result_type')
+    .eq('match_id', bet.match_id)
+    .maybeSingle()
+
+  if (resultError) return { error: resultError.message }
+  if (!fightResult) return { error: 'Fight result not found' }
+
+  const resultType = fightResult.result_type as FightResultType
+
+  if (sideLostResult(resultType, side)) {
+    return { error: 'This side lost — no payout' }
+  }
+
+  const obligationKey = handlerObligationKeyForSide(resultType, side)
+  if (!obligationKey) {
+    return { error: 'No handler payout is due for this side' }
+  }
+
+  const { loadMatchSettlementContext } = await import(
+    '@/features/matches/pledge-settlement-service'
+  )
+  const { calculatePledgeSettlement, buildPledgeSettlementInput, computeHandlerDrawRefund } =
+    await import('@/features/matches/pledge-settlement')
+
+  const context = await loadMatchSettlementContext(input.eventId, bet.match_id)
+  if (context.error || !context.match || !context.event) {
+    return { error: context.error ?? 'Match settlement context not found' }
+  }
+
+  const settlement = calculatePledgeSettlement(
+    buildPledgeSettlementInput({
+      match: context.match,
+      commissionRatePercent: context.event.tax_commission,
+      taxAmount: context.event.tax_per_fight,
+    })
+  )
+
+  const sideBreakdown = side === 'meron' ? settlement.meron : settlement.wala
+  const payoutAmount =
+    resultType === 'draw'
+      ? roundMatchMoney(
+          computeHandlerDrawRefund(
+            sideBreakdown.basePledge,
+            sideBreakdown.sideTotal,
+            settlement.commissionRate,
+            settlement.taxAmount
+          )
+        )
+      : roundMatchMoney(sideBreakdown.handlerPayout)
+
+  if (payoutAmount <= 0) {
+    return { error: 'No handler payout is due for this side' }
+  }
+
+  const changeResult = computeCashChange(payoutAmount, input.amountTendered)
+  if (!changeResult.ok) {
+    return { error: changeResult.error }
+  }
+
+  const { data: obligation, error: obligationError } = await supabase
+    .from('match_settlement_obligations')
+    .select('id, status, amount, obligation_type')
+    .eq('match_id', bet.match_id)
+    .eq('obligation_key', obligationKey)
+    .maybeSingle()
+
+  if (obligationError) return { error: obligationError.message }
+  if (!obligation) return { error: 'Handler settlement obligation not found' }
+  if (obligation.status === 'paid') {
+    return { error: 'Handler payout is already marked paid' }
+  }
+
+  const entryId =
+    side === 'meron' ? context.match.meron.entry_id : context.match.wala.entry_id
+
+  const { data: entry, error: entryError } = await supabase
+    .from('entries')
+    .select('id, entry_number, entry_name')
+    .eq('id', entryId)
+    .maybeSingle()
+
+  if (entryError) return { error: entryError.message }
+  if (!entry) return { error: 'Entry not found for this match side' }
+
+  const references = await listPaymentReferencesForEvent(input.eventId)
+  const paymentReference = getNextPaymentReference(input.eventId, references)
+  const paidAt = new Date().toISOString()
+
+  const payoutLabel =
+    resultType === 'draw'
+      ? `Draw refund — Fight #${matchRow.fight_number} ${side}`
+      : `Winner payout — Fight #${matchRow.fight_number} ${side}`
+
+  const { data: payment, error: paymentError } = await supabase
+    .from('payments')
+    .insert({
+      payment_reference: paymentReference,
+      entry_id: entryId,
+      event_id: input.eventId,
+      amount_due: payoutAmount,
+      amount_paid: payoutAmount,
+      amount_tendered: input.amountTendered,
+      change_given: changeResult.changeGiven,
+      balance: 0,
+      payment_method: input.paymentMethod,
+      payment_status: 'paid',
+      payment_category: 'match_bet_payout',
+      match_bet_id: bet.id,
+      match_id: bet.match_id,
+      fight_side: side,
+      received_by: actorId,
+      cashier_session_id: cashierSessionId,
+      paid_at: paidAt,
+      notes: input.notes ?? null,
+    })
+    .select('id')
+    .single()
+
+  if (paymentError || !payment) {
+    return { error: paymentError?.message ?? 'Failed to record handler payout' }
+  }
+
+  const fundResult = await postRevolvingFundLedgerEntry({
+    eventId: input.eventId,
+    amount: -payoutAmount,
+    entryType: 'refund',
+    description: `${payoutLabel} · ${paymentReference}`,
+    actorId,
+    sourcePaymentId: payment.id,
+    sourceMatchId: bet.match_id,
+    cashierSessionId,
+    obligationKey,
+  })
+  if (fundResult.error) return { error: fundResult.error }
+
+  const { error: obligationUpdateError } = await supabase
+    .from('match_settlement_obligations')
+    .update({
+      status: 'paid',
+      paid_at: paidAt,
+      paid_by: actorId,
+      payment_id: payment.id,
+      updated_at: paidAt,
+    })
+    .eq('id', obligation.id)
+
+  if (obligationUpdateError) return { error: obligationUpdateError.message }
+
+  const { error: betUpdateError } = await supabase
+    .from('match_bets')
+    .update({
+      payout_status: 'paid',
+      payout_payment_id: payment.id,
+      updated_at: paidAt,
+    })
+    .eq('id', bet.id)
+
+  if (betUpdateError) return { error: betUpdateError.message }
+
+  await writeAuditLog({
+    actorId,
+    action: 'payment.match_bet.payout',
+    entityType: 'payment',
+    entityId: payment.id,
+    newValues: {
+      payment_reference: paymentReference,
+      match_id: bet.match_id,
+      fight_number: matchRow.fight_number,
+      side,
+      bet_barcode: bet.barcode,
+      payout_amount: payoutAmount,
+      obligation_id: obligation.id,
+      cashier_session_id: cashierSessionId,
+    },
+  })
+
+  return { paymentId: payment.id }
+}
+
 export async function getPaymentForEvent(
   eventId: string,
   paymentId: string
@@ -2135,10 +2392,12 @@ export async function resolveMatchBetCashierTarget(
         barcode,
         payment_status,
         payment_id,
+        payout_status,
         matches (
           fight_number,
           status,
           queue_status,
+          matching_number,
           meron_entry_id,
           wala_entry_id,
           meron_rooster_id,
@@ -2166,15 +2425,127 @@ type MatchBetWithMatchJoin = {
   collected_amount: number | string
   barcode: string
   payment_status: string
+  payout_status?: string
   payment_id: string | null
   matches: {
     fight_number: number
     status: string
     queue_status: string | null
+    matching_number: string | null
     meron_entry_id: string
     wala_entry_id: string
     meron_rooster_id: string
     wala_rooster_id: string
+  }
+}
+
+async function buildSettlementPayoutForBet(
+  eventId: string,
+  matchId: string,
+  side: 'meron' | 'wala',
+  matchStatus: string,
+  betPaymentStatus: string,
+  payoutStatus: string | undefined,
+  matchingNumber: string | null
+): Promise<MatchBetSettlementPayout | undefined> {
+  if (matchStatus !== 'settling' || betPaymentStatus !== 'paid') {
+    return undefined
+  }
+
+  const supabase = await createClient()
+
+  const [{ data: fightResult, error: resultError }, { data: obligation, error: obligationError }] =
+    await Promise.all([
+      supabase.from('fight_results').select('result_type').eq('match_id', matchId).maybeSingle(),
+      supabase
+        .from('match_settlement_obligations')
+        .select('id, status, obligation_key, amount')
+        .eq('match_id', matchId)
+        .like('obligation_key', `handler:${side}:%`)
+        .maybeSingle(),
+    ])
+
+  if (resultError) return undefined
+  if (obligationError) return undefined
+  if (!fightResult) return undefined
+
+  const resultType = fightResult.result_type as FightResultType
+
+  const { loadMatchSettlementContext } = await import(
+    '@/features/matches/pledge-settlement-service'
+  )
+  const { calculatePledgeSettlement, buildPledgeSettlementInput, computeHandlerDrawRefund } =
+    await import('@/features/matches/pledge-settlement')
+
+  const context = await loadMatchSettlementContext(eventId, matchId)
+  if (context.error || !context.match || !context.event) return undefined
+
+  const settlement = calculatePledgeSettlement(
+    buildPledgeSettlementInput({
+      match: context.match,
+      commissionRatePercent: context.event.tax_commission,
+      taxAmount: context.event.tax_per_fight,
+    })
+  )
+
+  const sideBreakdown = side === 'meron' ? settlement.meron : settlement.wala
+
+  if (sideLostResult(resultType, side)) {
+    return {
+      outcome: 'lose',
+      betAmount: sideBreakdown.basePledge,
+      winnings: 0,
+      totalPayout: 0,
+      matchingNumber,
+      obligationId: null,
+      alreadyPaid: false,
+    }
+  }
+
+  const obligationKey = handlerObligationKeyForSide(resultType, side)
+  if (!obligationKey || !obligation) {
+    return {
+      outcome: 'none',
+      betAmount: sideBreakdown.basePledge,
+      winnings: 0,
+      totalPayout: 0,
+      matchingNumber,
+      obligationId: null,
+      alreadyPaid: payoutStatus === 'paid',
+    }
+  }
+
+  const alreadyPaid = obligation.status === 'paid' || payoutStatus === 'paid'
+
+  if (resultType === 'draw') {
+    const totalPayout = roundMatchMoney(
+      computeHandlerDrawRefund(
+        sideBreakdown.basePledge,
+        sideBreakdown.sideTotal,
+        settlement.commissionRate,
+        settlement.taxAmount
+      )
+    )
+
+    return {
+      outcome: 'draw_refund',
+      betAmount: sideBreakdown.basePledge,
+      winnings: 0,
+      totalPayout,
+      matchingNumber,
+      obligationId: obligation.id,
+      alreadyPaid,
+    }
+  }
+
+  return {
+    outcome: 'win',
+    betAmount: sideBreakdown.basePledge,
+    winnings: sideBreakdown.handlerWinnings,
+    totalPayout: sideBreakdown.handlerPayout,
+    matchingNumber,
+    obligationId: obligation.id,
+    alreadyPaid,
   }
 }
 
@@ -2215,6 +2586,17 @@ async function buildMatchBetCashierTarget(
   const betAmount = Number(bet.amount)
   const collectedAmount = Number(bet.collected_amount ?? 0)
   const adjustmentDelta = getMatchBetAdjustmentDelta(betAmount, collectedAmount)
+  const side = bet.side as 'meron' | 'wala'
+
+  const settlementPayout = await buildSettlementPayoutForBet(
+    eventId,
+    bet.match_id,
+    side,
+    matchRow.status,
+    bet.payment_status,
+    bet.payout_status,
+    matchRow.matching_number ?? null
+  )
 
   return {
     matchBet: {
@@ -2222,7 +2604,7 @@ async function buildMatchBetCashierTarget(
       matchId: bet.match_id,
       eventId,
       fightNumber: Number(matchRow.fight_number),
-      side: bet.side as 'meron' | 'wala',
+      side,
       betBarcode: bet.barcode,
       betAmount,
       collectedAmount,
@@ -2236,6 +2618,7 @@ async function buildMatchBetCashierTarget(
       cockNumber: Number(rooster?.cock_number ?? 0),
       bandNumber: rooster?.band_number ?? '—',
       entryDues: duesResult.dues,
+      settlementPayout,
     },
   }
 }
@@ -2246,10 +2629,56 @@ export async function resolveMatchBetByRoosterRegistrationId(
 ): Promise<{ error?: string; matchBet?: MatchBetCashierTarget }> {
   const supabase = await createClient()
 
-  const { data: match, error: matchError } = await supabase
+  async function loadBetForMatch(
+    match: {
+      id: string
+      fight_number: number
+      status: string
+      meron_entry_id: string
+      wala_entry_id: string
+      meron_rooster_id: string
+      wala_rooster_id: string
+      matching_number?: string | null
+    },
+    paymentStatus: 'unpaid' | 'paid'
+  ) {
+    const side =
+      match.meron_rooster_id === registrationId
+        ? ('meron' as const)
+        : ('wala' as const)
+
+    const { data: bet, error: betError } = await supabase
+      .from('match_bets')
+      .select(
+        'id, match_id, side, amount, collected_amount, barcode, payment_status, payment_id, payout_status'
+      )
+      .eq('match_id', match.id)
+      .eq('side', side)
+      .eq('payment_status', paymentStatus)
+      .maybeSingle()
+
+    if (betError) return { error: betError.message }
+    if (!bet) return {}
+
+    return buildMatchBetCashierTarget(eventId, {
+      ...bet,
+      matches: {
+        fight_number: match.fight_number,
+        status: match.status,
+        queue_status: null,
+        matching_number: match.matching_number ?? null,
+        meron_entry_id: match.meron_entry_id,
+        wala_entry_id: match.wala_entry_id,
+        meron_rooster_id: match.meron_rooster_id,
+        wala_rooster_id: match.wala_rooster_id,
+      },
+    })
+  }
+
+  const { data: draftMatch, error: draftMatchError } = await supabase
     .from('matches')
     .select(
-      'id, fight_number, status, meron_entry_id, wala_entry_id, meron_rooster_id, wala_rooster_id'
+      'id, fight_number, status, matching_number, meron_entry_id, wala_entry_id, meron_rooster_id, wala_rooster_id'
     )
     .eq('event_id', eventId)
     .eq('status', 'draft')
@@ -2259,37 +2688,29 @@ export async function resolveMatchBetByRoosterRegistrationId(
     .limit(1)
     .maybeSingle()
 
-  if (matchError) return { error: matchError.message }
-  if (!match) return {}
+  if (draftMatchError) return { error: draftMatchError.message }
+  if (draftMatch) {
+    const draftBet = await loadBetForMatch(draftMatch, 'unpaid')
+    if (draftBet.error) return { error: draftBet.error }
+    if (draftBet.matchBet) return draftBet
+  }
 
-  const side =
-    match.meron_rooster_id === registrationId
-      ? ('meron' as const)
-      : ('wala' as const)
-
-  const { data: bet, error: betError } = await supabase
-    .from('match_bets')
-    .select('id, match_id, side, amount, collected_amount, barcode, payment_status, payment_id')
-    .eq('match_id', match.id)
-    .eq('side', side)
-    .eq('payment_status', 'unpaid')
+  const { data: settlingMatch, error: settlingMatchError } = await supabase
+    .from('matches')
+    .select(
+      'id, fight_number, status, matching_number, meron_entry_id, wala_entry_id, meron_rooster_id, wala_rooster_id'
+    )
+    .eq('event_id', eventId)
+    .eq('status', 'settling')
+    .or(`meron_rooster_id.eq.${registrationId},wala_rooster_id.eq.${registrationId}`)
+    .order('fight_number', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
-  if (betError) return { error: betError.message }
-  if (!bet) return {}
+  if (settlingMatchError) return { error: settlingMatchError.message }
+  if (!settlingMatch) return {}
 
-  return buildMatchBetCashierTarget(eventId, {
-    ...bet,
-    matches: {
-      fight_number: match.fight_number,
-      status: match.status,
-      queue_status: null,
-      meron_entry_id: match.meron_entry_id,
-      wala_entry_id: match.wala_entry_id,
-      meron_rooster_id: match.meron_rooster_id,
-      wala_rooster_id: match.wala_rooster_id,
-    },
-  })
+  return loadBetForMatch(settlingMatch, 'paid')
 }
 
 export async function resolveCashierTarget(

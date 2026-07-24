@@ -10,6 +10,7 @@ import {
   deletePalitadaContributionSchema,
   lockMatchListSchema,
   lookupRoosterForMatchingSchema,
+  markVipSettlementPaidSchema,
   postMatchSettlementObligationSchema,
   updateFightQueueStatusSchema,
   updateMatchBetAmountsSchema,
@@ -28,6 +29,7 @@ import {
 } from '@/features/matches/palitada-service'
 import {
   completeMatchSettlement,
+  markVipSettlementObligationPaid,
   postMatchSettlementObligation,
 } from '@/features/matches/match-settling-service'
 import {
@@ -271,7 +273,37 @@ export async function postMatchSettlementObligationAction(
 
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/revolving-fund`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/results`)
   return { success: 'Obligation posted to revolving fund' }
+}
+
+export async function markVipSettlementPaidAction(
+  _prev: MatchActionState,
+  formData: FormData
+): Promise<MatchActionState> {
+  const profile = await requireMatchSettleManage()
+
+  const parsed = markVipSettlementPaidSchema.safeParse({
+    eventId: formData.get('eventId'),
+    matchId: formData.get('matchId'),
+    obligationId: formData.get('obligationId'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const result = await markVipSettlementObligationPaid(
+    profile.id,
+    parsed.data.eventId,
+    parsed.data.matchId,
+    parsed.data.obligationId
+  )
+  if (result.error) return { error: result.error }
+
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/results`)
+  return { success: 'VIP payment marked complete' }
 }
 
 export async function completeMatchSettlementAction(
@@ -297,6 +329,7 @@ export async function completeMatchSettlementAction(
   if (result.error) return { error: result.error }
 
   revalidatePath(`/dashboard/events/${parsed.data.eventId}/matching`)
+  revalidatePath(`/dashboard/events/${parsed.data.eventId}/results`)
   revalidatePath('/dashboard/fights')
   return { success: 'Match marked settled' }
 }

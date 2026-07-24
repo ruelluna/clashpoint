@@ -148,7 +148,7 @@ export function collectUsedRoosterIds(
 ): Set<string> {
   const used = new Set<string>()
   for (const match of matches) {
-    if (!isActiveMatchStatus(match.status)) continue
+    if (match.status === 'cancelled') continue
     used.add(match.meron_rooster_id)
     used.add(match.wala_rooster_id)
   }

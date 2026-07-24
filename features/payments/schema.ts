@@ -13,6 +13,7 @@ export const paymentCategorySchema = z.enum([
   'adjustment',
   'legacy',
   'match_bet',
+  'match_bet_payout',
 ])
 
 export const recordPaymentSchema = z
@@ -241,12 +242,31 @@ export const recordMatchBetPartialRefundSchema = matchBetCashAdjustmentBaseSchem
   reason: z.string().min(3, 'Reason must be at least 3 characters').max(500),
 })
 
+export const recordMatchBetWinPayoutSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    matchBetId: z.string().uuid(),
+    amountTendered: z.coerce.number().nonnegative(),
+    paymentMethod: paymentMethodSchema,
+    notes: z
+      .string()
+      .max(2000)
+      .optional()
+      .or(z.literal(''))
+      .transform((value) => value || undefined),
+  })
+  .refine((data) => data.paymentMethod === 'cash', {
+    message: 'Only cash payments are accepted',
+    path: ['paymentMethod'],
+  })
+
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>
 export type RecordMatchBetPaymentInput = z.infer<typeof recordMatchBetPaymentSchema>
 export type RecordMatchBetTopUpInput = z.infer<typeof recordMatchBetTopUpSchema>
 export type RecordMatchBetPartialRefundInput = z.infer<
   typeof recordMatchBetPartialRefundSchema
 >
+export type RecordMatchBetWinPayoutInput = z.infer<typeof recordMatchBetWinPayoutSchema>
 export type RefundPaymentInput = z.infer<typeof refundPaymentSchema>
 export type RefundSelectedPaymentsInput = z.infer<typeof refundSelectedPaymentsSchema>
 
@@ -271,6 +291,7 @@ export const PAYMENT_CATEGORY_LABELS: Record<
   adjustment: 'Fee adjustment',
   legacy: 'Combined (legacy)',
   match_bet: 'Pledge / match bet',
+  match_bet_payout: 'Match bet payout',
 }
 
 export function calculateBalance(

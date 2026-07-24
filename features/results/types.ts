@@ -34,6 +34,30 @@ export type ResultListItem = FightResultRow & {
   wala_entry_name: string
   meron_entry_id: string
   wala_entry_id: string
+  match_status: string
+  settlement_completed_at: string | null
+  revolving_fund_complete: boolean
+  vip_settlements: ResultVipSettlementItem[]
+  handler_settlements: ResultHandlerSettlementItem[]
+}
+
+export type ResultHandlerSettlementItem = {
+  name: string
+  side: 'Meron' | 'Wala'
+  betAmount: number
+  winnings: number
+  totalPayout: number
+  paid_at: string | null
+  status: 'pending' | 'posted' | 'paid'
+  kind: 'win' | 'draw_refund'
+}
+
+export type ResultVipSettlementItem = {
+  name: string
+  action: 'Pay' | 'Collect' | 'Refund'
+  amount: number
+  paid_at: string | null
+  status: 'pending' | 'posted' | 'paid'
 }
 
 export type MatchForResult = {

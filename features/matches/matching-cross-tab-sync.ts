@@ -7,10 +7,14 @@ export type CrossTabSource = 'broadcast' | 'storage' | 'poll'
 
 export type PalitadaSyncAction = 'palitada_added' | 'palitada_removed'
 
+export type SettlementSyncAction = 'settlement_updated'
+
+export type MatchingSyncAction = PalitadaSyncAction | SettlementSyncAction
+
 export type MatchingSyncMessage = {
   eventId: string
   matchId: string
-  action?: PalitadaSyncAction
+  action?: MatchingSyncAction
   fightNumber?: number
   contributionId?: string
   sentAt?: number
@@ -231,7 +235,11 @@ export function subscribeMatchingCrossTabMessages(options: {
 export function broadcastMatchingRefresh(
   eventId: string,
   matchId: string,
-  options?: { action?: PalitadaSyncAction; fightNumber?: number; contributionId?: string }
+  options?: {
+    action?: MatchingSyncAction
+    fightNumber?: number
+    contributionId?: string
+  }
 ) {
   publishSyncMessage({
     eventId,
@@ -240,6 +248,10 @@ export function broadcastMatchingRefresh(
     fightNumber: options?.fightNumber,
     contributionId: options?.contributionId,
   })
+}
+
+export function broadcastSettlementUpdated(eventId: string, matchId: string) {
+  broadcastMatchingRefresh(eventId, matchId, { action: 'settlement_updated' })
 }
 
 /** @deprecated Prefer subscribeMatchingCrossTabMessages */

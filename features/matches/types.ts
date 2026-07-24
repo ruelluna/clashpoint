@@ -50,18 +50,25 @@ export type MatchSettlementObligationItem = {
   event_id: string
   obligation_key: string
   obligation_type:
+    | 'handler_win_payout'
+    | 'handler_draw_refund'
     | 'monton_palitada_stake'
     | 'monton_palitada_payout'
     | 'monton_palitada_draw_refund'
     | 'monton_house_earnings'
-    | 'vip_palitada_payout_info'
+    | 'vip_palitada_payout'
+    | 'vip_palitada_collect'
+    | 'vip_palitada_draw_refund'
   amount: number
   label: string
   description: string | null
   contributor_id: string | null
   requires_ledger_post: boolean
-  status: 'pending' | 'posted'
+  status: 'pending' | 'posted' | 'paid'
   ledger_entry_id: string | null
+  paid_at: string | null
+  paid_by: string | null
+  payment_id: string | null
   sort_order: number
 }
 

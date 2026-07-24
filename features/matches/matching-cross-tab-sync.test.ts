@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   broadcastMatchingRefresh,
+  broadcastSettlementUpdated,
   resetMatchingCrossTabSyncForTests,
   subscribeMatchingCrossTabMessages,
   subscribeMatchingRefresh,
@@ -82,6 +83,28 @@ describe('matching-cross-tab-sync', () => {
         matchId: 'match-1',
         action: 'palitada_added',
         fightNumber: 2,
+        sentAt: expect.any(Number),
+      })
+    )
+  })
+
+  it('broadcasts settlement_updated for cashier and settling sync', () => {
+    const postMessage = vi.fn()
+    stubBrowserWindow()
+
+    vi.stubGlobal('BroadcastChannel', class {
+      postMessage = postMessage
+      close = vi.fn()
+      onmessage: ((event: MessageEvent) => void) | null = null
+    })
+
+    broadcastSettlementUpdated('event-1', 'match-1')
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'event-1',
+        matchId: 'match-1',
+        action: 'settlement_updated',
         sentAt: expect.any(Number),
       })
     )

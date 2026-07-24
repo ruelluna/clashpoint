@@ -11,6 +11,7 @@ import type {
   MatchStatus,
   PalitadaContributorItem,
 } from '@/features/matches/types'
+import { collectUsedRoosterIds } from '@/features/matches/utils'
 import { createClient } from '@/lib/supabase/server'
 
 type MatchQueryRow = {
@@ -419,13 +420,13 @@ export async function getEligibleRoostersForMatching(
   if (eventError) throw eventError
   if (policyError) throw policyError
 
-  const usedIds = new Set<string>()
-  for (const match of matches ?? []) {
-    const status = match.status as MatchStatus
-    if (['cancelled', 'completed'].includes(status)) continue
-    usedIds.add(match.meron_rooster_id as string)
-    usedIds.add(match.wala_rooster_id as string)
-  }
+  const usedIds = collectUsedRoosterIds(
+    (matches ?? []) as Array<{
+      meron_rooster_id: string
+      wala_rooster_id: string
+      status: MatchStatus
+    }>
+  )
 
   const eventRow = event as {
     weight_verification_required?: boolean | null

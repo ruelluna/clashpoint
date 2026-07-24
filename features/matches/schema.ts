@@ -123,6 +123,12 @@ export const completeMatchSettlementSchema = z.object({
   matchId: z.string().uuid(),
 })
 
+export const markVipSettlementPaidSchema = z.object({
+  eventId: z.string().uuid(),
+  matchId: z.string().uuid(),
+  obligationId: z.string().uuid(),
+})
+
 export const lookupRoosterForMatchingSchema = z.object({
   eventId: z.string().uuid(),
   barcode: z.string().min(1, 'Barcode is required'),
@@ -140,6 +146,7 @@ export type PostMatchSettlementObligationInput = z.infer<
   typeof postMatchSettlementObligationSchema
 >
 export type CompleteMatchSettlementInput = z.infer<typeof completeMatchSettlementSchema>
+export type MarkVipSettlementPaidInput = z.infer<typeof markVipSettlementPaidSchema>
 export type LookupRoosterForMatchingInput = z.infer<
   typeof lookupRoosterForMatchingSchema
 >

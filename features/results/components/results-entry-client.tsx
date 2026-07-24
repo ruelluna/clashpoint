@@ -1,11 +1,13 @@
 'use client'
 
+import { Fragment, useState } from 'react'
 import {
   Badge,
   Box,
   Button,
   Checkbox,
   Flex,
+  Link,
   NativeSelect,
   Stack,
   Text,
@@ -14,6 +16,7 @@ import {
 import { useActionState } from 'react'
 
 import { LAYOUT_GAP, FormField, PageStack, PanelCard } from '@/components/dashboard'
+import { formatCurrency } from '@/features/matches/components/matching-shared'
 import {
   recordResultAction,
   verifyResultAction,
@@ -36,6 +39,119 @@ function statusColor(
   return 'purple'
 }
 
+function settlementBadge(result: ResultListItem): {
+  label: string
+  color: 'gray' | 'green' | 'orange'
+} {
+  if (
+    result.vip_settlements.length === 0 &&
+    result.handler_settlements.length === 0 &&
+    result.match_status !== 'settling'
+  ) {
+    return { label: '—', color: 'gray' }
+  }
+  if (result.settlement_completed_at) {
+    return { label: 'Settled', color: 'green' }
+  }
+  if (result.match_status === 'settling') {
+    return { label: 'Settling', color: 'orange' }
+  }
+  return { label: '—', color: 'gray' }
+}
+
+function formatPaidAt(value: string | null): string {
+  if (!value) return 'Pending'
+  return new Date(value).toLocaleString()
+}
+
+function ResultSettlementDetails({
+  eventId,
+  result,
+}: {
+  eventId: string
+  result: ResultListItem
+}) {
+  const settled = Boolean(result.settlement_completed_at)
+
+  return (
+    <Stack gap={3} fontSize="sm">
+      <Text fontWeight="medium">Settlement details</Text>
+      <Text color="fg.muted">
+        Result: {FIGHT_RESULT_TYPE_LABELS[result.result_type]}
+        {result.under_protest ? ' · Under protest' : ''}
+      </Text>
+
+      {result.handler_settlements.length > 0 ? (
+        <Stack gap={2}>
+          <Text fontWeight="medium">Match Winners</Text>
+          {result.handler_settlements.map((handler) => (
+            <Flex
+              key={`${handler.name}-${handler.side}-${handler.totalPayout}`}
+              justify="space-between"
+              gap={2}
+              wrap="wrap"
+            >
+              <Text>
+                {handler.name} ({handler.side})
+                {handler.kind === 'win'
+                  ? ` · Bet ${formatCurrency(handler.betAmount)} + won ${formatCurrency(handler.winnings)}`
+                  : ' · Draw refund'}
+              </Text>
+              <Text>
+                {formatCurrency(handler.totalPayout)} ·{' '}
+                {handler.status === 'paid' ? formatPaidAt(handler.paid_at) : 'Pending'}
+              </Text>
+            </Flex>
+          ))}
+        </Stack>
+      ) : null}
+
+      {result.vip_settlements.length > 0 ? (
+        <Stack gap={2}>
+          <Text fontWeight="medium">VIP Palitada</Text>
+          {result.vip_settlements.map((vip) => (
+            <Flex
+              key={`${vip.name}-${vip.action}-${vip.amount}`}
+              justify="space-between"
+              gap={2}
+              wrap="wrap"
+            >
+              <Text>
+                {vip.action} {vip.name}
+              </Text>
+              <Text>
+                {formatCurrency(vip.amount)} ·{' '}
+                {vip.status === 'paid' ? formatPaidAt(vip.paid_at) : 'Pending'}
+              </Text>
+            </Flex>
+          ))}
+        </Stack>
+      ) : (
+        <Text color="fg.muted">No VIP Palitada payments for this fight.</Text>
+      )}
+
+      <Text>
+        Revolving fund:{' '}
+        {result.revolving_fund_complete ? 'All posts complete' : 'Posts pending'}
+      </Text>
+
+      {settled ? (
+        <Text color="fg.muted">
+          Match settled {formatPaidAt(result.settlement_completed_at)}
+        </Text>
+      ) : (
+        <Link
+          href={`/dashboard/events/${eventId}/matching?view=settling`}
+          color="blue.fg"
+          fontWeight="medium"
+        >
+          Open Matching → Settling
+        </Link>
+      )}
+    </Stack>
+  )
+}
+
 export function ResultsEntryClient({
   eventId,
   pendingMatches,
@@ -47,6 +163,7 @@ export function ResultsEntryClient({
   results: ResultListItem[]
   canManage: boolean
 }) {
+  const [expandedResultIds, setExpandedResultIds] = useState<Set<string>>(new Set())
   const [recordState, recordFormAction, recordPending] = useActionState(
     recordResultAction,
     initialState
@@ -65,6 +182,15 @@ export function ResultsEntryClient({
         : verifyState.success
 
   const feedbackTone = recordState.error || verifyState.error ? 'red' : 'green'
+
+  function toggleExpanded(resultId: string) {
+    setExpandedResultIds((current) => {
+      const next = new Set(current)
+      if (next.has(resultId)) next.delete(resultId)
+      else next.add(resultId)
+      return next
+    })
+  }
 
   return (
     <PageStack>
@@ -136,7 +262,7 @@ export function ResultsEntryClient({
 
       <PanelCard flush title="Recorded results">
         <Text fontSize="sm" color="fg.muted" px={{ base: 4, lg: LAYOUT_GAP.cardPadding }} pb={LAYOUT_GAP.cardTitle}>
-          Verified results update event standings.
+          Verified results update event standings. Expand a row to view settlement details after a fight is marked settled.
           <Text as="span" display={{ base: 'inline', lg: 'none' }}>
             {' '}
             Swipe horizontally to see all columns.
@@ -153,7 +279,7 @@ export function ResultsEntryClient({
             <Box as="table" width="full" fontSize="sm">
               <Box as="thead" bg="bg.subtle">
                 <Box as="tr">
-                  {['Fight', 'Meron', 'Wala', 'Result', 'Status', 'Actions'].map(
+                  {['Fight', 'Meron', 'Wala', 'Result', 'Status', 'Settlement', 'Actions'].map(
                     (heading) => (
                       <Box
                         as="th"
@@ -170,51 +296,95 @@ export function ResultsEntryClient({
                 </Box>
               </Box>
               <Box as="tbody">
-                {results.map((result) => (
-                  <Box as="tr" key={result.id} borderTopWidth="1px" borderColor="border">
-                    <Box as="td" px={4} py={3}>
-                      #{result.fight_number}
-                    </Box>
-                    <Box as="td" px={4} py={3}>
-                      {result.meron_entry_name}
-                    </Box>
-                    <Box as="td" px={4} py={3}>
-                      {result.wala_entry_name}
-                    </Box>
-                    <Box as="td" px={4} py={3}>
-                      {FIGHT_RESULT_TYPE_LABELS[result.result_type]}
-                      {result.under_protest ? (
-                        <Badge ml={2} colorPalette="orange" size="sm">
-                          Protest
-                        </Badge>
+                {results.map((result) => {
+                  const settlement = settlementBadge(result)
+                  const expanded = expandedResultIds.has(result.id)
+                  const showDetails =
+                    expanded &&
+                    (result.settlement_completed_at ||
+                      result.match_status === 'settling' ||
+                      result.vip_settlements.length > 0 ||
+                      result.handler_settlements.length > 0)
+
+                  return (
+                    <Fragment key={result.id}>
+                      <Box as="tr" borderTopWidth="1px" borderColor="border">
+                        <Box as="td" px={4} py={3}>
+                          #{result.fight_number}
+                        </Box>
+                        <Box as="td" px={4} py={3}>
+                          {result.meron_entry_name}
+                        </Box>
+                        <Box as="td" px={4} py={3}>
+                          {result.wala_entry_name}
+                        </Box>
+                        <Box as="td" px={4} py={3}>
+                          {FIGHT_RESULT_TYPE_LABELS[result.result_type]}
+                          {result.under_protest ? (
+                            <Badge ml={2} colorPalette="orange" size="sm">
+                              Protest
+                            </Badge>
+                          ) : null}
+                        </Box>
+                        <Box as="td" px={4} py={3}>
+                          <Badge colorPalette={statusColor(result.result_status)} size="sm">
+                            {RESULT_STATUS_LABELS[result.result_status]}
+                          </Badge>
+                        </Box>
+                        <Box as="td" px={4} py={3}>
+                          {settlement.label === '—' ? (
+                            <Text color="fg.muted">—</Text>
+                          ) : (
+                            <Badge colorPalette={settlement.color} size="sm">
+                              {settlement.label}
+                            </Badge>
+                          )}
+                        </Box>
+                        <Box as="td" px={4} py={3}>
+                          <Stack gap={2}>
+                            {canManage && result.result_status === 'submitted' ? (
+                              <form action={verifyFormAction}>
+                                <input type="hidden" name="resultId" value={result.id} />
+                                <input type="hidden" name="eventId" value={eventId} />
+                                <Button
+                                  type="submit"
+                                  size="md"
+                                  variant="outline"
+                                  loading={verifyPending}
+                                  width={{ base: 'full', sm: 'auto' }}
+                                >
+                                  Verify
+                                </Button>
+                              </form>
+                            ) : (
+                              <Text color="fg.muted">—</Text>
+                            )}
+                            {showDetails || settlement.label !== '—' ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => toggleExpanded(result.id)}
+                                width={{ base: 'full', sm: 'auto' }}
+                              >
+                                {expanded ? 'Hide details' : 'View details'}
+                              </Button>
+                            ) : null}
+                          </Stack>
+                        </Box>
+                      </Box>
+                      {showDetails ? (
+                        <Box as="tr" borderTopWidth="1px" borderColor="border">
+                          <td colSpan={7}>
+                            <Box px={4} py={4} bg="bg.subtle">
+                              <ResultSettlementDetails eventId={eventId} result={result} />
+                            </Box>
+                          </td>
+                        </Box>
                       ) : null}
-                    </Box>
-                    <Box as="td" px={4} py={3}>
-                      <Badge colorPalette={statusColor(result.result_status)} size="sm">
-                        {RESULT_STATUS_LABELS[result.result_status]}
-                      </Badge>
-                    </Box>
-                    <Box as="td" px={4} py={3}>
-                      {canManage && result.result_status === 'submitted' ? (
-                        <form action={verifyFormAction}>
-                          <input type="hidden" name="resultId" value={result.id} />
-                          <input type="hidden" name="eventId" value={eventId} />
-                          <Button
-                            type="submit"
-                            size="md"
-                            variant="outline"
-                            loading={verifyPending}
-                            width={{ base: 'full', sm: 'auto' }}
-                          >
-                            Verify
-                          </Button>
-                        </form>
-                      ) : (
-                        <Text color="fg.muted">—</Text>
-                      )}
-                    </Box>
-                  </Box>
-                ))}
+                    </Fragment>
+                  )
+                })}
               </Box>
             </Box>
           </Box>
