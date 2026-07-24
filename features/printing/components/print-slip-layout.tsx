@@ -2,6 +2,7 @@
 
 import { Box, Button, Flex, Stack, Text } from '@chakra-ui/react'
 import { useCallback, useState } from 'react'
+import { flushSync } from 'react-dom'
 
 import {
   PrintFormatProvider,
@@ -11,13 +12,60 @@ import {
 type PrintSlipLayoutProps = {
   title: string
   eventName: string
+  /** Center full slip on 100×150 mm label paper, landscape (barcode slips only). */
+  labelSizedSlip?: boolean
   children: React.ReactNode
   onPrint?: (format: PrintFormat) => void
+}
+
+function setDocumentPrintFormat(format: PrintFormat | null) {
+  if (format) {
+    document.documentElement.dataset.printFormat = format
+  } else {
+    delete document.documentElement.dataset.printFormat
+  }
+}
+
+function setDocumentLabelPrint(active: boolean) {
+  if (active) {
+    document.documentElement.dataset.labelPrint = 'true'
+  } else {
+    delete document.documentElement.dataset.labelPrint
+  }
+}
+
+function usesLabelPrint(format: PrintFormat, labelSizedSlip: boolean) {
+  return format === 'sticker' || (format === 'slip' && labelSizedSlip)
+}
+
+function waitForBarcodeThenPrint(root: Element | null, print: () => void) {
+  let attempts = 0
+  const maxAttempts = 60
+
+  const tryPrint = () => {
+    attempts += 1
+    const svgs = root?.querySelectorAll('.barcode-label svg') ?? []
+    const barcodesReady =
+      svgs.length === 0 ||
+      [...svgs].every((svg) => svg.childElementCount > 0)
+
+    if (barcodesReady || attempts >= maxAttempts) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(print)
+      })
+      return
+    }
+
+    window.requestAnimationFrame(tryPrint)
+  }
+
+  window.requestAnimationFrame(tryPrint)
 }
 
 export function PrintSlipLayout({
   title,
   eventName,
+  labelSizedSlip = false,
   children,
   onPrint,
 }: PrintSlipLayoutProps) {
@@ -25,41 +73,49 @@ export function PrintSlipLayout({
 
   const handlePrint = useCallback(
     (format: PrintFormat) => {
-      setPrintFormat(format)
-
       if (onPrint) {
+        flushSync(() => setPrintFormat(format))
         onPrint(format)
         return
       }
+
+      flushSync(() => setPrintFormat(format))
 
       const root = document.querySelector('.print-slip-root')
       if (root instanceof HTMLElement) {
         root.dataset.printFormat = format
       }
+      setDocumentPrintFormat(format)
+      setDocumentLabelPrint(usesLabelPrint(format, labelSizedSlip))
 
       const resetFormat = () => {
         if (root instanceof HTMLElement) {
           root.dataset.printFormat = 'slip'
         }
+        setDocumentPrintFormat(null)
+        setDocumentLabelPrint(false)
         setPrintFormat('slip')
         window.removeEventListener('afterprint', resetFormat)
       }
 
       window.addEventListener('afterprint', resetFormat)
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          window.print()
-        })
+
+      waitForBarcodeThenPrint(root, () => {
+        window.print()
       })
     },
-    [onPrint]
+    [onPrint, labelSizedSlip]
   )
+
+  const rootClassName = labelSizedSlip
+    ? 'print-slip-root print-slip-label-sized'
+    : 'print-slip-root'
 
   return (
     <PrintFormatProvider format={printFormat}>
       <Stack
         gap={6}
-        className="print-slip-root"
+        className={rootClassName}
         data-print-format={printFormat}
       >
         <Flex gap={2} className="no-print" wrap="wrap">
@@ -73,9 +129,13 @@ export function PrintSlipLayout({
           borderColor="border"
           rounded="lg"
           p={6}
-          maxW="md"
           bg="bg"
           className="print-slip-panel"
+          css={{
+            '@media screen': {
+              maxWidth: 'md',
+            },
+          }}
         >
           <Box className="print-slip-header">
             <Text
@@ -94,64 +154,6 @@ export function PrintSlipLayout({
             {children}
           </Stack>
         </Box>
-        <style jsx global>{`
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            .print-slip-root,
-            .print-slip-root * {
-              visibility: visible;
-            }
-            .print-slip-root {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-            }
-            .no-print {
-              display: none !important;
-            }
-            .print-slip-only {
-              display: block;
-            }
-            .print-sticker-only {
-              display: none;
-            }
-            .print-slip-root[data-print-format='sticker'] .print-slip-panel {
-              width: 50mm;
-              max-width: 50mm;
-              padding: 2mm;
-              border: none;
-              border-radius: 0;
-            }
-            .print-slip-root[data-print-format='sticker'] .print-slip-header,
-            .print-slip-root[data-print-format='sticker'] .print-slip-only {
-              display: none !important;
-            }
-            .print-slip-root[data-print-format='sticker'] .print-sticker-only {
-              display: block !important;
-            }
-            .print-slip-root[data-print-format='sticker'] .print-slip-body {
-              margin-top: 0;
-              gap: 1mm;
-            }
-            .print-slip-root[data-print-format='sticker'] .print-sticker-line {
-              font-size: 8pt;
-              line-height: 1.2;
-              text-align: center;
-            }
-            @page {
-              size: 50mm 25mm;
-              margin: 0;
-            }
-          }
-          @media screen {
-            .print-sticker-only {
-              display: none;
-            }
-          }
-        `}</style>
       </Stack>
     </PrintFormatProvider>
   )

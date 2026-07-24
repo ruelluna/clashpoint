@@ -12,7 +12,7 @@ type BarcodeLabelProps = {
 const HEIGHT_BY_SIZE = {
   default: 60,
   compact: 48,
-  sticker: 28,
+  sticker: 56,
 } as const
 
 export function BarcodeLabel({ value, size = 'default' }: BarcodeLabelProps) {
@@ -43,9 +43,10 @@ export function BarcodeLabel({ value, size = 'default' }: BarcodeLabelProps) {
     JsBarcode(svgRef.current, value, {
       format: 'CODE128',
       displayValue: true,
-      fontSize: size === 'sticker' ? 10 : 14,
+      fontSize: size === 'sticker' ? 12 : 14,
       height: HEIGHT_BY_SIZE[size],
-      margin: size === 'sticker' ? 2 : 8,
+      margin: size === 'sticker' ? 4 : 8,
+      lineColor: '#000000',
       width: barWidth,
     })
   }, [value, size, barWidth])

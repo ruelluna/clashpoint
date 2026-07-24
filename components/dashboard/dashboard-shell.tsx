@@ -61,7 +61,7 @@ export function DashboardShell({
   }
 
   return (
-    <Flex h="100dvh" overflow="hidden" bg="bg">
+    <Flex h="100dvh" overflow="hidden" bg="bg" data-dashboard-shell="">
       <Box
         as="aside"
         display={{ base: 'none', lg: 'block' }}
