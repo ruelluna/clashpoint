@@ -89,6 +89,7 @@ export type MatchSideDetails = {
   bet_amount: number
   bet_collected_amount: number
   bet_barcode: string | null
+  bet_scan_code: string | null
   bet_payment_status: MatchBetPaymentStatus
 }
 

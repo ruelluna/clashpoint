@@ -625,6 +625,7 @@ export type Database = {
           registration_status: Database['public']['Enums']['registration_status']
           payment_status: Database['public']['Enums']['payment_status']
           owner_barcode: string | null
+          owner_scan_code: string | null
           fee_snapshot: Json | null
           notes: string | null
           created_by: string | null
@@ -649,6 +650,7 @@ export type Database = {
           registration_status?: Database['public']['Enums']['registration_status']
           payment_status?: Database['public']['Enums']['payment_status']
           owner_barcode?: string | null
+          owner_scan_code?: string | null
           fee_snapshot?: Json | null
           notes?: string | null
           created_by?: string | null
@@ -673,6 +675,7 @@ export type Database = {
           registration_status?: Database['public']['Enums']['registration_status']
           payment_status?: Database['public']['Enums']['payment_status']
           owner_barcode?: string | null
+          owner_scan_code?: string | null
           fee_snapshot?: Json | null
           notes?: string | null
           created_by?: string | null
@@ -1050,6 +1053,7 @@ export type Database = {
           weight_verification_status: Database['public']['Enums']['weight_status'] | null
           weight_notes: string | null
           cock_entry_barcode: string | null
+          cock_scan_code: string | null
           handler_name: string | null
           notes: string | null
           created_at: string
@@ -1106,6 +1110,7 @@ export type Database = {
           weight_verification_status?: Database['public']['Enums']['weight_status'] | null
           weight_notes?: string | null
           cock_entry_barcode?: string | null
+          cock_scan_code?: string | null
           handler_name?: string | null
           created_at?: string
           updated_at?: string
@@ -1161,6 +1166,7 @@ export type Database = {
           weight_verification_status?: Database['public']['Enums']['weight_status'] | null
           weight_notes?: string | null
           cock_entry_barcode?: string | null
+          cock_scan_code?: string | null
           handler_name?: string | null
           created_at?: string
           updated_at?: string
@@ -1258,6 +1264,7 @@ export type Database = {
           amount: number
           collected_amount: number
           barcode: string
+          scan_code: string | null
           payment_status: Database['public']['Enums']['match_bet_payment_status']
           payment_id: string | null
           printed_at: string | null
@@ -1274,6 +1281,7 @@ export type Database = {
           amount?: number
           collected_amount?: number
           barcode: string
+          scan_code?: string | null
           payment_status?: Database['public']['Enums']['match_bet_payment_status']
           payment_id?: string | null
           printed_at?: string | null
@@ -1290,6 +1298,7 @@ export type Database = {
           amount?: number
           collected_amount?: number
           barcode?: string
+          scan_code?: string | null
           payment_status?: Database['public']['Enums']['match_bet_payment_status']
           payment_id?: string | null
           printed_at?: string | null

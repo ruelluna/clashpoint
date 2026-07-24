@@ -172,18 +172,55 @@ export function formatOwnerBarcode(eventId: string, sequence: number): string {
   return `OWN-${prefix}-${String(sequence).padStart(4, '0')}`
 }
 
+export function formatOwnerScanCode(sequence: number): string {
+  return `O${String(sequence).padStart(4, '0')}`
+}
+
+export function ownerScanCodeFromCanonical(barcode: string): string | null {
+  const match = /^OWN-[A-Z0-9]{8}-(\d{4})$/i.exec(barcode.trim())
+  if (!match) return null
+  return formatOwnerScanCode(Number.parseInt(match[1]!, 10))
+}
+
+export function resolveOwnerScanCode(
+  barcode: string | null | undefined,
+  scanCode?: string | null
+): string | null {
+  if (scanCode?.trim()) return normalizeOwnerBarcodeInput(scanCode)
+  if (!barcode) return null
+  return ownerScanCodeFromCanonical(barcode)
+}
+
 export function normalizeOwnerBarcodeInput(value: string): string {
   return value.trim().toUpperCase()
 }
 
+export function parseOwnerScanCodeSequence(value: string): number | null {
+  const normalized = normalizeOwnerBarcodeInput(value)
+  const match = /^O(\d{4})$/.exec(normalized)
+  if (!match) return null
+  const parsed = Number.parseInt(match[1]!, 10)
+  return Number.isNaN(parsed) || parsed <= 0 ? null : parsed
+}
+
+export function isOwnerScanCode(value: string): boolean {
+  return parseOwnerScanCodeSequence(value) != null
+}
+
 export function isOwnerBarcodeForEvent(value: string, eventId: string): boolean {
-  return parseOwnerBarcodeSequence(normalizeOwnerBarcodeInput(value), eventId) != null
+  const normalized = normalizeOwnerBarcodeInput(value)
+  if (isOwnerScanCode(normalized)) return true
+  return parseOwnerBarcodeSequence(normalized, eventId) != null
 }
 
 export function parseOwnerBarcodeSequence(value: string, eventId: string): number | null {
+  const normalized = normalizeOwnerBarcodeInput(value)
+  const fromScan = parseOwnerScanCodeSequence(normalized)
+  if (fromScan != null) return fromScan
+
   const prefix = `OWN-${eventId.replace(/-/g, '').slice(0, 8).toUpperCase()}-`
-  if (!value.startsWith(prefix)) return null
-  const parsed = Number.parseInt(value.slice(prefix.length), 10)
+  if (!normalized.startsWith(prefix)) return null
+  const parsed = Number.parseInt(normalized.slice(prefix.length), 10)
   return Number.isNaN(parsed) ? null : parsed
 }
 
@@ -201,10 +238,45 @@ export function formatCockEntryBarcode(eventId: string, sequence: number): strin
   return `COCK-${prefix}-${String(sequence).padStart(4, '0')}`
 }
 
+export function formatCockScanCode(sequence: number): string {
+  return `C${String(sequence).padStart(4, '0')}`
+}
+
+export function cockScanCodeFromCanonical(barcode: string): string | null {
+  const match = /^COCK-[A-Z0-9]{8}-(\d{4})$/i.exec(barcode.trim())
+  if (!match) return null
+  return formatCockScanCode(Number.parseInt(match[1]!, 10))
+}
+
+export function resolveCockScanCode(
+  barcode: string | null | undefined,
+  scanCode?: string | null
+): string | null {
+  if (scanCode?.trim()) return normalizeCockEntryBarcodeInput(scanCode)
+  if (!barcode) return null
+  return cockScanCodeFromCanonical(barcode)
+}
+
+export function parseCockScanCodeSequence(value: string): number | null {
+  const normalized = normalizeCockEntryBarcodeInput(value)
+  const match = /^C(\d{4})$/.exec(normalized)
+  if (!match) return null
+  const parsed = Number.parseInt(match[1]!, 10)
+  return Number.isNaN(parsed) || parsed <= 0 ? null : parsed
+}
+
+export function isCockScanCode(value: string): boolean {
+  return parseCockScanCodeSequence(value) != null
+}
+
 export function parseCockEntryBarcodeSequence(value: string, eventId: string): number | null {
+  const normalized = normalizeCockEntryBarcodeInput(value)
+  const fromScan = parseCockScanCodeSequence(normalized)
+  if (fromScan != null) return fromScan
+
   const prefix = `COCK-${eventId.replace(/-/g, '').slice(0, 8).toUpperCase()}-`
-  if (!value.startsWith(prefix)) return null
-  const parsed = Number.parseInt(value.slice(prefix.length), 10)
+  if (!normalized.startsWith(prefix)) return null
+  const parsed = Number.parseInt(normalized.slice(prefix.length), 10)
   return Number.isNaN(parsed) ? null : parsed
 }
 
@@ -222,7 +294,9 @@ export function normalizeCockEntryBarcodeInput(value: string): string {
 }
 
 export function isCockEntryBarcodeForEvent(value: string, eventId: string): boolean {
-  return parseCockEntryBarcodeSequence(normalizeCockEntryBarcodeInput(value), eventId) != null
+  const normalized = normalizeCockEntryBarcodeInput(value)
+  if (isCockScanCode(normalized)) return true
+  return parseCockEntryBarcodeSequence(normalized, eventId) != null
 }
 
 export const createEntrySchema = entryMetadataSchema.extend({

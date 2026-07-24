@@ -37,6 +37,7 @@ export default async function OwnerPrintPage({ params }: OwnerPrintPageProps) {
           contactFullName={entry.contact_full_name}
           contactDesignation={entry.contact_designation}
           ownerBarcode={entry.owner_barcode}
+          ownerScanCode={entry.owner_scan_code}
           feeSettings={feeSettings}
         />
         <Button asChild variant="outline" alignSelf="flex-start" className="no-print">

@@ -46,6 +46,7 @@ type BetRow = {
   amount: number
   collected_amount: number
   barcode: string
+  scan_code?: string | null
   payment_status: MatchBetPaymentStatus
 }
 
@@ -68,11 +69,24 @@ export function mapMatchListItemFromQueryRow(
       amount: number
       collected_amount: number
       barcode: string | null
+      scan_code: string | null
       payment_status: MatchBetPaymentStatus
     }
   > = {
-    meron: { amount: 0, collected_amount: 0, barcode: null, payment_status: 'unpaid' },
-    wala: { amount: 0, collected_amount: 0, barcode: null, payment_status: 'unpaid' },
+    meron: {
+      amount: 0,
+      collected_amount: 0,
+      barcode: null,
+      scan_code: null,
+      payment_status: 'unpaid',
+    },
+    wala: {
+      amount: 0,
+      collected_amount: 0,
+      barcode: null,
+      scan_code: null,
+      payment_status: 'unpaid',
+    },
   }
 
   for (const bet of bets) {
@@ -80,6 +94,7 @@ export function mapMatchListItemFromQueryRow(
       amount: Number(bet.amount),
       collected_amount: Number(bet.collected_amount),
       barcode: bet.barcode,
+      scan_code: bet.scan_code ?? null,
       payment_status: bet.payment_status,
     }
   }
@@ -119,6 +134,7 @@ export function mapMatchListItemFromQueryRow(
       bet_amount: betsBySide.meron.amount,
       bet_collected_amount: betsBySide.meron.collected_amount,
       bet_barcode: betsBySide.meron.barcode,
+      bet_scan_code: betsBySide.meron.scan_code,
       bet_payment_status: betsBySide.meron.payment_status,
     },
     wala: {
@@ -133,6 +149,7 @@ export function mapMatchListItemFromQueryRow(
       bet_amount: betsBySide.wala.amount,
       bet_collected_amount: betsBySide.wala.collected_amount,
       bet_barcode: betsBySide.wala.barcode,
+      bet_scan_code: betsBySide.wala.scan_code,
       bet_payment_status: betsBySide.wala.payment_status,
     },
   }

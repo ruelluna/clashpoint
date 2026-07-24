@@ -205,11 +205,12 @@ export async function getEntryIdByOwnerBarcode(
   barcode: string
 ): Promise<string | null> {
   const supabase = await createClient()
+  const normalized = barcode.trim().toUpperCase()
   const { data, error } = await supabase
     .from('entries')
     .select('id')
     .eq('event_id', eventId)
-    .eq('owner_barcode', barcode)
+    .or(`owner_barcode.eq.${normalized},owner_scan_code.eq.${normalized}`)
     .is('deleted_at', null)
     .maybeSingle()
 

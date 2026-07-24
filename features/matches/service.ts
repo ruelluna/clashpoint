@@ -11,7 +11,12 @@ import type {
   UpdateFightQueueStatusInput,
   UpdateMatchBetAmountsInput,
 } from '@/features/matches/schema'
-import { formatMatchBetBarcode, generateMatchingNumber, nextMatchingNumberSequence } from '@/features/matches/schema'
+import {
+  formatMatchBetBarcode,
+  formatMatchBetScanCode,
+  generateMatchingNumber,
+  nextMatchingNumberSequence,
+} from '@/features/matches/schema'
 import { tryPromoteMatchToQueue } from '@/features/matches/promotion'
 import type {
   EligibleRooster,
@@ -115,6 +120,7 @@ async function upsertMatchBets(
       side: 'meron',
       amount: meronBet,
       barcode: formatMatchBetBarcode(eventId, fightNumber, 'meron'),
+      scan_code: formatMatchBetScanCode(fightNumber, 'meron'),
       payment_status: 'unpaid',
       recorded_by: actorId,
     },
@@ -124,6 +130,7 @@ async function upsertMatchBets(
       side: 'wala',
       amount: walaBet,
       barcode: formatMatchBetBarcode(eventId, fightNumber, 'wala'),
+      scan_code: formatMatchBetScanCode(fightNumber, 'wala'),
       payment_status: 'unpaid',
       recorded_by: actorId,
     },
@@ -179,7 +186,7 @@ export async function lookupEligibleRoosterByBarcode(
       `
     )
     .eq('event_id', input.eventId)
-    .eq('cock_entry_barcode', barcode)
+    .or(`cock_entry_barcode.eq.${barcode},cock_scan_code.eq.${barcode}`)
     .maybeSingle()
 
   if (error) return { error: error.message }

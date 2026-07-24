@@ -4,7 +4,11 @@ import { writeAuditLog } from '@/features/audit/service'
 import { resolveRegistrationBandNumber } from '@/features/entries/band-display'
 import { applyRegistrationEligibility } from '@/features/eligibility/registration-bridge'
 import { listCockEntryBarcodesForEvent } from '@/features/entries/queries'
-import { getNextCockEntryBarcode } from '@/features/entries/schema'
+import {
+  formatCockScanCode,
+  getNextCockEntryBarcode,
+  parseCockEntryBarcodeSequence,
+} from '@/features/entries/schema'
 import { getEvent } from '@/features/events/queries'
 import { resolveSubmitTargetStatus } from '@/features/registrations/workflow'
 import { createRooster } from '@/features/roosters/service'
@@ -247,6 +251,8 @@ export async function createRoosterForEntry(
 
   const existingBarcodes = await listCockEntryBarcodesForEvent(input.eventId)
   const cockEntryBarcode = getNextCockEntryBarcode(input.eventId, existingBarcodes)
+  const cockSequence = parseCockEntryBarcodeSequence(cockEntryBarcode, input.eventId) ?? 0
+  const cockScanCode = formatCockScanCode(cockSequence)
 
   const submittedAt = new Date().toISOString()
 
@@ -256,6 +262,7 @@ export async function createRoosterForEntry(
       entry_id: input.entryId,
       event_id: input.eventId,
       cock_entry_barcode: cockEntryBarcode,
+      cock_scan_code: cockScanCode,
       registry_rooster_id: registryResult.roosterId,
       cock_number: nextCockNumber,
       band_number: band,

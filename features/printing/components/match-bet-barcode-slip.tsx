@@ -2,10 +2,12 @@
 
 import { Stack, Text } from '@chakra-ui/react'
 
-import { FIGHT_SIDE_LABELS } from '@/features/matches/schema'
+import { FIGHT_SIDE_LABELS, resolveMatchBetScanCode } from '@/features/matches/schema'
 import { BarcodeLabel } from '@/features/printing/components/barcode-label'
+import { CompactBarcodeLabelBody } from '@/features/printing/components/compact-barcode-label-body'
+import { PrintFormatSection } from '@/features/printing/components/print-format-section'
 import { PrintSlipLayout } from '@/features/printing/components/print-slip-layout'
-import { usePrintFormat } from '@/features/printing/print-format-context'
+import { formatPledgeStickerHeadline } from '@/features/printing/format-compact-label-line'
 
 type MatchBetBarcodeSlipProps = {
   eventName: string
@@ -19,6 +21,7 @@ type MatchBetBarcodeSlipProps = {
   bandNumber: string
   betAmount: number
   betBarcode: string
+  betScanCode?: string | null
 }
 
 function formatCurrency(amount: number) {
@@ -29,46 +32,47 @@ function formatCurrency(amount: number) {
 }
 
 function MatchBetSlipContent(props: MatchBetBarcodeSlipProps) {
-  const printFormat = usePrintFormat()
-  const barcodeSize = printFormat === 'sticker' ? 'sticker' : 'default'
+  const amountLabel = formatCurrency(props.betAmount)
+  const stickerHeadline = formatPledgeStickerHeadline(
+    props.fightNumber,
+    FIGHT_SIDE_LABELS[props.side],
+    amountLabel
+  )
+  const stickerCode =
+    resolveMatchBetScanCode(props.betBarcode, props.betScanCode) ?? props.betBarcode
 
   return (
     <>
-      <Stack gap={1} className="print-slip-only">
-        <Text fontSize="2xl" fontWeight="bold" textAlign="center">
-          PLEDGE
-        </Text>
-        <Text fontSize="sm" textAlign="center" fontWeight="semibold">
-          Fight #{props.fightNumber} · {FIGHT_SIDE_LABELS[props.side]}
-        </Text>
-        {props.matchingNumber ? (
-          <Text fontSize="xs" textAlign="center" color="fg.muted">
-            {props.matchingNumber}
+      <PrintFormatSection when="slip">
+        <Stack gap={1} className="print-slip-only">
+          <Text fontSize="2xl" fontWeight="bold" textAlign="center">
+            PLEDGE
           </Text>
-        ) : null}
-        <Text fontSize="sm">
-          Entry #{props.entryNumber} · {props.ownerName}
-        </Text>
-        <Text fontWeight="semibold">{props.entryName}</Text>
-        <Text fontSize="sm" color="fg.muted">
-          Cock #{props.cockNumber} · Band {props.bandNumber}
-        </Text>
-        <Text fontSize="lg" fontWeight="bold">
-          Due: {formatCurrency(props.betAmount)}
-        </Text>
-      </Stack>
+          <Text fontSize="sm" textAlign="center" fontWeight="semibold">
+            Fight #{props.fightNumber} · {FIGHT_SIDE_LABELS[props.side]}
+          </Text>
+          {props.matchingNumber ? (
+            <Text fontSize="xs" textAlign="center" color="fg.muted">
+              {props.matchingNumber}
+            </Text>
+          ) : null}
+          <Text fontSize="sm">
+            Entry #{props.entryNumber} · {props.ownerName}
+          </Text>
+          <Text fontWeight="semibold">{props.entryName}</Text>
+          <Text fontSize="sm" color="fg.muted">
+            Cock #{props.cockNumber} · Band {props.bandNumber}
+          </Text>
+          <Text fontSize="lg" fontWeight="bold">
+            Due: {amountLabel}
+          </Text>
+          <BarcodeLabel value={stickerCode} size="default" />
+        </Stack>
+      </PrintFormatSection>
 
-      <Stack gap={1} className="print-sticker-only">
-        <Text className="print-sticker-line" fontWeight="semibold">
-          #{props.fightNumber} {FIGHT_SIDE_LABELS[props.side]}
-        </Text>
-        {props.matchingNumber ? (
-          <Text className="print-sticker-line">{props.matchingNumber}</Text>
-        ) : null}
-        <Text className="print-sticker-line">{formatCurrency(props.betAmount)}</Text>
-      </Stack>
-
-      <BarcodeLabel value={props.betBarcode} size={barcodeSize} />
+      <PrintFormatSection when="sticker">
+        <CompactBarcodeLabelBody headline={stickerHeadline} barcode={stickerCode} />
+      </PrintFormatSection>
     </>
   )
 }

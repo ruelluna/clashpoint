@@ -134,6 +134,7 @@ function mapMatchRow(row: MatchQueryRow): PublicMatch {
       bet_amount: 0,
       bet_collected_amount: 0,
       bet_barcode: null,
+      bet_scan_code: null,
       bet_payment_status: 'unpaid',
     },
     wala: {
@@ -148,6 +149,7 @@ function mapMatchRow(row: MatchQueryRow): PublicMatch {
       bet_amount: 0,
       bet_collected_amount: 0,
       bet_barcode: null,
+      bet_scan_code: null,
       bet_payment_status: 'unpaid',
     },
   }
@@ -355,7 +357,7 @@ export async function getPublicRegistrationLabels(
   const { data: entry, error: entryError } = await supabase
     .from('entries')
     .select(
-      'id, entry_number, owner_barcode, owner_name, contact_full_name, contact_designation'
+      'id, entry_number, owner_barcode, owner_scan_code, owner_name, contact_full_name, contact_designation'
     )
     .eq('id', receipt.entryId)
     .eq('event_id', eventId)
@@ -369,7 +371,7 @@ export async function getPublicRegistrationLabels(
 
   const { data: registrations, error: registrationsError } = await supabase
     .from('rooster_event_registrations')
-    .select('id, band_number, cock_entry_barcode, registry_rooster_id')
+    .select('id, band_number, cock_entry_barcode, cock_scan_code, registry_rooster_id')
     .eq('entry_id', receipt.entryId)
     .eq('event_id', eventId)
     .order('cock_number', { ascending: true })
@@ -395,6 +397,7 @@ export async function getPublicRegistrationLabels(
     .map((row) => {
       const bandNumber = (row.band_number as string) ?? ''
       const cockEntryBarcode = (row.cock_entry_barcode as string | null) ?? ''
+      const cockScanCode = (row.cock_scan_code as string | null) ?? null
       const registryId = row.registry_rooster_id as string | null
       const registryName = registryId ? registryNameById.get(registryId) : undefined
       if (!cockEntryBarcode) return null
@@ -403,6 +406,7 @@ export async function getPublicRegistrationLabels(
         entryName: registryName?.trim() || bandNumber || 'Rooster',
         bandNumber,
         cockEntryBarcode,
+        cockScanCode,
       }
     })
     .filter((row): row is NonNullable<typeof row> => row != null)
@@ -415,6 +419,7 @@ export async function getPublicRegistrationLabels(
       entryId: entry.id as string,
       entryNumber: entry.entry_number as string,
       ownerBarcode: entry.owner_barcode as string,
+      ownerScanCode: (entry.owner_scan_code as string | null) ?? null,
       ownerName: (entry.owner_name as string) ?? '',
       contactFullName: (entry.contact_full_name as string | null) ?? null,
       contactDesignation: (entry.contact_designation as string | null) ?? null,

@@ -25,6 +25,7 @@ const baseMatch: MatchListItem = {
     bet_amount: 30000,
     bet_collected_amount: 30000,
     bet_barcode: 'BET-1-M',
+    bet_scan_code: 'B0001M',
     bet_payment_status: 'paid',
   },
   wala: {
@@ -39,6 +40,7 @@ const baseMatch: MatchListItem = {
     bet_amount: 20000,
     bet_collected_amount: 20000,
     bet_barcode: 'BET-1-W',
+    bet_scan_code: 'B0001W',
     bet_payment_status: 'paid',
   },
   meron_palitada: [],

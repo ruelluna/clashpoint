@@ -355,6 +355,7 @@ function buildMatchListItem(
     bet_amount: 500,
     bet_collected_amount: 500,
     bet_barcode: null,
+    bet_scan_code: null,
     bet_payment_status: 'paid' as const,
   }
 

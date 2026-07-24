@@ -119,6 +119,7 @@ export function PublicRegistrationWizard({
             entryNumber={completeState.entryNumber ?? entryNumber}
             ownerName={completeState.ownerName ?? ''}
             ownerBarcode={completeState.ownerBarcode}
+            ownerScanCode={completeState.ownerScanCode}
             contactFullName={completeState.contactFullName}
             contactDesignation={completeState.contactDesignation}
             roosters={completeState.roosters}

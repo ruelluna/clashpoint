@@ -2147,7 +2147,9 @@ export async function resolveMatchBetCashierTarget(
       `
     )
     .eq('event_id', eventId)
-    .eq('barcode', barcode.toUpperCase())
+    .or(
+      `barcode.eq.${barcode.toUpperCase()},scan_code.eq.${barcode.toUpperCase()}`
+    )
     .maybeSingle()
 
   if (betError) return { error: betError.message }
@@ -2315,7 +2317,9 @@ export async function resolveCashierTarget(
         'id, entry_number, entry_name, owner_name, owner_barcode, payment_status, fee_snapshot'
       )
       .eq('event_id', eventId)
-      .eq('owner_barcode', classified.value)
+      .or(
+        `owner_barcode.eq.${classified.value},owner_scan_code.eq.${classified.value}`
+      )
       .is('deleted_at', null)
       .maybeSingle()
 
@@ -2334,7 +2338,9 @@ export async function resolveCashierTarget(
       .from('rooster_event_registrations')
       .select('id, entry_id')
       .eq('event_id', eventId)
-      .eq('cock_entry_barcode', classified.value)
+      .or(
+        `cock_entry_barcode.eq.${classified.value},cock_scan_code.eq.${classified.value}`
+      )
       .maybeSingle()
 
     if (regError) return { error: regError.message }

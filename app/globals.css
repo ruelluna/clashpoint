@@ -296,6 +296,11 @@
     margin: 0;
   }
 
+  @page sticker {
+    size: 50mm 30mm;
+    margin: 0;
+  }
+
   html,
   body {
     overflow: visible !important;
@@ -304,7 +309,9 @@
   }
 
   html[data-label-print='true'],
-  html[data-label-print='true'] body {
+  html[data-label-print='true'] body,
+  html[data-sticker-print='true'],
+  html[data-sticker-print='true'] body {
     height: 100%;
     width: 100%;
     margin: 0 !important;
@@ -312,7 +319,9 @@
   }
 
   html[data-label-print='true'] main,
-  html[data-label-print='true'] main > * {
+  html[data-label-print='true'] main > *,
+  html[data-sticker-print='true'] main,
+  html[data-sticker-print='true'] main > * {
     max-width: none !important;
     width: 100% !important;
     padding: 0 !important;
@@ -344,7 +353,6 @@
     width: 100%;
   }
 
-  .print-slip-root[data-print-format='sticker'],
   .print-slip-root.print-slip-label-sized[data-print-format='slip'] {
     page: label;
     position: fixed;
@@ -352,6 +360,20 @@
     display: flex !important;
     flex-direction: column;
     align-items: stretch;
+    justify-content: center;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100%;
+    margin: 0 !important;
+  }
+
+  .print-slip-root[data-print-format='sticker'] {
+    page: sticker;
+    position: fixed;
+    inset: 0;
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
     width: 100% !important;
     max-width: none !important;
@@ -386,7 +408,6 @@
     display: none;
   }
 
-  .print-slip-root[data-print-format='sticker'] .print-slip-panel,
   .print-slip-root.print-slip-label-sized[data-print-format='slip'] .print-slip-panel {
     width: 100% !important;
     max-width: none !important;
@@ -401,6 +422,24 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    position: relative;
+  }
+
+  .print-slip-root[data-print-format='sticker'] .print-slip-panel {
+    width: 50mm !important;
+    height: 30mm !important;
+    max-width: 50mm !important;
+    min-height: 30mm !important;
+    padding: 1.5mm 2mm;
+    border: none !important;
+    border-radius: 0 !important;
+    box-sizing: border-box;
+    margin: 0 auto !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
     position: relative;
   }
 
@@ -449,8 +488,35 @@
 
   .print-slip-root[data-print-format='sticker'] .print-slip-body {
     margin-top: 0;
-    gap: 2mm;
+    gap: 0.5mm;
     align-items: center;
+    width: 100%;
+  }
+
+  .print-slip-root[data-print-format='sticker'] .compact-barcode-label-body {
+    width: 100%;
+    gap: 0.5mm;
+  }
+
+  .print-slip-root[data-print-format='sticker'] .print-sticker-headline {
+    font-size: 7pt;
+    line-height: 1.1;
+    text-align: center;
+    color: #000 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+  }
+
+  .print-slip-root[data-print-format='sticker'] .print-sticker-code {
+    font-size: 6pt;
+    line-height: 1.1;
+    text-align: center;
+    color: #000 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     width: 100%;
   }
 
@@ -460,21 +526,37 @@
     justify-content: center;
   }
 
-  .print-slip-root[data-print-format='sticker'] .print-sticker-line {
-    font-size: 10pt;
-    line-height: 1.2;
-    text-align: center;
-    color: #000 !important;
-  }
-
   .print-slip-root[data-print-format='sticker'] .barcode-label svg {
-    max-width: 100% !important;
-    width: 100%;
+    max-width: 75% !important;
+    width: auto !important;
+    height: auto;
   }
 }
 
 @media screen {
+  .print-slip-root[data-print-format='slip'] .print-sticker-only,
+  .print-slip-root[data-print-format='slip'] .compact-barcode-label-body {
+    display: none !important;
+  }
+
   .print-sticker-only {
-    display: none;
+    display: none !important;
+  }
+
+  .print-slip-root[data-print-format='sticker'] .print-slip-header,
+  .print-slip-root[data-print-format='sticker'] .print-slip-only {
+    display: none !important;
+  }
+
+  .print-slip-root[data-print-format='sticker'] .print-sticker-only {
+    display: flex !important;
+  }
+
+  .print-slip-root[data-print-format='sticker'] .print-slip-panel {
+    width: 50mm;
+    min-height: 30mm;
+    max-width: 50mm;
+    padding: 1.5mm 2mm;
+    border-style: dashed;
   }
 }

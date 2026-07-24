@@ -3,11 +3,14 @@ import { describe, expect, it } from 'vitest'
 import {
   createMatchSchema,
   formatMatchBetBarcode,
+  formatMatchBetScanCode,
   formatMatchingNumber,
   formatMatchingNumberSuffix,
   generateMatchingNumber,
+  isMatchBetScanCode,
   nextMatchingNumberSequence,
   parseMatchBetBarcode,
+  parseMatchBetScanCode,
   parseMatchingNumberSequence,
 } from '@/features/matches/schema'
 
@@ -89,6 +92,20 @@ describe('match bet barcode helpers', () => {
     const barcode = formatMatchBetBarcode(eventId, 42, 'meron')
     expect(barcode).toBe('BET-00000000-0042-M')
     expect(parseMatchBetBarcode(barcode, eventId)).toEqual({
+      fightNumber: 42,
+      side: 'meron',
+    })
+  })
+
+  it('formats and parses BET scan codes', () => {
+    expect(formatMatchBetScanCode(42, 'meron')).toBe('B0042M')
+    expect(formatMatchBetScanCode(42, 'wala')).toBe('B0042W')
+    expect(parseMatchBetScanCode('b0042m')).toEqual({
+      fightNumber: 42,
+      side: 'meron',
+    })
+    expect(isMatchBetScanCode('B0042W')).toBe(true)
+    expect(parseMatchBetBarcode('B0042M', eventId)).toEqual({
       fightNumber: 42,
       side: 'meron',
     })

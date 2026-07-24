@@ -296,8 +296,16 @@ export function formatOwnerBarcode(eventId, sequence) {
   return `OWN-${eventIdPrefix(eventId)}-${String(sequence).padStart(4, '0')}`
 }
 
+export function formatOwnerScanCode(sequence) {
+  return `O${String(sequence).padStart(4, '0')}`
+}
+
 export function formatCockEntryBarcode(eventId, sequence) {
   return `COCK-${eventIdPrefix(eventId)}-${String(sequence).padStart(4, '0')}`
+}
+
+export function formatCockScanCode(sequence) {
+  return `C${String(sequence).padStart(4, '0')}`
 }
 
 export function formatPaymentReference(eventId, sequence) {
@@ -308,6 +316,11 @@ export function formatMatchBetBarcode(eventId, fightNumber, side) {
   const prefix = eventIdPrefix(eventId)
   const sideCode = side === 'meron' ? 'M' : 'W'
   return `BET-${prefix}-${String(fightNumber).padStart(4, '0')}-${sideCode}`
+}
+
+export function formatMatchBetScanCode(fightNumber, side) {
+  const sideCode = side === 'meron' ? 'M' : 'W'
+  return `B${String(fightNumber).padStart(4, '0')}${sideCode}`
 }
 
 function feesRequiredForRegPayment(fees) {
@@ -682,6 +695,7 @@ async function insertSeedMatchWithBets(
       side: 'meron',
       amount: meronBet,
       barcode: formatMatchBetBarcode(eventId, fightNumber, 'meron'),
+      scan_code: formatMatchBetScanCode(fightNumber, 'meron'),
       payment_status: 'unpaid',
       recorded_by: actorId,
     },
@@ -691,6 +705,7 @@ async function insertSeedMatchWithBets(
       side: 'wala',
       amount: walaBet,
       barcode: formatMatchBetBarcode(eventId, fightNumber, 'wala'),
+      scan_code: formatMatchBetScanCode(fightNumber, 'wala'),
       payment_status: 'unpaid',
       recorded_by: actorId,
     },
@@ -1027,6 +1042,7 @@ export async function seedOwnersEntriesAndRoosters({
 
     const entryNumber = formatEntryNumber(i + 1)
     const ownerBarcode = formatOwnerBarcode(eventId, i + 1)
+    const ownerScanCode = formatOwnerScanCode(i + 1)
     const paymentStatus = tier === 'unpaid' ? 'unpaid' : tier === 'partial' ? 'partial' : 'paid'
     const regPaymentStatus = deriveRegPaymentStatus(tier, fees)
 
@@ -1054,6 +1070,7 @@ export async function seedOwnersEntriesAndRoosters({
         registration_status: 'approved',
         payment_status: paymentStatus,
         owner_barcode: ownerBarcode,
+        owner_scan_code: ownerScanCode,
         fee_snapshot: snapshot,
         notes: `Seed ${tier} dues`,
         created_by: actorId,
@@ -1069,6 +1086,7 @@ export async function seedOwnersEntriesAndRoosters({
       cockSeq += 1
       const weightGrams = baseWeights[(i + cock) % baseWeights.length] + (cock - 1) * 5
       const cockBarcode = formatCockEntryBarcode(eventId, cockSeq)
+      const cockScanCode = formatCockScanCode(cockSeq)
       const bandNumber = `SEED-${entryNumber}-${cock}`
 
       const { data: registration, error: regError } = await supabase
@@ -1077,6 +1095,7 @@ export async function seedOwnersEntriesAndRoosters({
           entry_id: entry.id,
           event_id: eventId,
           cock_entry_barcode: cockBarcode,
+          cock_scan_code: cockScanCode,
           registry_rooster_id: null,
           cock_number: cock,
           band_number: bandNumber,

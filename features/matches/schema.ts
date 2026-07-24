@@ -249,8 +249,54 @@ export function formatMatchBetBarcode(
   return `BET-${prefix}-${String(fightNumber).padStart(4, '0')}-${sideCode}`
 }
 
+export function formatMatchBetScanCode(
+  fightNumber: number,
+  side: 'meron' | 'wala'
+): string {
+  const sideCode = side === 'meron' ? 'M' : 'W'
+  return `B${String(fightNumber).padStart(4, '0')}${sideCode}`
+}
+
+export function matchBetScanCodeFromCanonical(barcode: string): string | null {
+  const match = /^BET-[A-Z0-9]{8}-(\d{4})-(M|W)$/i.exec(barcode.trim())
+  if (!match) return null
+  return formatMatchBetScanCode(
+    Number.parseInt(match[1]!, 10),
+    match[2]!.toUpperCase() === 'M' ? 'meron' : 'wala'
+  )
+}
+
+export function resolveMatchBetScanCode(
+  barcode: string | null | undefined,
+  scanCode?: string | null
+): string | null {
+  if (scanCode?.trim()) return normalizeMatchBetBarcodeInput(scanCode)
+  if (!barcode) return null
+  return matchBetScanCodeFromCanonical(barcode)
+}
+
 export function normalizeMatchBetBarcodeInput(value: string): string {
   return value.trim().toUpperCase()
+}
+
+export function parseMatchBetScanCode(
+  raw: string
+): { fightNumber: number; side: 'meron' | 'wala' } | null {
+  const value = normalizeMatchBetBarcodeInput(raw)
+  const match = /^B(\d{4})(M|W)$/.exec(value)
+  if (!match) return null
+
+  const fightNumber = Number.parseInt(match[1]!, 10)
+  if (Number.isNaN(fightNumber) || fightNumber <= 0) return null
+
+  return {
+    fightNumber,
+    side: match[2] === 'M' ? 'meron' : 'wala',
+  }
+}
+
+export function isMatchBetScanCode(value: string): boolean {
+  return parseMatchBetScanCode(value) != null
 }
 
 export function isMatchBetBarcodeForEvent(value: string, eventId: string): boolean {
@@ -262,6 +308,9 @@ export function parseMatchBetBarcode(
   eventId: string
 ): { fightNumber: number; side: 'meron' | 'wala' } | null {
   const value = normalizeMatchBetBarcodeInput(raw)
+  const fromScan = parseMatchBetScanCode(value)
+  if (fromScan != null) return fromScan
+
   const prefix = `BET-${eventId.replace(/-/g, '').slice(0, 8).toUpperCase()}-`
   if (!value.startsWith(prefix)) return null
 

@@ -1,10 +1,11 @@
 'use client'
 
 import { Button, Flex, Input, Text } from '@chakra-ui/react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { OwnerBarcodeScannerDialog } from '@/features/entries/components/owner-barcode-scanner-dialog'
 import { lookupRoosterByBarcodeAction } from '@/features/inspection/actions'
+import { useBarcodeScanInput } from '@/hooks/use-barcode-scan-input'
 
 type RoosterBarcodeScanRowProps = {
   eventId: string
@@ -17,43 +18,38 @@ export function RoosterBarcodeScanRow({
   onResolved,
   disabled = false,
 }: RoosterBarcodeScanRowProps) {
-  const scanInputRef = useRef<HTMLInputElement>(null)
-  const [scanValue, setScanValue] = useState('')
   const [scanError, setScanError] = useState<string | null>(null)
-  const [scanPending, setScanPending] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
 
-  const resolveBarcode = useCallback(
+  const handleSubmit = useCallback(
     async (rawBarcode: string) => {
-      const trimmed = rawBarcode.trim()
-      if (!trimmed) {
-        setScanError('Enter a barcode to scan')
-        return
-      }
-
-      setScanPending(true)
-      setScanError(null)
-
-      const result = await lookupRoosterByBarcodeAction(eventId, trimmed)
-      setScanPending(false)
+      const result = await lookupRoosterByBarcodeAction(eventId, rawBarcode)
 
       if (result.error || !result.registrationId) {
         setScanError(result.error ?? 'No rooster found for this barcode')
-        scanInputRef.current?.select()
-        return
+        return 'error' as const
       }
 
-      setScanValue('')
+      setScanError(null)
       onResolved(result.registrationId)
+      return 'success' as const
     },
     [eventId, onResolved]
   )
 
-  async function handleScanKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== 'Enter') return
-    event.preventDefault()
-    await resolveBarcode(scanValue)
-  }
+  const {
+    inputRef,
+    value,
+    onChange,
+    onKeyDown,
+    onFocus,
+    submitCurrent,
+    submitRaw,
+    pending,
+  } = useBarcodeScanInput({
+    onSubmit: handleSubmit,
+    disabled,
+  })
 
   return (
     <Flex direction="column" gap={2}>
@@ -62,16 +58,17 @@ export function RoosterBarcodeScanRow({
           Scan
         </Text>
         <Input
-          ref={scanInputRef}
+          ref={inputRef}
           size="md"
           placeholder="Scan COCK barcode or type and press Enter"
-          value={scanValue}
+          value={value}
           onChange={(event) => {
-            setScanValue(event.target.value)
+            onChange(event)
             if (scanError) setScanError(null)
           }}
-          onKeyDown={handleScanKeyDown}
-          disabled={scanPending || disabled}
+          onKeyDown={onKeyDown}
+          onFocus={onFocus}
+          disabled={pending || disabled}
           data-testid="inspection-rooster-scan-input"
         />
       </Flex>
@@ -80,16 +77,16 @@ export function RoosterBarcodeScanRow({
           size="md"
           variant="outline"
           onClick={() => setScannerOpen(true)}
-          disabled={scanPending || disabled}
+          disabled={pending || disabled}
         >
           Scan with camera
         </Button>
         <Button
           size="md"
           variant="outline"
-          onClick={() => void resolveBarcode(scanValue)}
-          loading={scanPending}
-          disabled={!scanValue.trim() || disabled}
+          onClick={submitCurrent}
+          loading={pending}
+          disabled={!value.trim() || disabled}
         >
           Look up barcode
         </Button>
@@ -102,7 +99,7 @@ export function RoosterBarcodeScanRow({
       <OwnerBarcodeScannerDialog
         open={scannerOpen}
         onOpenChange={setScannerOpen}
-        onScan={(barcode) => void resolveBarcode(barcode)}
+        onScan={(barcode) => submitRaw(barcode)}
         title="Scan cock entry barcode"
         hint="Point the camera at the cock entry slip barcode. Scanning stops after a successful read."
       />

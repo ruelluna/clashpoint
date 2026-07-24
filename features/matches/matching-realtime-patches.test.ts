@@ -31,6 +31,7 @@ function buildMatch(id: string, fightNumber: number): MatchListItem {
       bet_amount: 10000,
       bet_collected_amount: 10000,
       bet_barcode: null,
+      bet_scan_code: null,
       bet_payment_status: 'paid',
     },
     wala: {
@@ -45,6 +46,7 @@ function buildMatch(id: string, fightNumber: number): MatchListItem {
       bet_amount: 5000,
       bet_collected_amount: 5000,
       bet_barcode: null,
+      bet_scan_code: null,
       bet_payment_status: 'paid',
     },
     meron_palitada: [],

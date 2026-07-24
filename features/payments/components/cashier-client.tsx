@@ -12,7 +12,7 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useActionState, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import {
@@ -25,6 +25,7 @@ import {
 } from '@/components/dashboard'
 import { OwnerBarcodeScannerDialog } from '@/features/entries/components/owner-barcode-scanner-dialog'
 import { PAYMENT_STATUS_LABELS } from '@/features/entries/schema'
+import type { ScanSubmitOutcome } from '@/features/entries/barcode-scan-utils'
 import type { AdminHandoverCandidate, CashierSessionSummary } from '@/features/cashier-sessions/types'
 import type { EventFeeSettings } from '@/features/events/fee-utils'
 import { CashierCloseSessionForm } from '@/features/payments/components/cashier-close-session-form'
@@ -58,6 +59,7 @@ import type {
 } from '@/features/payments/types'
 import { FIGHT_SIDE_LABELS, MATCH_BET_PAYMENT_STATUS_LABELS } from '@/features/matches/schema'
 import { formatEventDateTime } from '@/lib/format/datetime'
+import { useBarcodeScanInput } from '@/hooks/use-barcode-scan-input'
 
 type CashierClientProps = {
   eventId: string
@@ -118,10 +120,8 @@ export function CashierClient({
   initialBarcode,
 }: CashierClientProps) {
   const router = useRouter()
-  const scanInputRef = useRef<HTMLInputElement>(null)
-  const [scanValue, setScanValue] = useState('')
   const [scanError, setScanError] = useState<string | null>(null)
-  const [scanPending, setScanPending] = useState(false)
+  const [dropdownPending, setDropdownPending] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [matches, setMatches] = useState<CashierTargetMatch[]>([])
   const [activeMatch, setActiveMatch] = useState<CashierTargetMatch | null>(null)
@@ -154,10 +154,20 @@ export function CashierClient({
   const [lastPaymentId, setLastPaymentId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (betRecordState.paymentId) {
-      setLastPaymentId(betRecordState.paymentId)
-    }
-  }, [betRecordState.paymentId])
+    if (!betRecordState.paymentId) return
+    setLastPaymentId(betRecordState.paymentId)
+    setActiveMatchBet((current) => {
+      if (!current) return current
+      return {
+        ...current,
+        betPaymentStatus: 'paid',
+        collectedAmount: current.betAmount,
+        adjustmentDelta: 0,
+        primaryPaymentId: betRecordState.paymentId ?? current.primaryPaymentId,
+      }
+    })
+    router.refresh()
+  }, [betRecordState.paymentId, router])
 
   const [paymentCategory, setPaymentCategory] = useState<PaymentCategory>('cash_bond')
   const [collectAmount, setCollectAmount] = useState(0)
@@ -205,46 +215,57 @@ export function CashierClient({
   }, [])
 
   const resolveQuery = useCallback(
-    async (raw: string) => {
+    async (raw: string): Promise<ScanSubmitOutcome> => {
       const trimmed = raw.trim()
       if (!trimmed) {
         setScanError('Enter a barcode or search for an owner / entry')
-        return
+        return 'error'
       }
 
-      setScanPending(true)
       setScanError(null)
       setMatches([])
       setActiveMatchBet(null)
 
       const result = await lookupCashierTargetAction(eventId, trimmed)
-      setScanPending(false)
 
       if (result.error) {
         setScanError(result.error)
         setActiveMatch(null)
-        scanInputRef.current?.select()
-        return
+        return 'error'
       }
 
       if (result.matchBet) {
         applyMatchBet(result.matchBet)
-        setScanValue('')
-        return
+        return 'success'
       }
 
       const found = result.matches ?? []
       if (found.length === 1) {
         applyMatch(found[0])
-        setScanValue('')
-        return
+        return 'success'
       }
 
       setActiveMatch(null)
       setMatches(found)
+      return found.length > 0 ? 'error' : 'error'
     },
     [applyMatch, applyMatchBet, eventId]
   )
+
+  const {
+    inputRef: scanInputRef,
+    value: scanValue,
+    onChange: onScanChange,
+    onKeyDown: onScanKeyDown,
+    onFocus: onScanFocus,
+    submitCurrent: submitScanQuery,
+    submitRaw: submitScanRaw,
+    pending: scanPending,
+  } = useBarcodeScanInput({
+    onSubmit: resolveQuery,
+    autoFocus: canOperate && session != null,
+    disabled: !canOperate || session == null,
+  })
 
   useEffect(() => {
     if (!initialBarcode?.trim()) return
@@ -304,21 +325,15 @@ export function CashierClient({
     return parts.length ? parts.join(' · ') : 'No fees configured'
   }, [feeSettings])
 
-  async function handleScanKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== 'Enter') return
-    event.preventDefault()
-    await resolveQuery(scanValue)
-  }
-
   async function selectEntryFromDropdown(entryId: string) {
     if (!entryId) {
       setActiveMatch(null)
       return
     }
-    setScanPending(true)
+    setDropdownPending(true)
     setScanError(null)
     const result = await getCashierDuesAction(eventId, entryId)
-    setScanPending(false)
+    setDropdownPending(false)
     if (result.error || !result.match) {
       setScanError(result.error ?? 'Could not load dues for this entry')
       return
@@ -422,10 +437,11 @@ export function CashierClient({
               placeholder="Scan OWN-/COCK-/BET- barcode, or search owner / entry #"
               value={scanValue}
               onChange={(event) => {
-                setScanValue(event.target.value)
+                onScanChange(event)
                 if (scanError) setScanError(null)
               }}
-              onKeyDown={handleScanKeyDown}
+              onKeyDown={onScanKeyDown}
+              onFocus={onScanFocus}
               disabled={scanPending}
               data-testid="cashier-scan-input"
             />
@@ -440,7 +456,7 @@ export function CashierClient({
               </Button>
               <Button
                 size="md"
-                onClick={() => void resolveQuery(scanValue)}
+                onClick={submitScanQuery}
                 loading={scanPending}
                 disabled={!scanValue.trim()}
               >
@@ -543,60 +559,41 @@ export function CashierClient({
                     </Text>
                   </Flex>
 
-                  <FormField label="Cash tendered" required>
-                    <Input
-                      name="amountTendered"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      required
-                      value={amountTendered > 0 ? amountTendered : ''}
-                      onChange={(event) => {
-                        const parsed = Number.parseFloat(event.currentTarget.value)
-                        setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
-                      }}
-                      data-testid="cashier-pledge-tendered"
-                    />
-                  </FormField>
-
                   {betRecordState.error ? (
                     <Text fontSize="sm" color="red.500">
                       {betRecordState.error}
                     </Text>
                   ) : null}
-                  {betRecordState.success ? (
-                    <Stack gap={2}>
-                      <Text fontSize="sm" color="green.600">
-                        {betRecordState.success}
-                      </Text>
-                      {betRecordState.changeGiven != null && betRecordState.changeGiven > 0 ? (
-                        <Text fontSize="sm" fontWeight="medium">
-                          Change: {formatCurrency(betRecordState.changeGiven)}
-                        </Text>
-                      ) : null}
-                      {lastPaymentId ? (
-                        <ButtonGroup>
-                          <Button asChild size="sm" variant="outline">
-                            <Link
-                              href={`/dashboard/events/${eventId}/payments/${lastPaymentId}/print`}
-                            >
-                              Print receipt
-                            </Link>
-                          </Button>
-                        </ButtonGroup>
-                      ) : null}
-                    </Stack>
-                  ) : null}
 
-                  <Button
-                    type="submit"
-                    loading={betRecordPending}
-                    alignSelf="flex-start"
-                    disabled={!isCashierTenderValid(activeMatchBet.betAmount, amountTendered)}
-                    data-testid="cashier-record-pledge"
-                  >
-                    Collect pledge
-                  </Button>
+                  {!betRecordState.success ? (
+                    <>
+                      <FormField label="Cash tendered" required>
+                        <Input
+                          name="amountTendered"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          required
+                          value={amountTendered > 0 ? amountTendered : ''}
+                          onChange={(event) => {
+                            const parsed = Number.parseFloat(event.currentTarget.value)
+                            setAmountTendered(Number.isNaN(parsed) ? 0 : parsed)
+                          }}
+                          data-testid="cashier-pledge-tendered"
+                        />
+                      </FormField>
+
+                      <Button
+                        type="submit"
+                        loading={betRecordPending}
+                        alignSelf="flex-start"
+                        disabled={!isCashierTenderValid(activeMatchBet.betAmount, amountTendered)}
+                        data-testid="cashier-record-pledge"
+                      >
+                        Collect pledge
+                      </Button>
+                    </>
+                  ) : null}
                 </Stack>
               </form>
             ) : activeMatchBet.betPaymentStatus === 'paid' &&
@@ -726,9 +723,39 @@ export function CashierClient({
                 </Stack>
               </form>
             ) : activeMatchBet.betPaymentStatus === 'paid' ? (
-              <Text fontSize="sm" color="fg.muted">
-                Pledge already collected for this slip.
-              </Text>
+              <Stack gap={LAYOUT_GAP.form} maxW="xl">
+                {betRecordState.success ? (
+                  <>
+                    <Text fontSize="sm" color="green.600">
+                      {betRecordState.success}
+                    </Text>
+                    {betRecordState.changeGiven != null && betRecordState.changeGiven > 0 ? (
+                      <Text fontSize="sm" fontWeight="medium">
+                        Change: {formatCurrency(betRecordState.changeGiven)}
+                      </Text>
+                    ) : null}
+                  </>
+                ) : (
+                  <Text fontSize="sm" color="fg.muted">
+                    Pledge already collected for this slip.
+                  </Text>
+                )}
+                <Flex justify="space-between" fontWeight="semibold">
+                  <Text>Pledge collected</Text>
+                  <Text>{formatCurrency(activeMatchBet.collectedAmount)}</Text>
+                </Flex>
+                {(lastPaymentId ?? activeMatchBet.primaryPaymentId) ? (
+                  <ButtonGroup>
+                    <Button asChild size="sm" variant="outline">
+                      <Link
+                        href={`/dashboard/events/${eventId}/payments/${lastPaymentId ?? activeMatchBet.primaryPaymentId}/print`}
+                      >
+                        Print receipt
+                      </Link>
+                    </Button>
+                  </ButtonGroup>
+                ) : null}
+              </Stack>
             ) : null}
           </Stack>
         </PanelCard>
@@ -993,10 +1020,7 @@ export function CashierClient({
         <OwnerBarcodeScannerDialog
           open={scannerOpen}
           onOpenChange={setScannerOpen}
-          onScan={(barcode) => {
-            setScanValue(barcode)
-            void resolveQuery(barcode)
-          }}
+          onScan={(barcode) => submitScanRaw(barcode)}
           title="Scan barcode"
           hint="Point the camera at an OWNER or COCK entry slip barcode."
         />
